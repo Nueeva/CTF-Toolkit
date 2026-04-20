@@ -48,6 +48,23 @@ def redact_sensitive_text(text):
     return redacted
 
 
+def validate_http_url(url):
+    """Validasi URL agar hanya menerima skema http/https."""
+    return re.match(r"^https?://", url, flags=re.IGNORECASE) is not None
+
+
+def sanitize_params(params):
+    """Filter parameter agar format tetap aman dan rapi."""
+    clean = {}
+    for key, value in params.items():
+        if not re.match(r"^[A-Za-z0-9_.-]{1,100}$", key):
+            print(f"[!] Lewati key parameter tidak valid: {key}")
+            continue
+        safe_value = re.sub(r"[\x00-\x1F\x7F]", "", str(value))[:500]
+        clean[key] = safe_value
+    return clean
+
+
 def read_text_or_file():
     """Minta user memilih input dari teks langsung atau file."""
     print("\n[1] Input teks langsung")
@@ -190,10 +207,10 @@ def regex_flag_finder():
 
     # Batas panjang konten flag dibuat konfigurable untuk menghindari over-match.
     patterns = [
-        rf"flag\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"CTF\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"[A-Za-z0-9_\-]+\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"FLAG\[[^\n\r\]]{{1,{FLAG_MAX_CONTENT_LEN}}}\]",
+        rf"flag\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"CTF\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"[A-Za-z0-9_\-]+\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"FLAG\[[^\n\r]{{1,{FLAG_MAX_CONTENT_LEN}}}\]",
     ]
 
     results = set()
@@ -265,9 +282,12 @@ def http_request_tester():
     if not url:
         print("[!] URL tidak boleh kosong.")
         return
+    if not validate_http_url(url):
+        print("[!] URL harus diawali http:// atau https://")
+        return
 
     param_text = safe_input("Masukkan parameter (format k=v,k2=v2) atau kosong: ")
-    params = parse_params(param_text)
+    params = sanitize_params(parse_params(param_text))
 
     try:
         if method == "GET":
