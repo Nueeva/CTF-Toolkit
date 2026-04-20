@@ -204,7 +204,7 @@ def regex_flag_finder_menu() -> None:
         rf"FLAG\[[^\n\r\]]{{1,{max_len}}}\]",
         rf"LKS\{{[^\n\r\}}]{{1,{max_len}}}\}}",
         rf"LKSJAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
-        rf"LKS[_\s-]?JAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"LKS[_\-\s]?JAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
     ]
 
     results = set()
