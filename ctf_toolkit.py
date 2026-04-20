@@ -11,6 +11,10 @@ import sys
 # Kata kunci umum untuk filtering hasil yang menarik.
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "password", "secret", "token", "admin"]
 FLAG_MAX_CONTENT_LEN = 200
+ASCII_PRINTABLE_START = 32
+ASCII_PRINTABLE_END = 126
+MAX_SUSPICIOUS_DISPLAY = 100
+MAX_RESPONSE_DISPLAY = 4000
 
 
 def safe_input(prompt):
@@ -206,11 +210,12 @@ def regex_flag_finder():
         return
 
     # Batas panjang konten flag dibuat konfigurable untuk menghindari over-match.
+    max_len = str(FLAG_MAX_CONTENT_LEN)
     patterns = [
-        rf"flag\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"CTF\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"[A-Za-z0-9_\-]+\{{[^\n\r}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
-        rf"FLAG\[[^\n\r]{{1,{FLAG_MAX_CONTENT_LEN}}}\]",
+        r"flag\{[^\n\r\}]{1," + max_len + r"}\}",
+        r"CTF\{[^\n\r\}]{1," + max_len + r"}\}",
+        r"[A-Za-z0-9_\-]+\{[^\n\r\}]{1," + max_len + r"}\}",
+        r"FLAG\[[^\n\r\]]{1," + max_len + r"}\]",
     ]
 
     results = set()
@@ -228,7 +233,10 @@ def regex_flag_finder():
 
 def extract_printable_strings(raw_bytes, min_len=4):
     """Ekstrak string printable dari data biner."""
-    text = ''.join(chr(b) if 32 <= b <= 126 else '\n' for b in raw_bytes)
+    text = ''.join(
+        chr(b) if ASCII_PRINTABLE_START <= b <= ASCII_PRINTABLE_END else '\n'
+        for b in raw_bytes
+    )
     return [line for line in text.splitlines() if len(line) >= min_len]
 
 
@@ -262,10 +270,11 @@ def file_scanner():
 
     if suspicious:
         print("[+] String mencurigakan:")
-        for idx, value in enumerate(suspicious[:100], start=1):
+        for idx, value in enumerate(suspicious[:MAX_SUSPICIOUS_DISPLAY], start=1):
             print(f"  {idx}. {value}")
-        if len(suspicious) > 100:
-            print(f"[i] {len(suspicious) - 100} hasil lain disembunyikan.")
+        if len(suspicious) > MAX_SUSPICIOUS_DISPLAY:
+            hidden_count = len(suspicious) - MAX_SUSPICIOUS_DISPLAY
+            print(f"[i] {hidden_count} hasil lain disembunyikan.")
     else:
         print("[-] Tidak ada string mencurigakan terdeteksi.")
 
@@ -299,9 +308,9 @@ def http_request_tester():
         print("[!] Warning: Output response untuk analisis, hindari membagikan data sensitif.")
         safe_response = redact_sensitive_text(response.text)
         print("[+] Response:")
-        print(safe_response[:4000])
-        if len(safe_response) > 4000:
-            print("[i] Response dipotong hingga 4000 karakter.")
+        print(safe_response[:MAX_RESPONSE_DISPLAY])
+        if len(safe_response) > MAX_RESPONSE_DISPLAY:
+            print(f"[i] Response dipotong hingga {MAX_RESPONSE_DISPLAY} karakter.")
     except requests.RequestException as exc:
         print(f"[!] HTTP request gagal: {exc}")
 
