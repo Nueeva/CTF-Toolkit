@@ -9,8 +9,18 @@ import requests
 import sys
 
 # Kata kunci umum untuk filtering hasil yang menarik.
-SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "password", "secret", "token", "admin"]
-XOR_SEARCH_KEYWORDS = ["flag", "ctf", "key"]
+SUSPICIOUS_KEYWORDS = [
+    "flag",
+    "ctf",
+    "key",
+    "lks",
+    "lksjaktim",
+    "password",
+    "secret",
+    "token",
+    "admin",
+]
+XOR_SEARCH_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim"]
 FLAG_MAX_CONTENT_LEN = 200
 ASCII_PRINTABLE_START = 32
 ASCII_PRINTABLE_END = 126
