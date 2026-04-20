@@ -10,6 +10,7 @@ import sys
 
 # Kata kunci umum untuk filtering hasil yang menarik.
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "password", "secret", "token", "admin"]
+FLAG_MAX_CONTENT_LEN = 200
 
 
 def safe_input(prompt):
@@ -37,6 +38,14 @@ def parse_params(param_text):
         key, value = pair.split("=", 1)
         params[key.strip()] = value.strip()
     return params
+
+
+def redact_sensitive_text(text):
+    """Redact pola kredensial sederhana sebelum ditampilkan ke terminal."""
+    redacted = re.sub(r"(?i)(password\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", text)
+    redacted = re.sub(r"(?i)(token\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", redacted)
+    redacted = re.sub(r"(?i)(secret\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", redacted)
+    return redacted
 
 
 def read_text_or_file():
@@ -179,11 +188,12 @@ def regex_flag_finder():
         print("[!] Tidak ada data untuk diproses.")
         return
 
+    # Batas panjang konten flag dibuat konfigurable untuk menghindari over-match.
     patterns = [
-        r"flag\{[^\n\r\}]{1,200}\}",
-        r"CTF\{[^\n\r\}]{1,200}\}",
-        r"[A-Za-z0-9_\-]+\{[^\n\r\}]{1,200}\}",
-        r"FLAG\[[^\n\r\]]{1,200}\]",
+        rf"flag\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"CTF\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"[A-Za-z0-9_\-]+\{{[^\n\r\}}]{{1,{FLAG_MAX_CONTENT_LEN}}}\}}",
+        rf"FLAG\[[^\n\r\]]{{1,{FLAG_MAX_CONTENT_LEN}}}\]",
     ]
 
     results = set()
@@ -261,14 +271,16 @@ def http_request_tester():
 
     try:
         if method == "GET":
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=10, verify=True)
         else:
-            response = requests.post(url, data=params, timeout=10)
+            response = requests.post(url, data=params, timeout=10, verify=True)
 
         print(f"[+] Status: {response.status_code}")
+        print("[!] Warning: Output response untuk analisis, hindari membagikan data sensitif.")
+        safe_response = redact_sensitive_text(response.text)
         print("[+] Response:")
-        print(response.text[:4000])
-        if len(response.text) > 4000:
+        print(safe_response[:4000])
+        if len(safe_response) > 4000:
             print("[i] Response dipotong hingga 4000 karakter.")
     except requests.RequestException as exc:
         print(f"[!] HTTP request gagal: {exc}")
@@ -276,7 +288,8 @@ def http_request_tester():
 
 def dummy_login(password):
     """Fungsi dummy untuk simulasi brute force wordlist."""
-    correct_password = "ctf123"
+    # Bisa dioverride via environment variable untuk memudahkan modifikasi.
+    correct_password = os.getenv("DUMMY_LOGIN_PASSWORD", "ctf123")
     return password == correct_password
 
 
@@ -340,6 +353,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as exc:  # Penanganan error global sederhana
-        print(f"[!] Terjadi error tidak terduga: {exc}")
-        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n[+] Dihentikan user. Bye!")
+        sys.exit(0)
