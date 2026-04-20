@@ -87,3 +87,4 @@ python3 -m ctf_toolkit
 - Kompatibel Python 3.10+.
 - Tidak ada eksekusi command eksternal dari toolkit.
 - Modul aman untuk di-import tanpa menjalankan CLI otomatis.
+- `Simple Wordlist Brute` menggunakan password dummy default `ctf123` (khusus simulasi CTF/lab, bukan autentikasi nyata).

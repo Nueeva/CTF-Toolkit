@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 from Crypto.Cipher import AES
 
 
@@ -29,6 +31,7 @@ def _normalize_key(key: bytes) -> bytes:
 
 def aes_ecb_encrypt(plaintext: bytes, key: bytes, use_padding: bool = True) -> bytes:
     """ECB helper for CTF labs only; do not use ECB in real-world systems."""
+    warnings.warn("AES-ECB is insecure and provided only for CTF/lab usage.", RuntimeWarning, stacklevel=2)
     key = _normalize_key(key)
     data = pkcs7_pad(plaintext) if use_padding else plaintext
     if len(data) % 16 != 0:
@@ -39,6 +42,7 @@ def aes_ecb_encrypt(plaintext: bytes, key: bytes, use_padding: bool = True) -> b
 
 def aes_ecb_decrypt(ciphertext: bytes, key: bytes, unpad: bool = True) -> bytes:
     """ECB helper for CTF labs only; do not use ECB in real-world systems."""
+    warnings.warn("AES-ECB is insecure and provided only for CTF/lab usage.", RuntimeWarning, stacklevel=2)
     key = _normalize_key(key)
     if len(ciphertext) % 16 != 0:
         raise ValueError("ECB ciphertext length must be a multiple of 16")
