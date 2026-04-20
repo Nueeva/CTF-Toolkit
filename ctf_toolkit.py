@@ -10,6 +10,7 @@ import sys
 
 # Kata kunci umum untuk filtering hasil yang menarik.
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "password", "secret", "token", "admin"]
+XOR_SEARCH_KEYWORDS = ["flag", "ctf", "key"]
 FLAG_MAX_CONTENT_LEN = 200
 ASCII_PRINTABLE_START = 32
 ASCII_PRINTABLE_END = 126
@@ -49,6 +50,9 @@ def redact_sensitive_text(text):
     redacted = re.sub(r"(?i)(password\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", text)
     redacted = re.sub(r"(?i)(token\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", redacted)
     redacted = re.sub(r"(?i)(secret\s*[=:]\s*)([^\s&]+)", r"\1[REDACTED]", redacted)
+    redacted = re.sub(r'(?i)("password"\s*:\s*")[^"]*(")', r'\1[REDACTED]\2', redacted)
+    redacted = re.sub(r'(?i)("token"\s*:\s*")[^"]*(")', r'\1[REDACTED]\2', redacted)
+    redacted = re.sub(r"(?i)(authorization\s*:\s*bearer\s+)[^\s]+", r"\1[REDACTED]", redacted)
     return redacted
 
 
@@ -61,7 +65,7 @@ def sanitize_params(params):
     """Filter parameter agar format tetap aman dan rapi."""
     clean = {}
     for key, value in params.items():
-        if not re.match(r"^[A-Za-z0-9_.-]{1,100}$", key):
+        if not re.match(r"^[A-Za-z0-9_.\-\[\]]{1,100}$", key):
             print(f"[!] Lewati key parameter tidak valid: {key}")
             continue
         safe_value = re.sub(r"[\x00-\x1F\x7F]", "", str(value))[:500]
@@ -186,13 +190,13 @@ def xor_brute_force():
         print("[!] Data kosong.")
         return
 
-    print("\n[+] Mencari hasil yang mengandung kata: flag, ctf, key")
+    print(f"\n[+] Mencari hasil yang mengandung kata: {', '.join(XOR_SEARCH_KEYWORDS)}")
     found = False
 
     for key in range(256):
         candidate = xor_bytes(data, key).decode("utf-8", errors="ignore")
         low = candidate.lower()
-        if "flag" in low or "ctf" in low or "key" in low:
+        if any(keyword in low for keyword in XOR_SEARCH_KEYWORDS):
             found = True
             print(f"\n--- Key {key} ---")
             print(candidate)
@@ -233,11 +237,18 @@ def regex_flag_finder():
 
 def extract_printable_strings(raw_bytes, min_len=4):
     """Ekstrak string printable dari data biner."""
-    text = ''.join(
-        chr(b) if ASCII_PRINTABLE_START <= b <= ASCII_PRINTABLE_END else '\n'
-        for b in raw_bytes
-    )
-    return [line for line in text.splitlines() if len(line) >= min_len]
+    results = []
+    current = []
+    for b in raw_bytes:
+        if ASCII_PRINTABLE_START <= b <= ASCII_PRINTABLE_END:
+            current.append(chr(b))
+        else:
+            if len(current) >= min_len:
+                results.append("".join(current))
+            current = []
+    if len(current) >= min_len:
+        results.append("".join(current))
+    return results
 
 
 def file_scanner():
@@ -297,12 +308,15 @@ def http_request_tester():
 
     param_text = safe_input("Masukkan parameter (format k=v,k2=v2) atau kosong: ")
     params = sanitize_params(parse_params(param_text))
+    verify_ssl = safe_input("Verifikasi SSL certificate? [Y/n]: ").strip().lower() != "n"
+    if not verify_ssl:
+        print("[!] Warning: SSL verification dimatikan. Gunakan hanya untuk lab/CTF lokal.")
 
     try:
         if method == "GET":
-            response = requests.get(url, params=params, timeout=10, verify=True)
+            response = requests.get(url, params=params, timeout=10, verify=verify_ssl)
         else:
-            response = requests.post(url, data=params, timeout=10, verify=True)
+            response = requests.post(url, data=params, timeout=10, verify=verify_ssl)
 
         print(f"[+] Status: {response.status_code}")
         print("[!] Warning: Output response untuk analisis, hindari membagikan data sensitif.")
@@ -316,7 +330,7 @@ def http_request_tester():
 
 
 def dummy_login(password):
-    """Fungsi dummy untuk simulasi brute force wordlist."""
+    """Fungsi dummy untuk simulasi brute force wordlist (env: DUMMY_LOGIN_PASSWORD)."""
     # Bisa dioverride via environment variable untuk memudahkan modifikasi.
     correct_password = os.getenv("DUMMY_LOGIN_PASSWORD", "ctf123")
     return password == correct_password
