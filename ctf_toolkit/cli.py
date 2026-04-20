@@ -196,15 +196,15 @@ def regex_flag_finder_menu() -> None:
         print("[!] Tidak ada data untuk diproses.")
         return
 
-    max_len = "200"
+    max_len = 200
     patterns = [
-        r"flag\{[^\n\r\}]{1," + max_len + r"}\}",
-        r"CTF\{[^\n\r\}]{1," + max_len + r"}\}",
-        r"[A-Za-z0-9_\-]+\{[^\n\r\}]{1," + max_len + r"}\}",
-        r"FLAG\[[^\n\r\]]{1," + max_len + r"}\]",
-        r"LKS\{[^\n\r\}]{1," + max_len + r"}\}",
-        r"LKSJAKTIM\{[^\n\r\}]{1," + max_len + r"}\}",
-        r"LKS[_\-\s]?JAKTIM\{[^\n\r\}]{1," + max_len + r"}\}",
+        rf"flag\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"CTF\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"[A-Za-z0-9_\-]+\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"FLAG\[[^\n\r\]]{{1,{max_len}}}\]",
+        rf"LKS\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"LKSJAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"LKS[_\-\s]?JAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
     ]
 
     results = set()
