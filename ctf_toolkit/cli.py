@@ -196,16 +196,20 @@ def regex_flag_finder_menu() -> None:
         print("[!] Tidak ada data untuk diproses.")
         return
 
+    max_len = 200
     patterns = [
-        r"flag\{[^\n\r\}]{1,200}\}",
-        r"CTF\{[^\n\r\}]{1,200}\}",
-        r"[A-Za-z0-9_\-]+\{[^\n\r\}]{1,200}\}",
-        r"FLAG\[[^\n\r\]]{1,200}\]",
+        rf"flag\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"CTF\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"[A-Za-z0-9_\-]+\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"FLAG\[[^\n\r\]]{{1,{max_len}}}\]",
+        rf"LKS\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"LKSJAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
+        rf"LKS[-_\s]?JAKTIM\{{[^\n\r\}}]{{1,{max_len}}}\}}",
     ]
 
     results = set()
     for pattern in patterns:
-        results.update(re.findall(pattern, data))
+        results.update(re.findall(pattern, data, flags=re.IGNORECASE))
 
     if results:
         print("[+] Flag pattern ditemukan:")
