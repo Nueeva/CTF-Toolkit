@@ -18,7 +18,7 @@ def egcd(a: int, b: int) -> tuple[int, int, int]:
 
 def modinv(a: int, m: int) -> int:
     g, x, _ = egcd(a, m)
-    if g != 1 and g != -1:
+    if g != 1:
         raise ValueError("modular inverse does not exist")
     return x % m
 

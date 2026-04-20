@@ -52,7 +52,7 @@ def fermat_factor(n: int, max_iter: int = 1_000_000) -> tuple[int, int] | None:
             p = a - b
             q = a + b
             if p * q == n and p > 1:
-                return tuple(sorted((p, q)))
+                return (min(p, q), max(p, q))
         a += 1
     return None
 
