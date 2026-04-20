@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hmac
 import json
 import os
 import re
@@ -276,7 +277,7 @@ def http_request_tester_menu() -> None:
 
 def dummy_login(password: str) -> bool:
     correct_password = os.getenv("DUMMY_LOGIN_PASSWORD", "ctf123")
-    return password == correct_password
+    return hmac.compare_digest(password, correct_password)
 
 
 def simple_wordlist_brute_menu() -> None:

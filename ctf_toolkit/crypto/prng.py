@@ -23,7 +23,7 @@ def recover_lcg_params_known_mod(outputs: list[int], m: int) -> tuple[int, int]:
     x0, x1, x2 = outputs[:3]
     denom = (x1 - x0) % m
     if denom == 0:
-        raise ValueError("insufficient data to recover multiplier a")
+        raise ValueError("cannot recover parameters: consecutive outputs are identical modulo m")
 
     a = ((x2 - x1) * modinv(denom, m)) % m
     c = (x1 - a * x0) % m

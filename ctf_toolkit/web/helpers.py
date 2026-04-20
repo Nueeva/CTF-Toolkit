@@ -34,8 +34,14 @@ def jwt_decode_no_verify(token: str) -> dict[str, object]:
     if len(parts) < 2:
         raise ValueError("JWT must contain at least header.payload")
 
-    header = json.loads(b64url_decode(parts[0]).decode("utf-8", errors="ignore") or "{}")
-    payload = json.loads(b64url_decode(parts[1]).decode("utf-8", errors="ignore") or "{}")
+    try:
+        header = json.loads(b64url_decode(parts[0]).decode("utf-8", errors="ignore") or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JWT header format") from exc
+    try:
+        payload = json.loads(b64url_decode(parts[1]).decode("utf-8", errors="ignore") or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JWT payload format") from exc
     signature = parts[2] if len(parts) > 2 else ""
     return {
         "header": header,
