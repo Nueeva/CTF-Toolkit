@@ -13,11 +13,11 @@ def p64(value: int) -> bytes:
 
 def u32(data: bytes) -> int:
     if len(data) != 4:
-        raise ValueError("u32 butuh 4 byte")
+        raise ValueError("u32 requires 4 bytes")
     return struct.unpack("<I", data)[0]
 
 
 def u64(data: bytes) -> int:
     if len(data) != 8:
-        raise ValueError("u64 butuh 8 byte")
+        raise ValueError("u64 requires 8 bytes")
     return struct.unpack("<Q", data)[0]

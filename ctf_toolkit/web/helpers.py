@@ -32,7 +32,7 @@ def b64url_decode(text: str) -> bytes:
 def jwt_decode_no_verify(token: str) -> dict[str, object]:
     parts = token.strip().split(".")
     if len(parts) < 2:
-        raise ValueError("JWT minimal harus header.payload")
+        raise ValueError("JWT must contain at least header.payload")
 
     header = json.loads(b64url_decode(parts[0]).decode("utf-8", errors="ignore") or "{}")
     payload = json.loads(b64url_decode(parts[1]).decode("utf-8", errors="ignore") or "{}")

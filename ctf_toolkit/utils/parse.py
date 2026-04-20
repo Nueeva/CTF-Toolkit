@@ -24,7 +24,7 @@ def parse_bytes(value: str, mode: str = "auto") -> bytes:
         return base64.b64decode(text)
 
     if parse_mode != "auto":
-        raise ValueError("mode parse tidak dikenal")
+        raise ValueError("unknown parse mode")
 
     lowered = text.lower()
     if lowered.startswith("hex:"):
@@ -53,5 +53,5 @@ def parse_positive_int(value: str, default: Optional[int] = None) -> Optional[in
         return default
     num = int(value)
     if num < 0:
-        raise ValueError("harus >= 0")
+        raise ValueError("must be >= 0")
     return num

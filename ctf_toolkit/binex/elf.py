@@ -29,14 +29,14 @@ def _fmt(endian: str, code: str) -> str:
 def parse_elf(path: str) -> dict[str, object]:
     data = Path(path).read_bytes()
     if len(data) < 0x40 or data[:4] != ELF_MAGIC:
-        raise ValueError("bukan file ELF")
+        raise ValueError("not an ELF file")
 
     ei_class = data[4]
     ei_data = data[5]
     bits = 64 if ei_class == 2 else 32 if ei_class == 1 else 0
     endian = "little" if ei_data == 1 else "big" if ei_data == 2 else "unknown"
     if bits == 0 or endian == "unknown":
-        raise ValueError("format ELF tidak didukung")
+        raise ValueError("unsupported ELF format")
 
     if bits == 64:
         e_type, e_machine = struct.unpack_from(_fmt(endian, "HH"), data, 16)

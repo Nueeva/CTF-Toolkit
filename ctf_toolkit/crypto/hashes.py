@@ -6,7 +6,7 @@ import hashlib
 def digest(data: bytes, algorithm: str) -> str:
     algo = algorithm.lower()
     if algo not in {"md5", "sha1", "sha256"}:
-        raise ValueError("algoritma hash belum didukung")
+        raise ValueError("unsupported hash algorithm")
     return hashlib.new(algo, data).hexdigest()
 
 

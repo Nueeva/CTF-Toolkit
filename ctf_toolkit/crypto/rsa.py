@@ -14,7 +14,7 @@ def rsa_decrypt(c: int, n: int, d: int) -> int:
 def common_modulus_attack(c1: int, e1: int, c2: int, e2: int, n: int) -> int:
     g, a, b = egcd(e1, e2)
     if abs(g) != 1:
-        raise ValueError("e1 dan e2 harus coprime")
+        raise ValueError("e1 and e2 must be coprime")
 
     def _pow_signed(base: int, exp: int, mod: int) -> int:
         if exp >= 0:
@@ -29,11 +29,11 @@ def common_modulus_attack(c1: int, e1: int, c2: int, e2: int, n: int) -> int:
 
 def hastad_broadcast(ciphertexts: list[int], moduli: list[int], e: int) -> int:
     if len(ciphertexts) < e or len(ciphertexts) != len(moduli):
-        raise ValueError("jumlah pasangan (c, n) tidak cukup")
+        raise ValueError("insufficient number of (c, n) pairs")
     c_combined, _ = crt(ciphertexts, moduli)
     root, exact = integer_nthroot(c_combined, e)
     if not exact:
-        raise ValueError("akar e tidak eksak; data mungkin tidak memenuhi syarat Hastad")
+        raise ValueError("e-th root is not exact; data may not satisfy Hastad assumptions")
     return root
 
 
@@ -59,7 +59,7 @@ def fermat_factor(n: int, max_iter: int = 1_000_000) -> tuple[int, int] | None:
 
 def phi_from_primes(primes: list[int]) -> int:
     if not primes:
-        raise ValueError("faktor kosong")
+        raise ValueError("empty prime factors list")
     phi = 1
     for p in primes:
         phi *= p - 1

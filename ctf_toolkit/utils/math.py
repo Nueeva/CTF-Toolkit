@@ -19,7 +19,7 @@ def egcd(a: int, b: int) -> tuple[int, int, int]:
 def modinv(a: int, m: int) -> int:
     g, x, _ = egcd(a, m)
     if g != 1 and g != -1:
-        raise ValueError("inverse modular tidak ada")
+        raise ValueError("modular inverse does not exist")
     return x % m
 
 
@@ -27,7 +27,7 @@ def crt(remainders: Iterable[int], moduli: Iterable[int]) -> tuple[int, int]:
     rs = list(remainders)
     ns = list(moduli)
     if len(rs) != len(ns) or not rs:
-        raise ValueError("input CRT tidak valid")
+        raise ValueError("invalid CRT input")
 
     x = 0
     n_prod = 1
@@ -44,7 +44,7 @@ def crt(remainders: Iterable[int], moduli: Iterable[int]) -> tuple[int, int]:
 
 def integer_nthroot(value: int, n: int) -> tuple[int, bool]:
     if value < 0 or n <= 0:
-        raise ValueError("input integer_nthroot tidak valid")
+        raise ValueError("invalid integer_nthroot input")
     if value in (0, 1):
         return value, True
 

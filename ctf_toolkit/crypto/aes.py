@@ -5,41 +5,43 @@ from Crypto.Cipher import AES
 
 def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
     if block_size <= 0 or block_size > 255:
-        raise ValueError("block_size tidak valid")
+        raise ValueError("invalid block_size")
     pad_len = block_size - (len(data) % block_size)
     return data + bytes([pad_len]) * pad_len
 
 
 def pkcs7_unpad(data: bytes, block_size: int = 16) -> bytes:
     if not data or len(data) % block_size != 0:
-        raise ValueError("panjang data tidak valid untuk unpad")
+        raise ValueError("invalid data length for unpad")
     pad_len = data[-1]
     if pad_len == 0 or pad_len > block_size:
-        raise ValueError("padding tidak valid")
+        raise ValueError("invalid padding")
     if data[-pad_len:] != bytes([pad_len]) * pad_len:
-        raise ValueError("padding tidak valid")
+        raise ValueError("invalid padding")
     return data[:-pad_len]
 
 
 def _normalize_key(key: bytes) -> bytes:
     if len(key) not in (16, 24, 32):
-        raise ValueError("kunci AES harus 16/24/32 byte")
+        raise ValueError("AES key must be 16/24/32 bytes")
     return key
 
 
 def aes_ecb_encrypt(plaintext: bytes, key: bytes, use_padding: bool = True) -> bytes:
+    """ECB helper for CTF labs only; do not use ECB in real-world systems."""
     key = _normalize_key(key)
     data = pkcs7_pad(plaintext) if use_padding else plaintext
     if len(data) % 16 != 0:
-        raise ValueError("plaintext harus kelipatan 16 jika padding dimatikan")
+        raise ValueError("plaintext must be a multiple of 16 when padding is disabled")
     cipher = AES.new(key, AES.MODE_ECB)
     return cipher.encrypt(data)
 
 
 def aes_ecb_decrypt(ciphertext: bytes, key: bytes, unpad: bool = True) -> bytes:
+    """ECB helper for CTF labs only; do not use ECB in real-world systems."""
     key = _normalize_key(key)
     if len(ciphertext) % 16 != 0:
-        raise ValueError("ciphertext ECB harus kelipatan 16")
+        raise ValueError("ECB ciphertext length must be a multiple of 16")
     plain = AES.new(key, AES.MODE_ECB).decrypt(ciphertext)
     return pkcs7_unpad(plain) if unpad else plain
 
@@ -47,19 +49,19 @@ def aes_ecb_decrypt(ciphertext: bytes, key: bytes, unpad: bool = True) -> bytes:
 def aes_cbc_encrypt(plaintext: bytes, key: bytes, iv: bytes, use_padding: bool = True) -> bytes:
     key = _normalize_key(key)
     if len(iv) != 16:
-        raise ValueError("IV CBC harus 16 byte")
+        raise ValueError("CBC IV must be 16 bytes")
     data = pkcs7_pad(plaintext) if use_padding else plaintext
     if len(data) % 16 != 0:
-        raise ValueError("plaintext harus kelipatan 16 jika padding dimatikan")
+        raise ValueError("plaintext must be a multiple of 16 when padding is disabled")
     return AES.new(key, AES.MODE_CBC, iv=iv).encrypt(data)
 
 
 def aes_cbc_decrypt(ciphertext: bytes, key: bytes, iv: bytes, unpad: bool = True) -> bytes:
     key = _normalize_key(key)
     if len(iv) != 16:
-        raise ValueError("IV CBC harus 16 byte")
+        raise ValueError("CBC IV must be 16 bytes")
     if len(ciphertext) % 16 != 0:
-        raise ValueError("ciphertext CBC harus kelipatan 16")
+        raise ValueError("CBC ciphertext length must be a multiple of 16")
     plain = AES.new(key, AES.MODE_CBC, iv=iv).decrypt(ciphertext)
     return pkcs7_unpad(plain) if unpad else plain
 
