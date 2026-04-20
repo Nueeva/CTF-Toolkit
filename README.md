@@ -8,8 +8,8 @@ Toolkit Python modular untuk latihan CTF/lab, disusun agar selaras dengan fokus 
 
 ### 1) Cryptography
 - Classical ciphers: Caesar/ROT-n (+ bruteforce), Atbash, Vigenere, Affine, substitution helper + frequency
-- RSA tools: encrypt/decrypt, common modulus attack, Hastad broadcast attack, Fermat factorization, hitung `d` dari faktor
-- AES helpers: ECB/CBC/CTR encrypt/decrypt, PKCS#7 pad/unpad, ECB detection
+- RSA tools: encrypt/decrypt, common modulus attack, Hastad broadcast attack, Fermat factorization, hitung `d` dari faktor, serta solver close-primes end-to-end (Fermat -> `d` -> decrypt + deteksi pola flag LKS/LKSJAKTIM)
+- AES helpers: ECB/CBC/CTR encrypt/decrypt, PKCS#7 pad/unpad, ECB detection, dan serangan CTR keystream reuse (two-time pad) dengan known plaintext
 - Note: ECB support is included for CTF learning and legacy challenge analysis only (insecure for production)
 - PRNG starter: LCG generate + recover parameter saat modulus diketahui
 - Hashes: MD5/SHA1/SHA256
