@@ -18,12 +18,12 @@ def lcg_generate(seed: int, a: int, c: int, m: int, count: int) -> list[int]:
 
 def recover_lcg_params_known_mod(outputs: list[int], m: int) -> tuple[int, int]:
     if len(outputs) < 3:
-        raise ValueError("minimal butuh 3 output")
+        raise ValueError("at least 3 outputs are required")
 
     x0, x1, x2 = outputs[:3]
     denom = (x1 - x0) % m
     if denom == 0:
-        raise ValueError("data tidak cukup untuk recover a")
+        raise ValueError("insufficient data to recover multiplier a")
 
     a = ((x2 - x1) * modinv(denom, m)) % m
     c = (x1 - a * x0) % m

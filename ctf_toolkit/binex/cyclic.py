@@ -10,7 +10,7 @@ DIGIT = "0123456789"
 
 def cyclic_create(length: int) -> bytes:
     if length < 0:
-        raise ValueError("length harus >= 0")
+        raise ValueError("length must be >= 0")
     out = bytearray()
     for a, b, c in itertools.product(UPPER, LOWER, DIGIT):
         out.extend((a + b + c).encode())

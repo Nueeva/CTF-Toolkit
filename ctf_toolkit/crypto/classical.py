@@ -48,7 +48,7 @@ def _vig_shift(ch: str) -> int:
 def vigenere_encrypt(text: str, key: str) -> str:
     clean_key = [k for k in key if k.isalpha()]
     if not clean_key:
-        raise ValueError("key Vigenere harus mengandung huruf")
+        raise ValueError("Vigenere key must contain letters")
 
     out: list[str] = []
     j = 0
@@ -66,7 +66,7 @@ def vigenere_encrypt(text: str, key: str) -> str:
 def vigenere_decrypt(text: str, key: str) -> str:
     clean_key = [k for k in key if k.isalpha()]
     if not clean_key:
-        raise ValueError("key Vigenere harus mengandung huruf")
+        raise ValueError("Vigenere key must contain letters")
 
     out: list[str] = []
     j = 0
@@ -83,7 +83,7 @@ def vigenere_decrypt(text: str, key: str) -> str:
 
 def affine_encrypt(text: str, a: int, b: int) -> str:
     if gcd(a, 26) != 1:
-        raise ValueError("a harus coprime dengan 26")
+        raise ValueError("a must be coprime with 26")
 
     out: list[str] = []
     for ch in text:
@@ -98,7 +98,7 @@ def affine_encrypt(text: str, a: int, b: int) -> str:
 
 def affine_decrypt(text: str, a: int, b: int) -> str:
     if gcd(a, 26) != 1:
-        raise ValueError("a harus coprime dengan 26")
+        raise ValueError("a must be coprime with 26")
     a_inv = modinv(a, 26)
 
     out: list[str] = []
