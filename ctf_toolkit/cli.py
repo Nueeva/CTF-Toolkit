@@ -276,6 +276,7 @@ def http_request_tester_menu() -> None:
 
 
 def dummy_login(password: str) -> bool:
+    """Simulation-only credential check for CTF labs; never use for real authentication."""
     correct_password = os.getenv("DUMMY_LOGIN_PASSWORD", "ctf123")
     return hmac.compare_digest(password, correct_password)
 
