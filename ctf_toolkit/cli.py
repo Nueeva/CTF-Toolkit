@@ -48,6 +48,12 @@ from ctf_toolkit.crypto.rsa import (
     rsa_decrypt,
     rsa_encrypt,
 )
+from ctf_toolkit.crypto.stream_attacks import (
+    decrypt_with_partial_keystream,
+    keystream_from_known_pair,
+    masked_utf8_view,
+    merge_keystreams,
+)
 from ctf_toolkit.forensics.filetype import detect_file_magic
 from ctf_toolkit.forensics.caesar_helper import suggest_caesar_candidates
 from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_fragments, get_jpeg_dimensions, patch_jpeg_dimensions
@@ -145,6 +151,28 @@ def int_to_bytes(value: int) -> bytes:
 def show_text_hex(data: bytes, title: str = "Hasil") -> None:
     print(f"[+] {title} (hex): {data.hex()}")
     print(f"[+] {title} (text): {data.decode('utf-8', errors='ignore')}")
+
+
+def _extract_lks_flag_candidates(text: str) -> list[str]:
+    patterns = [
+        r"LKS\{[^\n\r\}]{1,300}\}",
+        r"LKSJAKTIM\{[^\n\r\}]{1,300}\}",
+        r"LKS[-_\s]?JAKTIM\{[^\n\r\}]{1,300}\}",
+    ]
+    found: set[str] = set()
+    for pattern in patterns:
+        found.update(re.findall(pattern, text, flags=re.IGNORECASE))
+    return sorted(found)
+
+
+def _print_lks_flag_candidates_from_text(text: str) -> None:
+    flags = _extract_lks_flag_candidates(text)
+    if flags:
+        print("[+] Kandidat flag LKS/LKSJAKTIM:")
+        for idx, flag in enumerate(flags, start=1):
+            print(f"  {idx}. {flag}")
+    else:
+        print("[-] Pola flag LKS/LKSJAKTIM belum terdeteksi.")
 
 
 def decode_encode_menu() -> None:
@@ -454,6 +482,7 @@ def crypto_rsa_menu() -> None:
         print("[4] Hastad Broadcast Attack")
         print("[5] Fermat Factorization")
         print("[6] Hitung d dari faktor prima")
+        print("[7] Close-primes RSA Solve (Fermat end-to-end)")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -519,6 +548,29 @@ def crypto_rsa_menu() -> None:
                 d = private_exponent_from_factors(e, factors)
                 print(f"[+] d: {d}")
                 print(f"[+] d (hex): 0x{d:x}")
+            elif choice == "7":
+                n = parse_int(safe_input("n (dec/0x): "))
+                e = parse_int(safe_input("e (dec/0x): "))
+                c = parse_int(safe_input("c (dec/0x): "))
+                max_iter = int(safe_input("max_steps [default 50000]: ").strip() or "50000")
+                factors = fermat_factor(n, max_iter=max_iter)
+                if not factors:
+                    print("[-] Faktor tidak ditemukan dalam batas max_steps.")
+                    continue
+                p, q = factors
+                phi = (p - 1) * (q - 1)
+                d = private_exponent_from_factors(e, [p, q])
+                m = rsa_decrypt(c, n, d)
+                m_bytes = int_to_bytes(m)
+                text = m_bytes.decode("utf-8", errors="ignore")
+                print(f"[+] p: {p}")
+                print(f"[+] q: {q}")
+                print(f"[+] phi(n): {phi}")
+                print(f"[+] d: {d}")
+                print(f"[+] plaintext (utf-8 ignore): {text}")
+                print(f"[+] plaintext raw bytes: {m_bytes!r}")
+                print(f"[+] plaintext bytes (hex): {m_bytes.hex()}")
+                _print_lks_flag_candidates_from_text(text)
             else:
                 print("[!] Pilihan tidak valid.")
         except ValueError as exc:
@@ -530,9 +582,45 @@ def _read_bytes_prompt(label: str) -> bytes:
     return parse_bytes(raw, mode="auto")
 
 
+def _aes_ctr_keystream_reuse_menu() -> None:
+    print("\n=== AES-CTR Keystream Reuse (Two-time Pad) ===")
+    target = _read_bytes_prompt("Target ciphertext")
+    if not target:
+        print("[!] Target ciphertext kosong.")
+        return
+
+    pair_count = int(safe_input("Jumlah known pair [minimal 1]: ").strip() or "1")
+    if pair_count < 1:
+        print("[!] Jumlah pair harus >= 1.")
+        return
+
+    streams: list[bytes] = []
+    for idx in range(pair_count):
+        print(f"\n--- Known pair #{idx + 1} ---")
+        known_ct = _read_bytes_prompt("Known ciphertext")
+        known_pt = _read_bytes_prompt("Known plaintext (gunakan raw:... untuk teks)")
+        if not known_ct or not known_pt:
+            print("[!] Known ciphertext/plaintext tidak boleh kosong.")
+            return
+        streams.append(keystream_from_known_pair(known_ct, known_pt))
+
+    keystream = merge_keystreams(streams)
+    plain, known_mask = decrypt_with_partial_keystream(target, keystream)
+    known_count = sum(1 for known in known_mask if known)
+    show_masked = safe_input("Tampilkan unknown byte sebagai '.'? [Y/n]: ").strip().lower() != "n"
+
+    print(f"[+] Keystream coverage: {known_count}/{len(target)} byte")
+    print(f"[+] Plaintext (hex): {plain.hex()}")
+    print(f"[+] Plaintext (utf-8 ignore): {plain.decode('utf-8', errors='ignore')}")
+    if show_masked:
+        print(f"[+] Plaintext masked: {masked_utf8_view(plain, known_mask, unknown_char='.')}")
+
+    _print_lks_flag_candidates_from_text(plain.decode("utf-8", errors="ignore"))
+
+
 def crypto_aes_menu() -> None:
     while True:
-        print("\n=== Crypto > AES ===")
+        print("\n=== Crypto > AES/Stream Attacks ===")
         print("[1] ECB Encrypt")
         print("[2] ECB Decrypt")
         print("[3] CBC Encrypt")
@@ -541,6 +629,7 @@ def crypto_aes_menu() -> None:
         print("[6] PKCS#7 Pad")
         print("[7] PKCS#7 Unpad")
         print("[8] ECB Detect")
+        print("[9] CTR Keystream Reuse (Two-time Pad)")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -593,6 +682,8 @@ def crypto_aes_menu() -> None:
                 print(f"[+] Block total: {blocks}")
                 print(f"[+] Block berulang: {repeats}")
                 print("[+] Indikasi ECB kuat." if repeats > 0 else "[-] Tidak ada pengulangan blok mencolok.")
+            elif choice == "9":
+                _aes_ctr_keystream_reuse_menu()
             else:
                 print("[!] Pilihan tidak valid.")
         except (ValueError, binascii.Error) as exc:
