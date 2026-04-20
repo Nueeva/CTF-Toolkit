@@ -49,9 +49,13 @@ from ctf_toolkit.crypto.rsa import (
     rsa_encrypt,
 )
 from ctf_toolkit.forensics.filetype import detect_file_magic
+from ctf_toolkit.forensics.caesar_helper import suggest_caesar_candidates
+from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_fragments, get_jpeg_dimensions, patch_jpeg_dimensions
+from ctf_toolkit.forensics.pcap_extract import extract_pcap_artifacts
 from ctf_toolkit.forensics.pcap_notes import PCAP_HELP_TEXT
+from ctf_toolkit.forensics.zip_recover import list_zip_members, recover_corrupted_zip
 from ctf_toolkit.utils.io import read_bytes_file, read_text_or_file, safe_input
-from ctf_toolkit.utils.parse import parse_bytes, parse_int
+from ctf_toolkit.utils.parse import parse_byte_list, parse_bytes, parse_int
 from ctf_toolkit.utils.text import extract_printable_strings, hexdump, redact_sensitive_text, shannon_entropy
 
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim", "password", "secret", "token", "admin"]
@@ -95,6 +99,42 @@ def xor_bytes(data_bytes: bytes, key: int) -> bytes:
     return bytes(byte ^ key for byte in data_bytes)
 
 
+def xor_with_repeating_key(data_bytes: bytes, key_bytes: bytes) -> bytes:
+    if not key_bytes:
+        raise ValueError("key pattern tidak boleh kosong")
+    return bytes(data_bytes[idx] ^ key_bytes[idx % len(key_bytes)] for idx in range(len(data_bytes)))
+
+
+def _looks_like_byte_list(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    lowered = stripped.lower()
+    if "0x" in lowered:
+        return True
+    return "," in stripped and bool(re.search(r"\d", stripped))
+
+
+def _read_xor_input_data() -> bytes:
+    mode = safe_input("Input [1] teks / [2] file: ").strip()
+    if mode == "1":
+        raw = safe_input("Masukkan data/ciphertext: ")
+        if _looks_like_byte_list(raw):
+            return parse_byte_list(raw)
+        return raw.encode("utf-8", errors="ignore")
+    if mode == "2":
+        path = safe_input("Masukkan path file: ").strip()
+        return read_bytes_file(path)
+    raise ValueError("pilihan input tidak valid")
+
+
+def _read_byte_value(label: str) -> int:
+    value = parse_int(safe_input(f"{label} (0-255, dec/0x): ").strip())
+    if not 0 <= value <= 255:
+        raise ValueError(f"{label} harus 0..255")
+    return value
+
+
 def int_to_bytes(value: int) -> bytes:
     if value == 0:
         return b"\x00"
@@ -117,39 +157,86 @@ def decode_encode_menu() -> None:
         print("[5] ROT13")
         print("[6] ROT-n")
         print("[7] XOR (single-byte key)")
+        print("[8] XOR alternating key (even/odd)")
+        print("[9] XOR repeating key pattern")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
             return
 
-        text = safe_input("Masukkan teks: ")
-        if not text:
-            print("[!] Teks kosong.")
-            continue
-
         try:
             if choice == "1":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 print(f"[+] Hasil: {base64.b64encode(text.encode()).decode()}")
             elif choice == "2":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 decoded = base64.b64decode(text)
                 show_text_hex(decoded)
             elif choice == "3":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 print(f"[+] Hasil: {binascii.hexlify(text.encode()).decode()}")
             elif choice == "4":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 decoded = binascii.unhexlify(text)
                 show_text_hex(decoded)
             elif choice == "5":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 print(f"[+] Hasil: {rot_n(text, 13)}")
             elif choice == "6":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 shift = int(safe_input("Shift (bisa negatif): ").strip())
                 print(f"[+] Hasil: {rot_n(text, shift)}")
             elif choice == "7":
+                text = safe_input("Masukkan teks: ")
+                if not text:
+                    print("[!] Teks kosong.")
+                    continue
                 key = int(safe_input("Masukkan key (0-255): ").strip())
                 if not 0 <= key <= 255:
                     print("[!] Key harus 0-255.")
                     continue
                 result = xor_bytes(text.encode(), key)
                 show_text_hex(result, "XOR")
+            elif choice == "8":
+                data = _read_xor_input_data()
+                if not data:
+                    print("[!] Data kosong.")
+                    continue
+                even_key = _read_byte_value("Even key")
+                odd_key = _read_byte_value("Odd key")
+                result = xor_with_repeating_key(data, bytes([even_key, odd_key]))
+                show_text_hex(result, "XOR alternating")
+            elif choice == "9":
+                data = _read_xor_input_data()
+                if not data:
+                    print("[!] Data kosong.")
+                    continue
+                key_pattern = parse_byte_list(
+                    safe_input("Masukkan key pattern (contoh 10,8 atau 0x10,0x08): ")
+                )
+                if not key_pattern:
+                    print("[!] Key pattern kosong.")
+                    continue
+                result = xor_with_repeating_key(data, key_pattern)
+                show_text_hex(result, "XOR repeating")
             else:
                 print("[!] Pilihan tidak valid.")
         except (ValueError, binascii.Error) as exc:
@@ -158,17 +245,10 @@ def decode_encode_menu() -> None:
 
 def xor_brute_force_menu() -> None:
     print("\n=== XOR Brute Force ===")
-    mode = safe_input("Input [1] teks / [2] file: ").strip()
-    data = b""
-
-    if mode == "1":
-        plain = safe_input("Masukkan ciphertext (teks): ")
-        data = plain.encode("utf-8", errors="ignore")
-    elif mode == "2":
-        path = safe_input("Masukkan path file: ").strip()
-        data = read_bytes_file(path)
-    else:
-        print("[!] Pilihan tidak valid.")
+    try:
+        data = _read_xor_input_data()
+    except ValueError as exc:
+        print(f"[!] Error: {exc}")
         return
 
     if not data:
@@ -694,7 +774,11 @@ def forensics_menu() -> None:
         print("[2] Hexdump File")
         print("[3] Entropy File")
         print("[4] Strings Extractor")
-        print("[5] PCAP Notes")
+        print("[5] PCAP Extractor")
+        print("[6] PCAP Notes")
+        print("[7] ZIP Recover (corrupted header/trailing)")
+        print("[8] JPEG Tools (extract/patch dimensi)")
+        print("[9] Caesar Shifter Helper")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -722,7 +806,57 @@ def forensics_menu() -> None:
             if len(strings_found) > 500:
                 print(f"[i] {len(strings_found)-500} hasil lain disembunyikan.")
         elif choice == "5":
+            pcap_path = safe_input("Path PCAP/PCAPNG: ").strip()
+            output_root = safe_input("Output folder [default output]: ").strip() or "output"
+            out_dir = extract_pcap_artifacts(pcap_path, output_root=output_root)
+            print(f"[+] Artifact tersimpan di: {out_dir}")
+        elif choice == "6":
             print(PCAP_HELP_TEXT)
+        elif choice == "7":
+            zip_path = safe_input("Path ZIP rusak: ").strip()
+            recovered = recover_corrupted_zip(zip_path)
+            print(f"[+] ZIP hasil recover: {recovered}")
+            try:
+                members = list_zip_members(str(recovered))
+                print("[+] Isi ZIP:")
+                for name in members[:200]:
+                    print(f"  - {name}")
+                if len(members) > 200:
+                    print(f"[i] {len(members)-200} entri lain disembunyikan.")
+            except Exception as exc:
+                print(f"[!] ZIP belum bisa dibuka: {exc}")
+        elif choice == "8":
+            print("[1] Extract JPEG fragments")
+            print("[2] Lihat dimensi JPEG")
+            print("[3] Patch dimensi JPEG")
+            sub = safe_input("Pilih opsi: ").strip()
+            if sub == "1":
+                source = safe_input("Path file sumber: ").strip()
+                out_dir = safe_input("Output folder [default output/jpeg_fragments]: ").strip() or "output/jpeg_fragments"
+                parts = extract_jpeg_fragments(source, output_dir=out_dir)
+                print(f"[+] Fragment ditemukan: {len(parts)}")
+                for fragment in parts[:50]:
+                    print(f"  - {fragment}")
+            elif sub == "2":
+                source = safe_input("Path JPEG: ").strip()
+                width, height = get_jpeg_dimensions(source)
+                print(f"[+] Dimensi: {width}x{height}")
+            elif sub == "3":
+                source = safe_input("Path JPEG: ").strip()
+                width = int(safe_input("Width baru: ").strip())
+                height = int(safe_input("Height baru: ").strip())
+                patched = patch_jpeg_dimensions(source, width=width, height=height)
+                print(f"[+] JPEG patched: {patched}")
+            else:
+                print("[!] Pilihan tidak valid.")
+        elif choice == "9":
+            text = safe_input("Ciphertext Caesar: ")
+            if not text:
+                print("[!] Teks kosong.")
+                continue
+            top_n = int(safe_input("Tampilkan berapa kandidat? [default 5]: ").strip() or "5")
+            for shift, candidate in suggest_caesar_candidates(text, top_n=top_n):
+                print(f"[shift {shift:2d}] {candidate}")
         else:
             print("[!] Pilihan tidak valid.")
 

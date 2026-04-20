@@ -31,7 +31,17 @@ Toolkit Python modular untuk latihan CTF/lab, disusun agar selaras dengan fokus 
 - Hexdump
 - Entropy calculator
 - Strings extractor (min length configurable)
+- PCAP extractor offline (`.pcap`/`.pcapng`) untuk HTTP/TCP strings/DNS/raw hits
+- ZIP recovery helper untuk kasus header/trailing bytes rusak
+- JPEG fragment extractor + patch dimensi SOF (pure-bytes parser)
+- Caesar shifter helper (ranking kandidat plaintext)
 - PCAP analysis notes (offline-safe guidance)
+
+### 5) XOR Toolkit Upgrade
+- XOR brute force sekarang bisa input byte-list (`0x43, 100, 0x60, ...`)
+- XOR alternating key even/odd (contoh `0x10`, `0x08`)
+- XOR repeating key pattern (`10,8` atau `0x10,0x08`)
+- Output hasil XOR selalu ditampilkan sebagai hex + text
 
 ## Struktur
 
@@ -89,3 +99,18 @@ python3 -m ctf_toolkit
 - Modul aman untuk di-import tanpa menjalankan CLI otomatis.
 - `Simple Wordlist Brute` menggunakan password dummy default `ctf123` (khusus simulasi CTF/lab, bukan autentikasi nyata).
 - `Regex Flag Finder` mengenali pola flag umum termasuk `LKS{...}`, `LKSJAKTIM{...}`, serta bentuk `LKS_JAKTIM{...}`, `LKS-JAKTIM{...}`, atau `LKS JAKTIM{...}` (case-insensitive).
+- Analisis PCAP/JPEG/ZIP dilakukan **offline** pada file lokal; toolkit tidak melakukan auto-scan atau auto-exploit jaringan/host.
+
+## Contoh Singkat
+
+### XOR byte-list + key alternating
+1. Buka `Decode/Encode` -> `XOR alternating key (even/odd)`.
+2. Input data sebagai byte-list, misal: `0x43, 0x45, 0x54, 0x73, 100, 0x60`.
+3. Isi `even_key=0x10`, `odd_key=0x08`.
+4. Toolkit menampilkan plaintext (UTF-8 ignore) + hex.
+
+### Forensics PCAP Extractor
+1. Buka `Forensics/RE Helpers` -> `PCAP Extractor`.
+2. Masukkan path `.pcap` atau `.pcapng`.
+3. Hasil artifact tersimpan di folder `output/pcap_<nama_file>/`:
+   - `http.txt`, `tcp_strings.txt`, `dns.txt`, `raw_strings.txt`, `hits.txt`, `summary.txt`.

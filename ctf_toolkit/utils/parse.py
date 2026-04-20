@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import re
 from typing import Optional
 
 
@@ -55,3 +56,26 @@ def parse_positive_int(value: str, default: Optional[int] = None) -> Optional[in
     if num < 0:
         raise ValueError("must be >= 0")
     return num
+
+
+def parse_byte_list(text: str) -> bytes:
+    raw = text.strip()
+    if not raw:
+        return b""
+
+    tokens = [token for token in re.split(r"[\s,]+", raw) if token]
+    parsed: list[int] = []
+
+    for token in tokens:
+        normalized = token.strip().lower()
+        if not normalized:
+            continue
+        try:
+            value = int(normalized, 16) if normalized.startswith("0x") else int(normalized, 10)
+        except ValueError as exc:
+            raise ValueError(f"token byte tidak valid: '{token}' (gunakan angka dec atau 0x..)") from exc
+        if not 0 <= value <= 255:
+            raise ValueError(f"nilai byte di luar rentang 0..255: {value}")
+        parsed.append(value)
+
+    return bytes(parsed)
