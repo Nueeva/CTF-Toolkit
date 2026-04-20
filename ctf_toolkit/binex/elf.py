@@ -53,7 +53,7 @@ def parse_elf(path: str) -> dict[str, object]:
     for idx in range(e_phnum):
         off = e_phoff + idx * e_phentsize
         if off + e_phentsize > len(data):
-            continue
+            raise ValueError("malformed ELF: program header exceeds file bounds")
         if bits == 64:
             p_type = struct.unpack_from(_fmt(endian, "I"), data, off)[0]
             p_flags = struct.unpack_from(_fmt(endian, "I"), data, off + 4)[0]
@@ -88,8 +88,10 @@ def parse_elf(path: str) -> dict[str, object]:
         end = start + p["filesz"]
         step = 16 if bits == 64 else 8
         tag_fmt = "qQ" if bits == 64 else "iI"
-        upper = min(end, max(0, len(data) - step + 1))
+        upper = min(end, len(data))
         for dyn_off in range(start, upper, step):
+            if dyn_off + step > len(data):
+                break
             tag, val = struct.unpack_from(_fmt(endian, tag_fmt), data, dyn_off)
             if tag == 0:
                 break
