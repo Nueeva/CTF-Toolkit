@@ -165,6 +165,16 @@ def _extract_lks_flag_candidates(text: str) -> list[str]:
     return sorted(found)
 
 
+def _print_lks_flag_candidates_from_text(text: str) -> None:
+    flags = _extract_lks_flag_candidates(text)
+    if flags:
+        print("[+] Kandidat flag LKS/LKSJAKTIM:")
+        for idx, flag in enumerate(flags, start=1):
+            print(f"  {idx}. {flag}")
+    else:
+        print("[-] Pola flag LKS/LKSJAKTIM belum terdeteksi.")
+
+
 def decode_encode_menu() -> None:
     while True:
         print("\n=== Decode/Encode ===")
@@ -542,8 +552,8 @@ def crypto_rsa_menu() -> None:
                 n = parse_int(safe_input("n (dec/0x): "))
                 e = parse_int(safe_input("e (dec/0x): "))
                 c = parse_int(safe_input("c (dec/0x): "))
-                max_steps = int(safe_input("max_steps [default 50000]: ").strip() or "50000")
-                factors = fermat_factor(n, max_iter=max_steps)
+                max_iter = int(safe_input("max_steps [default 50000]: ").strip() or "50000")
+                factors = fermat_factor(n, max_iter=max_iter)
                 if not factors:
                     print("[-] Faktor tidak ditemukan dalam batas max_steps.")
                     continue
@@ -560,13 +570,7 @@ def crypto_rsa_menu() -> None:
                 print(f"[+] plaintext (utf-8 ignore): {text}")
                 print(f"[+] plaintext raw bytes: {m_bytes!r}")
                 print(f"[+] plaintext bytes (hex): {m_bytes.hex()}")
-                flags = _extract_lks_flag_candidates(text)
-                if flags:
-                    print("[+] Kandidat flag LKS/LKSJAKTIM:")
-                    for idx, flag in enumerate(flags, start=1):
-                        print(f"  {idx}. {flag}")
-                else:
-                    print("[-] Pola flag LKS/LKSJAKTIM belum terdeteksi.")
+                _print_lks_flag_candidates_from_text(text)
             else:
                 print("[!] Pilihan tidak valid.")
         except ValueError as exc:
@@ -611,11 +615,7 @@ def _aes_ctr_keystream_reuse_menu() -> None:
     if show_masked:
         print(f"[+] Plaintext masked: {masked_utf8_view(plain, known_mask, unknown_char='.')}")
 
-    flags = _extract_lks_flag_candidates(plain.decode("utf-8", errors="ignore"))
-    if flags:
-        print("[+] Kandidat flag LKS/LKSJAKTIM:")
-        for idx, flag in enumerate(flags, start=1):
-            print(f"  {idx}. {flag}")
+    _print_lks_flag_candidates_from_text(plain.decode("utf-8", errors="ignore"))
 
 
 def crypto_aes_menu() -> None:
