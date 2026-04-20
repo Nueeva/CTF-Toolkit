@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import isqrt
+
 from ctf_toolkit.utils.math import crt, egcd, integer_nthroot, modinv
 
 
@@ -41,13 +43,13 @@ def fermat_factor(n: int, max_iter: int = 1_000_000) -> tuple[int, int] | None:
     if n % 2 == 0:
         return (2, n // 2)
 
-    a = int(n**0.5)
+    a = isqrt(n)
     if a * a < n:
         a += 1
 
     for _ in range(max_iter):
         b2 = a * a - n
-        b = int(b2**0.5)
+        b = isqrt(b2)
         if b * b == b2:
             p = a - b
             q = a + b
