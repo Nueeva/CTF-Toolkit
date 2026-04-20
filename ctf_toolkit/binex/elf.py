@@ -88,10 +88,8 @@ def parse_elf(path: str) -> dict[str, object]:
         end = start + p["filesz"]
         step = 16 if bits == 64 else 8
         tag_fmt = "qQ" if bits == 64 else "iI"
-        upper = min(end, len(data))
+        upper = min(end, len(data) - step + 1)
         for dyn_off in range(start, upper, step):
-            if dyn_off + step > len(data):
-                break
             tag, val = struct.unpack_from(_fmt(endian, tag_fmt), data, dyn_off)
             if tag == 0:
                 break
