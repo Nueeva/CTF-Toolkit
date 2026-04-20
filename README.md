@@ -88,4 +88,4 @@ python3 -m ctf_toolkit
 - Tidak ada eksekusi command eksternal dari toolkit.
 - Modul aman untuk di-import tanpa menjalankan CLI otomatis.
 - `Simple Wordlist Brute` menggunakan password dummy default `ctf123` (khusus simulasi CTF/lab, bukan autentikasi nyata).
-- `Regex Flag Finder` mengenali pola flag umum termasuk `LKS{...}`, `LKSJAKTIM{...}`, dan variasi `LKS[_-\s]?JAKTIM{...}` (case-insensitive).
+- `Regex Flag Finder` mengenali pola flag umum termasuk `LKS{...}`, `LKSJAKTIM{...}`, dan variasi `LKS[_-\s]?JAKTIM{...}` (case-insensitive; pola variasi juga mencakup bentuk tanpa separator).
