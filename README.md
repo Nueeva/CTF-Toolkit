@@ -117,6 +117,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Vigenere encrypt/decrypt
 - Affine encrypt/decrypt
 - Substitution apply + frequency analysis
+- Custom alphabet cipher solver (shift/XOR)
 
 #### RSA
 - Encrypt/decrypt dasar (`m^e mod n`, `c^d mod n`)
@@ -146,6 +147,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 ### 8) BinEx Tools
 - Cyclic pattern create
 - Cyclic offset find
+- Integer boundary & wrap calculator (i32/u32/i64/u64)
 - Pack/unpack (`p32/p64/u32/u64`)
 - ELF triage/checksec-lite (heuristic PIE/NX/RELRO/Canary)
 - Gadget scan dasar (`ret`, `pop rdi; ret`)
@@ -155,6 +157,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Base64URL encode/decode
 - JWT decode tanpa verifikasi signature
 - Request template generator (SQLi/SSRF/SSTI) untuk latihan manual
+- IDOR payload crafter (padding + base64/md5/hex + JSON)
 
 ### 10) Forensics/RE Helpers
 - File magic detect
@@ -166,6 +169,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - ZIP recover (corrupted header/trailing)
 - JPEG fragment extract + patch dimensi
 - Caesar shifter helper
+- PYC decompiler (pycdc/uncompyle6)
 
 ---
 
