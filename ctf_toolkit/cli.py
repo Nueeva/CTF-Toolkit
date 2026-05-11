@@ -11,7 +11,7 @@ from pathlib import Path
 
 import requests
 
-from ctf_toolkit.binex.cyclic import cyclic_create, cyclic_find
+from ctf_toolkit.binex.pwncalc import cyclic_create, cyclic_find, describe_integer_bounds
 from ctf_toolkit.binex.elf import parse_elf
 from ctf_toolkit.binex.gadgets import scan_gadgets
 from ctf_toolkit.binex.pack import p32, p64, u32, u64
@@ -38,6 +38,12 @@ from ctf_toolkit.crypto.classical import (
     vigenere_encrypt,
     frequency_analysis,
 )
+from ctf_toolkit.crypto.custom_alphabet import (
+    apply_custom_cipher,
+    bruteforce_custom_cipher,
+    parse_custom_key,
+    validate_alphabet,
+)
 from ctf_toolkit.crypto.hashes import LENGTH_EXTENSION_NOTE, digest
 from ctf_toolkit.crypto.prng import lcg_generate, recover_lcg_params_known_mod
 from ctf_toolkit.crypto.rsa import (
@@ -55,14 +61,24 @@ from ctf_toolkit.crypto.stream_attacks import (
     merge_keystreams,
 )
 from ctf_toolkit.forensics.filetype import detect_file_magic
+from ctf_toolkit.forensics.pyc_decompile import decompile_pyc
 from ctf_toolkit.forensics.caesar_helper import suggest_caesar_candidates
 from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_fragments, get_jpeg_dimensions, patch_jpeg_dimensions
 from ctf_toolkit.forensics.pcap_extract import extract_pcap_artifacts
 from ctf_toolkit.forensics.pcap_notes import PCAP_HELP_TEXT
 from ctf_toolkit.forensics.zip_recover import list_zip_members, recover_corrupted_zip
 from ctf_toolkit.utils.io import read_bytes_file, read_text_or_file, safe_input
+from ctf_toolkit.utils.pager import page_text
 from ctf_toolkit.utils.parse import parse_byte_list, parse_bytes, parse_int
 from ctf_toolkit.utils.text import extract_printable_strings, hexdump, redact_sensitive_text, shannon_entropy
+from ctf_toolkit.web.idor import (
+    build_idor_payloads,
+    default_padding_widths,
+    iter_id_values,
+    parse_id_range,
+    parse_padding_widths,
+    range_count,
+)
 
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim", "password", "secret", "token", "admin"]
 XOR_SEARCH_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim"]
@@ -409,6 +425,32 @@ def simple_wordlist_brute_menu() -> None:
     print("[-] Tidak ada password yang cocok.")
 
 
+def custom_alphabet_solver_menu(ciphertext: str) -> None:
+    if not ciphertext:
+        print("[!] Teks kosong.")
+        return
+    try:
+        alphabet = validate_alphabet(safe_input("Alphabet custom: "))
+        print("[1] Bruteforce shift (custom Caesar)")
+        print("[2] Shift dengan key (angka/list)")
+        print("[3] Bruteforce XOR index")
+        print("[4] XOR dengan key (angka/list)")
+        choice = safe_input("Pilih opsi: ").strip()
+        if choice in {"1", "3"}:
+            mode = "xor" if choice == "3" else "shift"
+            for shift, value in bruteforce_custom_cipher(ciphertext, alphabet, mode=mode):
+                print(f"{shift:02d}: {value}")
+        elif choice in {"2", "4"}:
+            mode = "xor" if choice == "4" else "shift"
+            key_raw = safe_input("Key (angka pisah koma / string alphabet): ")
+            shifts = parse_custom_key(key_raw, alphabet)
+            print(apply_custom_cipher(ciphertext, alphabet, shifts, mode=mode))
+        else:
+            print("[!] Pilihan tidak valid.")
+    except ValueError as exc:
+        print(f"[!] Error: {exc}")
+
+
 def crypto_classical_menu() -> None:
     while True:
         print("\n=== Crypto > Classical ===")
@@ -421,6 +463,7 @@ def crypto_classical_menu() -> None:
         print("[7] Affine Encrypt")
         print("[8] Affine Decrypt")
         print("[9] Substitution Apply + Frequency")
+        print("[10] Custom Alphabet Cipher Solver")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -467,6 +510,8 @@ def crypto_classical_menu() -> None:
                 print("[+] Frequency analysis:")
                 for ch, count in frequency_analysis(text):
                     print(f"  {ch}: {count}")
+            elif choice == "10":
+                custom_alphabet_solver_menu(text)
             else:
                 print("[!] Pilihan tidak valid.")
         except ValueError as exc:
@@ -756,6 +801,46 @@ def crypto_menu() -> None:
             print("[!] Pilihan tidak valid.")
 
 
+def pwn_calc_menu() -> None:
+    while True:
+        print("\n=== BinEx > Integer Boundary & Pwn Calc ===")
+        print("[1] Integer Boundary Wrap")
+        print("[2] Cyclic Pattern Create")
+        print("[3] Cyclic Offset Find")
+        print("[0] Kembali")
+        choice = safe_input("Pilih opsi: ").strip()
+        if choice == "0":
+            return
+        try:
+            if choice == "1":
+                value = parse_int(safe_input("Nilai integer (dec/0x): "))
+                print(f"[+] Input: {value} (hex: {value:#x})")
+                for entry in describe_integer_bounds(value):
+                    status = "ok"
+                    if entry["overflow"]:
+                        status = "overflow"
+                    elif entry["underflow"]:
+                        status = "underflow"
+                    print(f"[{entry['label']}] {entry['value']} (hex: {entry['hex']}) [{status}]")
+                    print(f"    range: {entry['min']} .. {entry['max']}")
+                    if entry["wrapped"]:
+                        print(f"    wrap: {value} -> {entry['value']}")
+            elif choice == "2":
+                length = int(safe_input("Length: "))
+                pattern = cyclic_create(length)
+                show_text_hex(pattern, "Pattern")
+            elif choice == "3":
+                needle_raw = safe_input("Needle (text/hex:...): ").strip()
+                needle = parse_bytes(needle_raw, mode="auto")
+                max_len = int(safe_input("max_len [default 100000]: ").strip() or "100000")
+                offset = cyclic_find(needle, max_len=max_len)
+                print(f"[+] Offset: {offset}")
+            else:
+                print("[!] Pilihan tidak valid.")
+        except (ValueError, binascii.Error) as exc:
+            print(f"[!] Error: {exc}")
+
+
 def binex_menu() -> None:
     while True:
         print("\n=== BinEx Tools ===")
@@ -764,6 +849,7 @@ def binex_menu() -> None:
         print("[3] Pack/Unpack (p32/p64/u32/u64)")
         print("[4] ELF Triage / Checksec-lite")
         print("[5] Gadget Scan (ret, pop rdi; ret)")
+        print("[6] Integer Boundary & Pwn Calc")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -798,10 +884,48 @@ def binex_menu() -> None:
                 print(f"ret sample: {[hex(x) for x in data['ret'][:20]]}")
                 print(f"pop rdi; ret count: {len(data['pop_rdi_ret'])}")
                 print(f"pop rdi; ret sample: {[hex(x) for x in data['pop_rdi_ret'][:20]]}")
+            elif choice == "6":
+                pwn_calc_menu()
             else:
                 print("[!] Pilihan tidak valid.")
         except (ValueError, OSError, binascii.Error) as exc:
             print(f"[!] Error: {exc}")
+
+
+def idor_payload_menu() -> None:
+    print("\n=== Web > IDOR Payload Crafter ===")
+    raw = safe_input("Target ID atau range (contoh 1 atau 1-10): ").strip()
+    if not raw:
+        print("[!] ID kosong.")
+        return
+    try:
+        start, end = parse_id_range(raw)
+        total = range_count(start, end)
+        if total > 200:
+            confirm = safe_input(f"Range berisi {total} ID, lanjut? [y/N]: ").strip().lower()
+            if confirm != "y":
+                return
+        param = safe_input("Nama parameter JSON [default id]: ").strip() or "id"
+        widths_raw = safe_input("Padding widths (pisah koma, kosong=auto): ")
+        widths = parse_padding_widths(widths_raw, default_padding_widths(max(start, end)))
+        for value in iter_id_values(start, end):
+            print(f"\n=== ID {value} ===")
+            payloads = build_idor_payloads(value, widths)
+            if not payloads:
+                print("[!] Tidak ada padding yang valid.")
+                continue
+            for payload in payloads:
+                print(f"- padded: {payload['padded']}")
+                print(f"  b64 : {payload['base64']}")
+                print(f"  md5 : {payload['md5']}")
+                print(f"  hex : {payload['hex']}")
+                print("  json:")
+                print(f"    raw: {json.dumps({param: payload['padded']})}")
+                print(f"    b64: {json.dumps({param: payload['base64']})}")
+                print(f"    md5: {json.dumps({param: payload['md5']})}")
+                print(f"    hex: {json.dumps({param: payload['hex']})}")
+    except ValueError as exc:
+        print(f"[!] Error: {exc}")
 
 
 def web_helpers_menu() -> None:
@@ -822,6 +946,7 @@ def web_helpers_menu() -> None:
         print("[4] Base64URL Decode")
         print("[5] JWT Decode (no verify)")
         print("[6] Request Templates Generator")
+        print("[7] IDOR Payload Crafter")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -852,6 +977,8 @@ def web_helpers_menu() -> None:
                     print(f"\n[{name.upper()}]")
                     for p in payloads:
                         print(f"- {p}")
+            elif choice == "7":
+                idor_payload_menu()
             else:
                 print("[!] Pilihan tidak valid.")
         except ValueError as exc:
@@ -870,6 +997,7 @@ def forensics_menu() -> None:
         print("[7] ZIP Recover (corrupted header/trailing)")
         print("[8] JPEG Tools (extract/patch dimensi)")
         print("[9] Caesar Shifter Helper")
+        print("[10] PYC Decompiler (pycdc/uncompyle6)")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -948,6 +1076,20 @@ def forensics_menu() -> None:
             top_n = int(safe_input("Tampilkan berapa kandidat? [default 5]: ").strip() or "5")
             for shift, candidate in suggest_caesar_candidates(text, top_n=top_n):
                 print(f"[shift {shift:2d}] {candidate}")
+        elif choice == "10":
+            path = safe_input("Path .pyc: ").strip()
+            if not path:
+                print("[!] Path kosong.")
+                continue
+            try:
+                tool, output = decompile_pyc(path)
+                print(f"[+] Decompiler: {tool}")
+                if not output.strip():
+                    print("[!] Output kosong.")
+                    continue
+                page_text(output)
+            except (ValueError, FileNotFoundError) as exc:
+                print(f"[!] Error: {exc}")
         else:
             print("[!] Pilihan tidak valid.")
 
