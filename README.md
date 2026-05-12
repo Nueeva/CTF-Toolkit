@@ -173,6 +173,20 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Caesar shifter helper
 - PYC decompiler (pycdc/uncompyle6)
 
+### 11) Defensive / Blue Team
+- Log Forensic & Anomaly Detector (Apache/Nginx/Auth/Syslog)
+  - Deteksi Path Traversal, SQL Injection, dan Bruteforce 401/403
+  - Output tabel *Incident Report* (Time, Source IP, Attack Type, Target URL)
+- Network Artifact Extractor
+  - Wrapper `tshark` (jika tersedia) + parser `dpkt`
+  - Export object HTTP/SMB, daftar User-Agent & Destination IP, serta DNS query suspicious
+- Digital Artifact Discovery (Windows/Linux)
+  - Quick path discovery untuk browser history, prefetch, shimcache, appdata, bash history, cron, passwd, ssh keys
+  - One-liner hash MD5/SHA256 siap pakai untuk integrity check
+- Malware Analysis Helper
+  - File Header Checker (magic bytes vs extension)
+  - Strings Analysis untuk URL, IP address, dan API key indicator
+
 ---
 
 ## Contoh penggunaan singkat
