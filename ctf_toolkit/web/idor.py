@@ -54,6 +54,7 @@ def parse_padding_widths(raw: str, defaults: list[int]) -> list[int]:
 
 def build_idor_payloads(value: int, widths: list[int]) -> list[dict[str, str]]:
     raw_value = str(value)
+    raw_data = raw_value.encode("utf-8")
     min_len = len(raw_value.lstrip("-"))
     payloads: list[dict[str, str]] = []
     for width in widths:
@@ -63,10 +64,14 @@ def build_idor_payloads(value: int, widths: list[int]) -> list[dict[str, str]]:
         data = padded.encode("utf-8")
         payloads.append(
             {
+                "raw": raw_value,
+                "raw_base64": base64.b64encode(raw_data).decode("utf-8"),
+                "raw_md5": hashlib.md5(raw_data).hexdigest(),
+                "raw_hex": raw_data.hex(),
                 "padded": padded,
-                "base64": base64.b64encode(data).decode("utf-8"),
-                "md5": hashlib.md5(data).hexdigest(),
-                "hex": data.hex(),
+                "padded_base64": base64.b64encode(data).decode("utf-8"),
+                "padded_md5": hashlib.md5(data).hexdigest(),
+                "padded_hex": data.hex(),
             }
         )
     return payloads
