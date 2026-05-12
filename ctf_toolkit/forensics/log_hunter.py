@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ACCESS_LOG_RE = re.compile(
-    r'^(?P<ip>\S+)\s+\S+\s+\S+\s+\[(?P<time>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<url>[^\s"]+)(?:\s+HTTP/[0-9.]+)?"\s+(?P<status>\d{3})'
+    r'^(?P<ip>\S+)\s+\S+\s+\S+\s+\[(?P<time>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<url>[^\s"]+)(?:\s+HTTP/[0-9.]+)?"\s+(?P<status>\d{3})(?:\s+\S+){0,2}$'
 )
 SYSLOG_RE = re.compile(r"^(?P<time>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+\S+\s+(?P<body>.*)$")
 IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 PATH_TRAVERSAL_RE = re.compile(r"(\.\./|%2e%2e%2f|%252e%252e%252f|/etc/passwd)", flags=re.IGNORECASE)
 SQLI_RE = re.compile(
-    r"('\\s*or\\s*'1'='1|\\bor\\s+1=1\\b|union\\s+select|information_schema|sleep\s*\(|benchmark\s*\(|--|/\*)",
+    r"('\s*or\s*'1'='1|\bor\s+1=1\b|union\s+select|information_schema|sleep\s*\(|benchmark\s*\(|--|/\*)",
     flags=re.IGNORECASE,
 )
 
