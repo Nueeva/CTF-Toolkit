@@ -3,11 +3,27 @@ from __future__ import annotations
 from pathlib import Path
 
 
+def info(message: str) -> None:
+    print(f"[i] {message}")
+
+
+def success(message: str) -> None:
+    print(f"[+] {message}")
+
+
+def warn(message: str) -> None:
+    print(f"[!] {message}")
+
+
+def error(message: str) -> None:
+    print(f"[-] {message}")
+
+
 def safe_input(prompt: str) -> str:
     try:
         return input(prompt)
     except (EOFError, KeyboardInterrupt):
-        print("\n[!] Input dibatalkan.")
+        warn("Input dibatalkan.")
         return ""
 
 
@@ -22,15 +38,15 @@ def read_text_or_file() -> str:
     if choice == "2":
         path = safe_input("Masukkan path file: ").strip()
         if not path:
-            print("[!] Path file kosong.")
+            warn("Path file kosong.")
             return ""
         try:
             return Path(path).read_text(encoding="utf-8", errors="ignore")
         except OSError as exc:
-            print(f"[!] Gagal membaca file: {exc}")
+            warn(f"Gagal membaca file: {exc}")
             return ""
 
-    print("[!] Pilihan tidak valid.")
+    warn("Pilihan tidak valid.")
     return ""
 
 
@@ -40,5 +56,5 @@ def read_bytes_file(path: str) -> bytes:
     try:
         return Path(path).read_bytes()
     except OSError as exc:
-        print(f"[!] Gagal membaca file: {exc}")
+        warn(f"Gagal membaca file: {exc}")
         return b""
