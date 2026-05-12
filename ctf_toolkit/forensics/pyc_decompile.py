@@ -30,3 +30,10 @@ def decompile_pyc(path: str) -> tuple[str, str]:
         err = (proc.stderr or "").strip() or "decompiler gagal"
         raise ValueError(err)
     return cmd[0], proc.stdout
+
+
+def decompile_pyc_if_applicable(path: str) -> tuple[str, str] | None:
+    file_path = Path(path)
+    if file_path.suffix.lower() != ".pyc":
+        return None
+    return decompile_pyc(path)

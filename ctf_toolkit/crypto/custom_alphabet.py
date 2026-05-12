@@ -59,3 +59,10 @@ def apply_custom_cipher(text: str, alphabet: str, shifts: list[int], mode: str =
 def bruteforce_custom_cipher(text: str, alphabet: str, mode: str = "shift") -> list[tuple[int, str]]:
     size = len(alphabet)
     return [(shift, apply_custom_cipher(text, alphabet, [shift], mode=mode)) for shift in range(size)]
+
+
+def auto_solve_custom_cipher(text: str, alphabet: str) -> dict[str, list[tuple[int, str]]]:
+    return {
+        "shift": bruteforce_custom_cipher(text, alphabet, mode="shift"),
+        "xor": bruteforce_custom_cipher(text, alphabet, mode="xor"),
+    }

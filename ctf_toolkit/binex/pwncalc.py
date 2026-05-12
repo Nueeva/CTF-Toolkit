@@ -22,7 +22,13 @@ def _unsigned_bounds(bits: int) -> tuple[int, int]:
     return 0, (1 << bits) - 1
 
 
-def describe_integer_bounds(value: int) -> list[dict[str, object]]:
+def _bypass_underflow_check(value: int, bits: int, limit: int) -> bool:
+    signed_value = _signed_wrap(value, bits)
+    unsigned_value = _unsigned_wrap(value, bits)
+    return signed_value <= limit < unsigned_value
+
+
+def describe_integer_bounds(value: int, limit: int = 67) -> list[dict[str, object]]:
     specs = [
         ("i32", 32, True),
         ("u32", 32, False),
@@ -51,6 +57,8 @@ def describe_integer_bounds(value: int) -> list[dict[str, object]]:
                 "overflow": value > max_val,
                 "underflow": value < min_val,
                 "wrapped": display_value != value,
+                "bypass_check": signed and _bypass_underflow_check(value, bits, limit),
+                "limit": limit,
             }
         )
     return results
