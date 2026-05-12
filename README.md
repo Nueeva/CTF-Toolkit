@@ -117,7 +117,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Vigenere encrypt/decrypt
 - Affine encrypt/decrypt
 - Substitution apply + frequency analysis
-- Custom alphabet cipher solver (shift/XOR)
+- Custom alphabet cipher solver (auto shift/XOR + key)
 
 #### RSA
 - Encrypt/decrypt dasar (`m^e mod n`, `c^d mod n`)
@@ -145,9 +145,9 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - MD5, SHA1, SHA256 digest
 
 ### 8) BinEx Tools
-- Cyclic pattern create
-- Cyclic offset find
-- Integer boundary & wrap calculator (i32/u32/i64/u64)
+- De Bruijn cyclic pattern create
+- De Bruijn cyclic offset find
+- Memory wrapper (i32/u32/i64/u64) + flag bypass check underflow
 - Pack/unpack (`p32/p64/u32/u64`)
 - ELF triage/checksec-lite (heuristic PIE/NX/RELRO/Canary)
 - Gadget scan dasar (`ret`, `pop rdi; ret`)
@@ -157,13 +157,15 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Base64URL encode/decode
 - JWT decode tanpa verifikasi signature
 - Request template generator (SQLi/SSRF/SSTI) untuk latihan manual
-- IDOR payload crafter (padding + base64/md5/hex + JSON)
+- IDOR payload matrix (raw/padded + base64/md5/hex + JSON)
+- White-box logic assistant (mass assignment heuristic)
 
 ### 10) Forensics/RE Helpers
 - File magic detect
 - Hexdump file
 - Entropy file
 - Strings extractor
+- Auto decompile `.pyc` saat file scanner mendeteksi bytecode
 - PCAP extractor offline (`.pcap`/`.pcapng`)
 - PCAP notes (guidance)
 - ZIP recover (corrupted header/trailing)
