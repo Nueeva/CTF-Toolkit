@@ -88,6 +88,8 @@ def extract_network_artifacts(
     output_root: str = "output",
     prefer_tshark: bool = True,
     max_http_object_size: int = 5 * 1024 * 1024,
+    max_exported_smb_objects: int = 500,
+    max_tracked_items: int = 20000,
 ) -> NetworkArtifactResult:
     source = Path(pcap_path)
     if not source.exists() or not source.is_file():
@@ -122,9 +124,11 @@ def extract_network_artifacts(
 
             ip = getattr(eth, "data", None)
             if isinstance(ip, dpkt.ip.IP):
-                destination_ips.add(socket.inet_ntoa(ip.dst))
+                if len(destination_ips) < max_tracked_items:
+                    destination_ips.add(socket.inet_ntoa(ip.dst))
             elif isinstance(ip, dpkt.ip6.IP6):
-                destination_ips.add(socket.inet_ntop(socket.AF_INET6, ip.dst))
+                if len(destination_ips) < max_tracked_items:
+                    destination_ips.add(socket.inet_ntop(socket.AF_INET6, ip.dst))
             else:
                 continue
 
@@ -146,7 +150,8 @@ def extract_network_artifacts(
                 if request:
                     user_agent = request.headers.get("user-agent", "")
                     if user_agent:
-                        user_agents.add(user_agent[:200])
+                        if len(user_agents) < max_tracked_items:
+                            user_agents.add(user_agent[:200])
 
             if isinstance(transport, dpkt.tcp.TCP) and payload.startswith(b"HTTP/"):
                 try:
@@ -162,7 +167,11 @@ def extract_network_artifacts(
                         object_path.write_bytes(response.body)
                         http_count += 1
 
-            if isinstance(transport, dpkt.tcp.TCP) and (b"\xffSMB" in payload or b"\xfeSMB" in payload):
+            if (
+                isinstance(transport, dpkt.tcp.TCP)
+                and smb_count < max_exported_smb_objects
+                and (b"\xffSMB" in payload or b"\xfeSMB" in payload)
+            ):
                 chunk = payload[: min(len(payload), 32768)]
                 object_path = exported_dir / f"smb_chunk_{packets}.bin"
                 object_path.write_bytes(chunk)
@@ -183,8 +192,9 @@ def extract_network_artifacts(
                     name = getattr(question, "name", "").strip().lower()
                     if not name:
                         continue
-                    dns_queries.add(name)
-                    if _is_suspicious_dns(name):
+                    if len(dns_queries) < max_tracked_items:
+                        dns_queries.add(name)
+                    if _is_suspicious_dns(name) and len(suspicious_dns) < max_tracked_items:
                         suspicious_dns.add(name)
     finally:
         handle.close()
