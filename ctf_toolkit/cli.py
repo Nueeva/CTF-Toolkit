@@ -40,6 +40,7 @@ from ctf_toolkit.crypto.classical import (
 )
 from ctf_toolkit.crypto.custom_alphabet import (
     apply_custom_cipher,
+    auto_solve_custom_cipher,
     bruteforce_custom_cipher,
     parse_custom_key,
     validate_alphabet,
@@ -61,7 +62,7 @@ from ctf_toolkit.crypto.stream_attacks import (
     merge_keystreams,
 )
 from ctf_toolkit.forensics.filetype import detect_file_magic
-from ctf_toolkit.forensics.pyc_decompile import decompile_pyc
+from ctf_toolkit.forensics.pyc_decompile import decompile_pyc, decompile_pyc_if_applicable
 from ctf_toolkit.forensics.caesar_helper import suggest_caesar_candidates
 from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_fragments, get_jpeg_dimensions, patch_jpeg_dimensions
 from ctf_toolkit.forensics.pcap_extract import extract_pcap_artifacts
@@ -79,6 +80,7 @@ from ctf_toolkit.web.idor import (
     parse_padding_widths,
     range_count,
 )
+from ctf_toolkit.web.logic import scan_mass_assignment_files
 
 SUSPICIOUS_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim", "password", "secret", "token", "admin"]
 XOR_SEARCH_KEYWORDS = ["flag", "ctf", "key", "lks", "lksjaktim"]
@@ -169,6 +171,18 @@ def show_text_hex(data: bytes, title: str = "Hasil") -> None:
     print(f"[+] {title} (text): {data.decode('utf-8', errors='ignore')}")
 
 
+def _print_table(headers: list[str], rows: list[list[str]]) -> None:
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for idx, cell in enumerate(row):
+            widths[idx] = max(widths[idx], len(cell))
+    header_line = " | ".join(header.ljust(widths[idx]) for idx, header in enumerate(headers))
+    print(header_line)
+    print("-" * len(header_line))
+    for row in rows:
+        print(" | ".join(cell.ljust(widths[idx]) for idx, cell in enumerate(row)))
+
+
 def _extract_lks_flag_candidates(text: str) -> list[str]:
     patterns = [
         r"LKS\{[^\n\r\}]{1,300}\}",
@@ -189,6 +203,31 @@ def _print_lks_flag_candidates_from_text(text: str) -> None:
             print(f"  {idx}. {flag}")
     else:
         print("[-] Pola flag LKS/LKSJAKTIM belum terdeteksi.")
+
+
+def _print_memory_wrapper(entries: list[dict[str, object]]) -> None:
+    rows: list[list[str]] = []
+    for entry in entries:
+        status = "ok"
+        if entry["overflow"]:
+            status = "overflow"
+        elif entry["underflow"]:
+            status = "underflow"
+        bypass = "YES" if entry.get("bypass_check") else "-"
+        rows.append(
+            [
+                str(entry["label"]),
+                str(entry["value"]),
+                str(entry["hex"]),
+                f"{entry['min']}..{entry['max']}",
+                status,
+                bypass,
+            ]
+        )
+    _print_table(["type", "value", "hex", "range", "status", "bypass>limit"], rows)
+    if any(entry.get("bypass_check") for entry in entries):
+        limit = entries[0].get("limit", 67)
+        print(f"[!] Potensi bypass check 'if (size > {limit})' karena underflow.")
 
 
 def decode_encode_menu() -> None:
@@ -352,6 +391,19 @@ def file_scanner_menu() -> None:
         return
 
     try:
+        decompiled = decompile_pyc_if_applicable(path)
+    except (ValueError, FileNotFoundError) as exc:
+        decompiled = None
+        print(f"[!] PYC decompile gagal: {exc}")
+    if decompiled:
+        tool, output = decompiled
+        print(f"[+] Decompiler: {tool}")
+        if output.strip():
+            page_text(output)
+        else:
+            print("[!] Output decompiler kosong.")
+
+    try:
         min_len = int(safe_input("Min printable string length [default 4]: ").strip() or "4")
     except ValueError:
         min_len = 4
@@ -431,17 +483,26 @@ def custom_alphabet_solver_menu(ciphertext: str) -> None:
         return
     try:
         alphabet = validate_alphabet(safe_input("Alphabet custom: "))
-        print("[1] Bruteforce shift (custom Caesar)")
-        print("[2] Shift dengan key (angka/list)")
-        print("[3] Bruteforce XOR index")
-        print("[4] XOR dengan key (angka/list)")
+        print("[1] Auto shift + XOR (bruteforce)")
+        print("[2] Bruteforce shift (custom Caesar)")
+        print("[3] Shift dengan key (angka/list)")
+        print("[4] Bruteforce XOR index")
+        print("[5] XOR dengan key (angka/list)")
         choice = safe_input("Pilih opsi: ").strip()
-        if choice in {"1", "3"}:
-            mode = "xor" if choice == "3" else "shift"
-            for shift, value in bruteforce_custom_cipher(ciphertext, alphabet, mode=mode):
+        if choice == "1":
+            results = auto_solve_custom_cipher(ciphertext, alphabet)
+            print("\n[Shift bruteforce]")
+            for shift, value in results["shift"]:
+                print(f"{shift:02d}: {value}")
+            print("\n[XOR bruteforce]")
+            for shift, value in results["xor"]:
                 print(f"{shift:02d}: {value}")
         elif choice in {"2", "4"}:
             mode = "xor" if choice == "4" else "shift"
+            for shift, value in bruteforce_custom_cipher(ciphertext, alphabet, mode=mode):
+                print(f"{shift:02d}: {value}")
+        elif choice in {"3", "5"}:
+            mode = "xor" if choice == "5" else "shift"
             key_raw = safe_input("Key (angka pisah koma / string alphabet): ")
             shifts = parse_custom_key(key_raw, alphabet)
             print(apply_custom_cipher(ciphertext, alphabet, shifts, mode=mode))
@@ -775,6 +836,49 @@ def crypto_hash_menu() -> None:
     print(f"[i] {LENGTH_EXTENSION_NOTE}")
 
 
+def custom_crypto_reverse_menu() -> None:
+    while True:
+        print("\n=== Custom Crypto & Reverse Hooks ===")
+        print("[1] Custom Alphabet Shifter (auto shift+XOR)")
+        print("[2] Bytecode Decompiler Bridge (.pyc)")
+        print("[0] Kembali")
+        choice = safe_input("Pilih opsi: ").strip()
+        if choice == "0":
+            return
+        if choice == "1":
+            text = safe_input("Ciphertext: ")
+            if not text:
+                print("[!] Teks kosong.")
+                continue
+            try:
+                alphabet = validate_alphabet(safe_input("Alphabet custom: "))
+                results = auto_solve_custom_cipher(text, alphabet)
+                print("\n[Shift bruteforce]")
+                for shift, value in results["shift"]:
+                    print(f"{shift:02d}: {value}")
+                print("\n[XOR bruteforce]")
+                for shift, value in results["xor"]:
+                    print(f"{shift:02d}: {value}")
+            except ValueError as exc:
+                print(f"[!] Error: {exc}")
+        elif choice == "2":
+            path = safe_input("Path .pyc: ").strip()
+            if not path:
+                print("[!] Path kosong.")
+                continue
+            try:
+                tool, output = decompile_pyc(path)
+                print(f"[+] Decompiler: {tool}")
+                if not output.strip():
+                    print("[!] Output kosong.")
+                    continue
+                page_text(output)
+            except (ValueError, FileNotFoundError) as exc:
+                print(f"[!] Error: {exc}")
+        else:
+            print("[!] Pilihan tidak valid.")
+
+
 def crypto_menu() -> None:
     while True:
         print("\n=== Crypto Tools ===")
@@ -783,6 +887,7 @@ def crypto_menu() -> None:
         print("[3] AES")
         print("[4] PRNG")
         print("[5] Hashes")
+        print("[6] Custom Crypto & Reverse Hooks")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -797,16 +902,18 @@ def crypto_menu() -> None:
             crypto_prng_menu()
         elif choice == "5":
             crypto_hash_menu()
+        elif choice == "6":
+            custom_crypto_reverse_menu()
         else:
             print("[!] Pilihan tidak valid.")
 
 
 def pwn_calc_menu() -> None:
     while True:
-        print("\n=== BinEx > Integer Boundary & Pwn Calc ===")
-        print("[1] Integer Boundary Wrap")
-        print("[2] Cyclic Pattern Create")
-        print("[3] Cyclic Offset Find")
+        print("\n=== BinEx > Pwn & Memory Boundary Analyzer ===")
+        print("[1] Memory Wrapper (i32/u32/i64/u64)")
+        print("[2] De Bruijn Cyclic Create")
+        print("[3] De Bruijn Offset Find")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -814,17 +921,11 @@ def pwn_calc_menu() -> None:
         try:
             if choice == "1":
                 value = parse_int(safe_input("Nilai integer (dec/0x): "))
+                limit_raw = safe_input("Batas check (contoh 67) [default 67]: ").strip() or "67"
+                limit = int(limit_raw)
+                entries = describe_integer_bounds(value, limit=limit)
                 print(f"[+] Input: {value} (hex: {value:#x})")
-                for entry in describe_integer_bounds(value):
-                    status = "ok"
-                    if entry["overflow"]:
-                        status = "overflow"
-                    elif entry["underflow"]:
-                        status = "underflow"
-                    print(f"[{entry['label']}] {entry['value']} (hex: {entry['hex']}) [{status}]")
-                    print(f"    range: {entry['min']} .. {entry['max']}")
-                    if entry["wrapped"]:
-                        print(f"    wrap: {value} -> {entry['value']}")
+                _print_memory_wrapper(entries)
             elif choice == "2":
                 length = int(safe_input("Length: "))
                 pattern = cyclic_create(length)
@@ -849,7 +950,7 @@ def binex_menu() -> None:
         print("[3] Pack/Unpack (p32/p64/u32/u64)")
         print("[4] ELF Triage / Checksec-lite")
         print("[5] Gadget Scan (ret, pop rdi; ret)")
-        print("[6] Integer Boundary & Pwn Calc")
+        print("[6] Pwn & Memory Boundary Analyzer")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -915,17 +1016,71 @@ def idor_payload_menu() -> None:
                 print("[!] Tidak ada padding yang valid.")
                 continue
             for payload in payloads:
-                print(f"- padded: {payload['padded']}")
-                print(f"  b64 : {payload['base64']}")
-                print(f"  md5 : {payload['md5']}")
-                print(f"  hex : {payload['hex']}")
-                print("  json:")
-                print(f"    raw: {json.dumps({param: payload['padded']})}")
-                print(f"    b64: {json.dumps({param: payload['base64']})}")
-                print(f"    md5: {json.dumps({param: payload['md5']})}")
-                print(f"    hex: {json.dumps({param: payload['hex']})}")
+                rows = [
+                    ["raw", payload["raw"]],
+                    ["raw_base64", payload["raw_base64"]],
+                    ["raw_md5", payload["raw_md5"]],
+                    ["raw_hex", payload["raw_hex"]],
+                    ["padded", payload["padded"]],
+                    ["padded_base64", payload["padded_base64"]],
+                    ["padded_md5", payload["padded_md5"]],
+                    ["padded_hex", payload["padded_hex"]],
+                ]
+                _print_table(["variant", "value"], rows)
+                print("json:")
+                print(f"  raw   : {json.dumps({param: payload['raw']})}")
+                print(f"  b64   : {json.dumps({param: payload['padded_base64']})}")
+                print(f"  md5   : {json.dumps({param: payload['raw_md5']})}")
+                print(f"  hex   : {json.dumps({param: payload['raw_hex']})}")
+                print(f"  padded: {json.dumps({param: payload['padded']})}")
     except ValueError as exc:
         print(f"[!] Error: {exc}")
+
+
+def mass_assignment_menu() -> None:
+    print("\n=== Web > Mass Assignment Static Heuristic ===")
+    root = safe_input("Root path [default .]: ").strip() or "."
+    names_raw = safe_input("Target files (default app.py,models.py): ").strip()
+    names = [name.strip() for name in names_raw.split(",") if name.strip()] or ["app.py", "models.py"]
+    try:
+        results = scan_mass_assignment_files(root, names)
+    except ValueError as exc:
+        print(f"[!] Error: {exc}")
+        return
+    if not results:
+        print("[-] Tidak ada pola mass assignment yang terdeteksi.")
+        return
+    rows: list[list[str]] = []
+    for item in results:
+        snippet = str(item["snippet"])
+        if len(snippet) > 90:
+            snippet = snippet[:87] + "..."
+        rows.append(
+            [
+                str(item["file"]),
+                str(item["line"]),
+                str(item["reason"]),
+                snippet,
+            ]
+        )
+    _print_table(["file", "line", "reason", "snippet"], rows)
+
+
+def whitebox_logic_menu() -> None:
+    while True:
+        print("\n=== Web > White-Box Logic & IDOR Assistant ===")
+        print("[1] IDOR Payload Matrix")
+        print("[2] Mass Assignment Static Heuristic")
+        print("[0] Kembali")
+        choice = safe_input("Pilih opsi: ").strip()
+        if choice == "0":
+            return
+        if choice == "1":
+            idor_payload_menu()
+        elif choice == "2":
+            mass_assignment_menu()
+        else:
+            print("[!] Pilihan tidak valid.")
 
 
 def web_helpers_menu() -> None:
@@ -947,6 +1102,7 @@ def web_helpers_menu() -> None:
         print("[5] JWT Decode (no verify)")
         print("[6] Request Templates Generator")
         print("[7] IDOR Payload Crafter")
+        print("[8] White-Box Logic & IDOR Assistant")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -979,6 +1135,8 @@ def web_helpers_menu() -> None:
                         print(f"- {p}")
             elif choice == "7":
                 idor_payload_menu()
+            elif choice == "8":
+                whitebox_logic_menu()
             else:
                 print("[!] Pilihan tidak valid.")
         except ValueError as exc:
