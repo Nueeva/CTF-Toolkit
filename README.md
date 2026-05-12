@@ -51,6 +51,13 @@ atau:
 python3 -m ctf_toolkit
 ```
 
+atau (setelah instalasi package):
+
+```bash
+pip install .
+ctf-toolkit
+```
+
 ---
 
 ## Alur cepat (untuk pemula)
@@ -78,38 +85,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 
 ## Ringkasan menu utama
 
-### 1) Decode/Encode
-- Base64 encode/decode
-- Hex encode/decode
-- ROT13 dan ROT-n
-- XOR single-byte
-- XOR alternating key (even/odd)
-- XOR repeating key pattern
-
-### 2) XOR Brute Force
-- Brute-force key `0..255`
-- Menampilkan kandidat plaintext berdasarkan keyword umum CTF
-
-### 3) Regex Flag Finder
-- Cari pola flag umum (`flag{}`, `CTF{}`, `LKS{}`, `LKSJAKTIM{}` dan variannya)
-
-### 4) File Scanner / Strings
-- Extract printable strings
-- Hitung entropy
-- Tampilkan preview hexdump
-- Highlight string yang mencurigakan
-
-### 5) HTTP Request Tester
-- GET/POST sederhana
-- Parameter query/body (`k=v,k2=v2`)
-- Opsi verifikasi SSL on/off
-- Output response dipotong agar tetap ringkas
-
-### 6) Simple Wordlist Brute (Simulasi)
-- Uji daftar password terhadap dummy login checker
-- **Default dummy password:** `ctf123` (bisa diubah via env `DUMMY_LOGIN_PASSWORD`)
-
-### 7) Crypto Tools
+### 1) Crypto
 
 #### Classical
 - Caesar encrypt/decrypt/bruteforce
@@ -144,7 +120,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 #### Hashes
 - MD5, SHA1, SHA256 digest
 
-### 8) BinEx Tools
+### 2) BinEx
 - De Bruijn cyclic pattern create
 - De Bruijn cyclic offset find
 - Memory wrapper (i32/u32/i64/u64) + flag bypass check underflow
@@ -152,7 +128,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - ELF triage/checksec-lite (heuristic PIE/NX/RELRO/Canary)
 - Gadget scan dasar (`ret`, `pop rdi; ret`)
 
-### 9) Web Helpers (Safe)
+### 3) Web
 - URL encode/decode
 - Base64URL encode/decode
 - JWT decode tanpa verifikasi signature
@@ -160,7 +136,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - IDOR payload matrix (raw/padded + base64/md5/hex + JSON)
 - White-box logic assistant (mass assignment heuristic)
 
-### 10) Forensics/RE Helpers
+### 4) Forensics/RE
 - File magic detect
 - Hexdump file
 - Entropy file
@@ -173,7 +149,15 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 - Caesar shifter helper
 - PYC decompiler (pycdc/uncompyle6)
 
-### 11) Defensive / Blue Team
+### 5) Utilities
+- Encoding/XOR helper (Base64/Hex/ROT/XOR)
+- XOR brute force
+- Regex flag finder
+- File scanner / strings
+- HTTP request tester
+- Simple wordlist brute (simulasi)
+
+### 6) Defensive / Blue Team
 - Log Forensic & Anomaly Detector (Apache/Nginx/Auth/Syslog)
   - Deteksi Path Traversal, SQL Injection, dan Bruteforce 401/403
   - Output tabel *Incident Report* (Time, Source IP, Attack Type, Target URL)
@@ -192,7 +176,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 ## Contoh penggunaan singkat
 
 ### A) XOR alternating key dengan byte-list
-1. Pilih `Decode/Encode` → `XOR alternating key (even/odd)`.
+1. Pilih `Utilities` → `Encoding & XOR` → `XOR alternating key (even/odd)`.
 2. Input data: `0x43, 0x45, 0x54, 0x73, 100, 0x60`.
 3. Isi key:
    - `Even key = 0x10`
@@ -200,7 +184,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
 4. Toolkit menampilkan hasil sebagai text (UTF-8 ignore) dan hex.
 
 ### B) PCAP extractor (offline)
-1. Pilih `Forensics/RE Helpers` → `PCAP Extractor`.
+1. Pilih `Forensics/RE` → `PCAP Extractor`.
 2. Isi path file `.pcap`/`.pcapng`.
 3. Hasil tersimpan ke folder output, biasanya:
    - `http.txt`
@@ -211,7 +195,7 @@ Untuk operasi XOR tertentu, kamu juga bisa kirim **byte-list**:
    - `summary.txt`
 
 ### C) RSA close-primes challenge
-1. Pilih `Crypto Tools` → `RSA` → `Close-primes RSA Solve`.
+1. Pilih `Crypto` → `RSA` → `Close-primes RSA Solve`.
 2. Masukkan `n`, `e`, `c`.
 3. Toolkit mencoba Fermat factorization, hitung `d`, lalu decrypt.
 4. Output menampilkan plaintext text, raw bytes, dan hex.
@@ -225,13 +209,24 @@ ctf_toolkit/
   __init__.py
   __main__.py
   cli.py
+  main_cli.py
+  registry.py
+  ui/
+    crypto/
+    binex/
+    web/
+    forensics/
+    utilities/
+    defensive/
   utils/
   crypto/
   binex/
   web/
   forensics/
 main.py
+pyproject.toml
 requirements.txt
+research/
 ```
 
 ---
