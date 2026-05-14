@@ -4,6 +4,7 @@ import json
 
 from ctf_toolkit.ui.common import print_table, read_bytes_prompt, show_text_hex
 from ctf_toolkit.utils.io import error, safe_input, warn
+from ctf_toolkit.utils.menu import run_menu
 
 
 def idor_payload_menu() -> None:
@@ -86,71 +87,85 @@ def mass_assignment_menu() -> None:
 
 
 def attacks_menu() -> None:
-    while True:
-        print("\n=== Web > Attacks & Logic ===")
-        print("[1] IDOR Payload Matrix")
-        print("[2] Mass Assignment Static Heuristic")
-        print("[0] Kembali")
-        choice = safe_input("Pilih opsi: ").strip()
-        if choice == "0":
-            return
-        if choice == "1":
-            idor_payload_menu()
-        elif choice == "2":
-            mass_assignment_menu()
-        else:
-            warn("Pilihan tidak valid.")
+    run_menu(
+        "Web > Attacks & Logic",
+        {
+            "1": ("IDOR Payload Matrix", idor_payload_menu),
+            "2": ("Mass Assignment Static Heuristic", mass_assignment_menu),
+        },
+    )
 
 
 def menu() -> None:
-    while True:
-        print("\n=== Web ===")
-        print("[1] URL Encode")
-        print("[2] URL Decode")
-        print("[3] Base64URL Encode")
-        print("[4] Base64URL Decode")
-        print("[5] JWT Decode (no verify)")
-        print("[6] Request Templates Generator")
-        print("[7] Attacks / Logic Helpers")
-        print("[0] Kembali")
-        choice = safe_input("Pilih opsi: ").strip()
-        if choice == "0":
-            return
+    from ctf_toolkit.web.helpers import (
+        REQUEST_TEMPLATES,
+        b64url_decode,
+        b64url_encode,
+        jwt_decode_no_verify,
+        url_decode,
+        url_encode,
+    )
 
-        from ctf_toolkit.web.helpers import (
-            REQUEST_TEMPLATES,
-            b64url_decode,
-            b64url_encode,
-            jwt_decode_no_verify,
-            url_decode,
-            url_encode,
-        )
-
+    def url_encode_action() -> None:
         try:
-            if choice == "1":
-                print(url_encode(safe_input("Text: ")))
-            elif choice == "2":
-                print(url_decode(safe_input("Text: ")))
-            elif choice == "3":
-                data = read_bytes_prompt("Data", safe_input)
-                out = b64url_encode(data)
-                print(out)
-                print(f"hex input: {data.hex()}")
-            elif choice == "4":
-                show_text_hex(b64url_decode(safe_input("b64url: ")), "Decoded")
-            elif choice == "5":
-                token = safe_input("JWT: ")
-                print(json.dumps(jwt_decode_no_verify(token), indent=2))
-                warn("JWT ini TIDAK diverifikasi signature.")
-            elif choice == "6":
-                warn("Template hanya untuk lab/CTF. Toolkit tidak melakukan auto-scan.")
-                for name, payloads in REQUEST_TEMPLATES.items():
-                    print(f"\n[{name.upper()}]")
-                    for payload in payloads:
-                        print(f"- {payload}")
-            elif choice == "7":
-                attacks_menu()
-            else:
-                warn("Pilihan tidak valid.")
+            print(url_encode(safe_input("Text: ")))
         except ValueError as exc:
             warn(f"Error: {exc}")
+
+    def url_decode_action() -> None:
+        try:
+            print(url_decode(safe_input("Text: ")))
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    def b64url_encode_action() -> None:
+        try:
+            data = read_bytes_prompt("Data", safe_input)
+            out = b64url_encode(data)
+            print(out)
+            print(f"hex input: {data.hex()}")
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    def b64url_decode_action() -> None:
+        try:
+            show_text_hex(b64url_decode(safe_input("b64url: ")), "Decoded")
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    def jwt_decode_action() -> None:
+        try:
+            token = safe_input("JWT: ")
+            print(json.dumps(jwt_decode_no_verify(token), indent=2))
+            warn("JWT ini TIDAK diverifikasi signature.")
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    def request_templates_action() -> None:
+        try:
+            warn("Template hanya untuk lab/CTF. Toolkit tidak melakukan auto-scan.")
+            for name, payloads in REQUEST_TEMPLATES.items():
+                print(f"\n[{name.upper()}]")
+                for payload in payloads:
+                    print(f"- {payload}")
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    def attacks_action() -> None:
+        try:
+            attacks_menu()
+        except ValueError as exc:
+            warn(f"Error: {exc}")
+
+    run_menu(
+        "Web",
+        {
+            "1": ("URL Encode", url_encode_action),
+            "2": ("URL Decode", url_decode_action),
+            "3": ("Base64URL Encode", b64url_encode_action),
+            "4": ("Base64URL Decode", b64url_decode_action),
+            "5": ("JWT Decode (no verify)", jwt_decode_action),
+            "6": ("Request Templates Generator", request_templates_action),
+            "7": ("Attacks / Logic Helpers", attacks_action),
+        },
+    )

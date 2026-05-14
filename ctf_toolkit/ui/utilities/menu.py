@@ -22,6 +22,7 @@ from ctf_toolkit.ui.common import (
     xor_with_repeating_key,
 )
 from ctf_toolkit.utils.io import read_bytes_file, read_text_or_file, safe_input, warn
+from ctf_toolkit.utils.menu import run_menu
 
 
 def decode_encode_menu() -> None:
@@ -267,30 +268,14 @@ def simple_wordlist_brute_menu() -> None:
 
 
 def menu() -> None:
-    while True:
-        print("\n=== Utilities ===")
-        print("[1] Encoding & XOR")
-        print("[2] XOR Brute Force")
-        print("[3] Regex Flag Finder")
-        print("[4] File Scanner / Strings")
-        print("[5] HTTP Request Tester")
-        print("[6] Simple Wordlist Brute")
-        print("[0] Kembali")
-        choice = safe_input("Pilih opsi: ").strip()
-
-        if choice == "0":
-            return
-        if choice == "1":
-            decode_encode_menu()
-        elif choice == "2":
-            xor_brute_force_menu()
-        elif choice == "3":
-            regex_flag_finder_menu()
-        elif choice == "4":
-            file_scanner_menu()
-        elif choice == "5":
-            http_request_tester_menu()
-        elif choice == "6":
-            simple_wordlist_brute_menu()
-        else:
-            warn("Pilihan tidak valid.")
+    run_menu(
+        "Utilities",
+        {
+            "1": ("Encoding & XOR", decode_encode_menu),
+            "2": ("XOR Brute Force", xor_brute_force_menu),
+            "3": ("Regex Flag Finder", regex_flag_finder_menu),
+            "4": ("File Scanner / Strings", file_scanner_menu),
+            "5": ("HTTP Request Tester", http_request_tester_menu),
+            "6": ("Simple Wordlist Brute", simple_wordlist_brute_menu),
+        },
+    )
