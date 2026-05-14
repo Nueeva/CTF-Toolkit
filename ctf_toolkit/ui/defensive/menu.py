@@ -21,7 +21,7 @@ def menu() -> None:
             paths = [item.strip() for item in text.split(",") if item.strip()]
             brute_threshold = int(safe_input("Threshold bruteforce 401/403 [default 5]: ").strip() or "5")
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     incidents = pool.submit(
                         asyncio.run,
