@@ -1,0 +1,32 @@
+
+=== CTF Toolkit CLI ===
+[1] Crypto
+[2] BinEx
+[3] Web
+[4] Forensics / RE
+[5] Utilities
+[6] Defensive / Blue Team
+[0] Exit
+Pilih opsi menu: 
+=== Forensics / RE ===
+[1] File Magic Detect
+[2] Hexdump File
+[3] Entropy File
+[4] Strings Extractor
+[5] PCAP Extractor
+[6] PCAP Notes
+[7] ZIP Recover (corrupted header/trailing)
+[8] JPEG Tools (extract/patch dimensi)
+[9] Caesar Shifter Helper
+[10] PYC Decompiler (pycdc/uncompyle6)
+[0] Kembali
+Pilih opsi: 
+=== CTF Toolkit CLI ===
+[1] Crypto
+[2] BinEx
+[3] Web
+[4] Forensics / RE
+[5] Utilities
+[6] Defensive / Blue Team
+[0] Exit
+Pilih opsi menu: [+] Keluar dari toolkit. Bye!
