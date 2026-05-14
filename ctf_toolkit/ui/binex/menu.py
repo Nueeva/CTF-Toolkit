@@ -98,10 +98,7 @@ def menu() -> None:
             warn(f"Error: {exc}")
 
     def pwn_calc_action() -> None:
-        try:
-            pwn_calc_menu()
-        except (ValueError, OSError, binascii.Error) as exc:
-            warn(f"Error: {exc}")
+        pwn_calc_menu()
 
     run_menu(
         "BinEx",

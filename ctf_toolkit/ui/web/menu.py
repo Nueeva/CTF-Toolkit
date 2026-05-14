@@ -142,20 +142,14 @@ def menu() -> None:
             warn(f"Error: {exc}")
 
     def request_templates_action() -> None:
-        try:
-            warn("Template hanya untuk lab/CTF. Toolkit tidak melakukan auto-scan.")
-            for name, payloads in REQUEST_TEMPLATES.items():
-                print(f"\n[{name.upper()}]")
-                for payload in payloads:
-                    print(f"- {payload}")
-        except ValueError as exc:
-            warn(f"Error: {exc}")
+        warn("Template hanya untuk lab/CTF. Toolkit tidak melakukan auto-scan.")
+        for name, payloads in REQUEST_TEMPLATES.items():
+            print(f"\n[{name.upper()}]")
+            for payload in payloads:
+                print(f"- {payload}")
 
     def attacks_action() -> None:
-        try:
-            attacks_menu()
-        except ValueError as exc:
-            warn(f"Error: {exc}")
+        attacks_menu()
 
     run_menu(
         "Web",
