@@ -1,7 +1,7 @@
 # Claude Guide
 
 ## Task Interpretation
-- If user asks *what/how to approach*, provide a plan first.
+- If a user asks *what/how to approach*, provide a plan first.
 - If user asks implementation, execute with minimal, complete changes.
 - For doc-only tasks, prioritize structure, readability, and link integrity.
 

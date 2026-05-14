@@ -1,7 +1,7 @@
 # CTF Toolkit
 
 > Terminal-first CTF helper toolkit for legal labs and learning environments.
-> Toolkit ini dirancang untuk practice cepat, modular, dan tetap aman untuk konteks pembelajaran.
+> Toolkit ini dirancang untuk praktik cepat, modular, dan tetap aman untuk konteks pembelajaran.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -75,15 +75,15 @@ ctf-toolkit
 
 ### Main Menu
 
-![CTF Toolkit main menu / menu utama](docs/assets/cli-main-menu.png)
+![Screenshot showing CTF Toolkit main menu with options for Crypto, BinEx, Web, Forensics, Utilities, and Defensive modules](docs/assets/cli-main-menu.png)
 
 ### Crypto Menu
 
-![Crypto submenu output nyata](docs/assets/cli-crypto-menu.png)
+![Screenshot of Crypto submenu showing Classical, RSA, Symmetric, PRNG, Hashes, Attacks, and Custom options](docs/assets/cli-crypto-menu.png)
 
 ### Forensics / RE Menu
 
-![Forensics submenu output nyata](docs/assets/cli-forensics-menu.png)
+![Screenshot of Forensics / RE submenu displaying file analysis tools including magic detect, hexdump, entropy, strings extractor, and PCAP tools](docs/assets/cli-forensics-menu.png)
 
 ## Input Patterns
 Beberapa modul menerima format bytes berikut:
