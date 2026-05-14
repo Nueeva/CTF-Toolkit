@@ -4,6 +4,7 @@ import binascii
 
 from ctf_toolkit.ui.common import int_to_bytes, print_lks_flag_candidates_from_text, read_bytes_prompt, show_text_hex
 from ctf_toolkit.utils.io import safe_input, warn
+from ctf_toolkit.utils.menu import run_menu
 
 
 def custom_alphabet_solver_menu(ciphertext: str) -> None:
@@ -51,6 +52,19 @@ def custom_alphabet_solver_menu(ciphertext: str) -> None:
 
 
 def classical_menu() -> None:
+    from ctf_toolkit.crypto.classical import (
+        affine_decrypt,
+        affine_encrypt,
+        apply_substitution,
+        atbash,
+        caesar_bruteforce,
+        caesar_decrypt,
+        caesar_encrypt,
+        frequency_analysis,
+        vigenere_decrypt,
+        vigenere_encrypt,
+    )
+
     while True:
         print("\n=== Crypto > Classical ===")
         print("[1] Caesar Encrypt")
@@ -69,19 +83,6 @@ def classical_menu() -> None:
             return
 
         text = safe_input("Masukkan teks: ")
-        from ctf_toolkit.crypto.classical import (
-            affine_decrypt,
-            affine_encrypt,
-            apply_substitution,
-            atbash,
-            caesar_bruteforce,
-            caesar_decrypt,
-            caesar_encrypt,
-            frequency_analysis,
-            vigenere_decrypt,
-            vigenere_encrypt,
-        )
-
         try:
             if choice == "1":
                 shift = int(safe_input("Shift: "))
@@ -132,6 +133,14 @@ def classical_menu() -> None:
 
 def rsa_menu() -> None:
     from ctf_toolkit.utils.parse import parse_int
+    from ctf_toolkit.crypto.rsa import (
+        common_modulus_attack,
+        fermat_factor,
+        hastad_broadcast,
+        private_exponent_from_factors,
+        rsa_decrypt,
+        rsa_encrypt,
+    )
 
     while True:
         print("\n=== Crypto > RSA ===")
@@ -146,15 +155,6 @@ def rsa_menu() -> None:
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
             return
-
-        from ctf_toolkit.crypto.rsa import (
-            common_modulus_attack,
-            fermat_factor,
-            hastad_broadcast,
-            private_exponent_from_factors,
-            rsa_decrypt,
-            rsa_encrypt,
-        )
 
         try:
             if choice == "1":
@@ -246,6 +246,17 @@ def rsa_menu() -> None:
 
 
 def symmetric_menu() -> None:
+    from ctf_toolkit.crypto.aes import (
+        aes_cbc_decrypt,
+        aes_cbc_encrypt,
+        aes_ctr_crypt,
+        aes_ecb_decrypt,
+        aes_ecb_encrypt,
+        detect_ecb,
+        pkcs7_pad,
+        pkcs7_unpad,
+    )
+
     while True:
         print("\n=== Crypto > Symmetric (AES/Stream) ===")
         print("[1] ECB Encrypt")
@@ -260,17 +271,6 @@ def symmetric_menu() -> None:
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
             return
-
-        from ctf_toolkit.crypto.aes import (
-            aes_cbc_decrypt,
-            aes_cbc_encrypt,
-            aes_ctr_crypt,
-            aes_ecb_decrypt,
-            aes_ecb_encrypt,
-            detect_ecb,
-            pkcs7_pad,
-            pkcs7_unpad,
-        )
 
         try:
             if choice == "1":
@@ -361,6 +361,7 @@ def attacks_menu() -> None:
 
 def prng_menu() -> None:
     from ctf_toolkit.utils.parse import parse_int
+    from ctf_toolkit.crypto.prng import lcg_generate, recover_lcg_params_known_mod
 
     while True:
         print("\n=== Crypto > PRNG ===")
@@ -370,8 +371,6 @@ def prng_menu() -> None:
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
             return
-
-        from ctf_toolkit.crypto.prng import lcg_generate, recover_lcg_params_known_mod
 
         try:
             if choice == "1":
@@ -406,6 +405,9 @@ def hashes_menu() -> None:
 
 
 def custom_menu() -> None:
+    from ctf_toolkit.forensics.pyc_decompile import decompile_pyc
+    from ctf_toolkit.utils.pager import page_text
+
     while True:
         print("\n=== Crypto > Custom ===")
         print("[1] Custom Alphabet Shifter (auto shift+XOR)")
@@ -418,9 +420,6 @@ def custom_menu() -> None:
             text = safe_input("Ciphertext: ")
             custom_alphabet_solver_menu(text)
         elif choice == "2":
-            from ctf_toolkit.forensics.pyc_decompile import decompile_pyc
-            from ctf_toolkit.utils.pager import page_text
-
             path = safe_input("Path .pyc: ").strip()
             if not path:
                 warn("Path kosong.")
@@ -439,32 +438,15 @@ def custom_menu() -> None:
 
 
 def menu() -> None:
-    while True:
-        print("\n=== Crypto ===")
-        print("[1] Classical")
-        print("[2] RSA")
-        print("[3] Symmetric")
-        print("[4] PRNG")
-        print("[5] Hashes")
-        print("[6] Attacks")
-        print("[7] Custom")
-        print("[0] Kembali")
-        choice = safe_input("Pilih opsi: ").strip()
-        if choice == "0":
-            return
-        if choice == "1":
-            classical_menu()
-        elif choice == "2":
-            rsa_menu()
-        elif choice == "3":
-            symmetric_menu()
-        elif choice == "4":
-            prng_menu()
-        elif choice == "5":
-            hashes_menu()
-        elif choice == "6":
-            attacks_menu()
-        elif choice == "7":
-            custom_menu()
-        else:
-            warn("Pilihan tidak valid.")
+    run_menu(
+        "Crypto",
+        {
+            "1": ("Classical", classical_menu),
+            "2": ("RSA", rsa_menu),
+            "3": ("Symmetric", symmetric_menu),
+            "4": ("PRNG", prng_menu),
+            "5": ("Hashes", hashes_menu),
+            "6": ("Attacks", attacks_menu),
+            "7": ("Custom", custom_menu),
+        },
+    )

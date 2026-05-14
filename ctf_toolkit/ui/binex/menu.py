@@ -5,6 +5,7 @@ import json
 
 from ctf_toolkit.ui.common import print_memory_wrapper, show_text_hex
 from ctf_toolkit.utils.io import safe_input, warn
+from ctf_toolkit.utils.menu import run_menu
 
 
 def pwn_calc_menu() -> None:
@@ -46,59 +47,67 @@ def pwn_calc_menu() -> None:
 
 def menu() -> None:
     from ctf_toolkit.utils.parse import parse_bytes, parse_int
+    from ctf_toolkit.binex.elf import parse_elf
+    from ctf_toolkit.binex.gadgets import scan_gadgets
+    from ctf_toolkit.binex.pack import p32, p64, u32, u64
+    from ctf_toolkit.binex.pwncalc import cyclic_create, cyclic_find
 
-    while True:
-        print("\n=== BinEx ===")
-        print("[1] Cyclic Pattern Create")
-        print("[2] Cyclic Offset Find")
-        print("[3] Pack/Unpack (p32/p64/u32/u64)")
-        print("[4] ELF Triage / Checksec-lite")
-        print("[5] Gadget Scan (ret, pop rdi; ret)")
-        print("[6] Pwn & Memory Boundary Analyzer")
-        print("[0] Kembali")
-        choice = safe_input("Pilih opsi: ").strip()
-        if choice == "0":
-            return
-
+    def cyclic_create_action() -> None:
         try:
-            if choice == "1":
-                from ctf_toolkit.binex.pwncalc import cyclic_create
-
-                length = int(safe_input("Length: "))
-                show_text_hex(cyclic_create(length), "Pattern")
-            elif choice == "2":
-                from ctf_toolkit.binex.pwncalc import cyclic_find
-
-                needle_raw = safe_input("Needle (text/hex:...): ").strip()
-                needle = parse_bytes(needle_raw, mode="auto")
-                max_len = int(safe_input("max_len [default 100000]: ").strip() or "100000")
-                print(f"[+] Offset: {cyclic_find(needle, max_len=max_len)}")
-            elif choice == "3":
-                from ctf_toolkit.binex.pack import p32, p64, u32, u64
-
-                v = parse_int(safe_input("Nilai integer (dec/0x): "))
-                p32v = p32(v)
-                p64v = p64(v)
-                print(f"p32 hex: {p32v.hex()} | u32: {u32(p32v)}")
-                print(f"p64 hex: {p64v.hex()} | u64: {u64(p64v)}")
-            elif choice == "4":
-                from ctf_toolkit.binex.elf import parse_elf
-
-                path = safe_input("Path ELF: ")
-                print(json.dumps(parse_elf(path), indent=2))
-            elif choice == "5":
-                from ctf_toolkit.binex.gadgets import scan_gadgets
-
-                path = safe_input("Path binary: ")
-                limit = int(safe_input("limit [default 200]: ").strip() or "200")
-                data = scan_gadgets(path, limit=limit)
-                print(f"ret count: {len(data['ret'])}")
-                print(f"ret sample: {[hex(x) for x in data['ret'][:20]]}")
-                print(f"pop rdi; ret count: {len(data['pop_rdi_ret'])}")
-                print(f"pop rdi; ret sample: {[hex(x) for x in data['pop_rdi_ret'][:20]]}")
-            elif choice == "6":
-                pwn_calc_menu()
-            else:
-                warn("Pilihan tidak valid.")
+            length = int(safe_input("Length: "))
+            show_text_hex(cyclic_create(length), "Pattern")
         except (ValueError, OSError, binascii.Error) as exc:
             warn(f"Error: {exc}")
+
+    def cyclic_find_action() -> None:
+        try:
+            needle_raw = safe_input("Needle (text/hex:...): ").strip()
+            needle = parse_bytes(needle_raw, mode="auto")
+            max_len = int(safe_input("max_len [default 100000]: ").strip() or "100000")
+            print(f"[+] Offset: {cyclic_find(needle, max_len=max_len)}")
+        except (ValueError, OSError, binascii.Error) as exc:
+            warn(f"Error: {exc}")
+
+    def pack_unpack_action() -> None:
+        try:
+            v = parse_int(safe_input("Nilai integer (dec/0x): "))
+            p32v = p32(v)
+            p64v = p64(v)
+            print(f"p32 hex: {p32v.hex()} | u32: {u32(p32v)}")
+            print(f"p64 hex: {p64v.hex()} | u64: {u64(p64v)}")
+        except (ValueError, OSError, binascii.Error) as exc:
+            warn(f"Error: {exc}")
+
+    def elf_triage_action() -> None:
+        try:
+            path = safe_input("Path ELF: ")
+            print(json.dumps(parse_elf(path), indent=2))
+        except (ValueError, OSError, binascii.Error) as exc:
+            warn(f"Error: {exc}")
+
+    def gadget_scan_action() -> None:
+        try:
+            path = safe_input("Path binary: ")
+            limit = int(safe_input("limit [default 200]: ").strip() or "200")
+            data = scan_gadgets(path, limit=limit)
+            print(f"ret count: {len(data['ret'])}")
+            print(f"ret sample: {[hex(x) for x in data['ret'][:20]]}")
+            print(f"pop rdi; ret count: {len(data['pop_rdi_ret'])}")
+            print(f"pop rdi; ret sample: {[hex(x) for x in data['pop_rdi_ret'][:20]]}")
+        except (ValueError, OSError, binascii.Error) as exc:
+            warn(f"Error: {exc}")
+
+    def pwn_calc_action() -> None:
+        pwn_calc_menu()
+
+    run_menu(
+        "BinEx",
+        {
+            "1": ("Cyclic Pattern Create", cyclic_create_action),
+            "2": ("Cyclic Offset Find", cyclic_find_action),
+            "3": ("Pack/Unpack (p32/p64/u32/u64)", pack_unpack_action),
+            "4": ("ELF Triage / Checksec-lite", elf_triage_action),
+            "5": ("Gadget Scan (ret, pop rdi; ret)", gadget_scan_action),
+            "6": ("Pwn & Memory Boundary Analyzer", pwn_calc_action),
+        },
+    )
