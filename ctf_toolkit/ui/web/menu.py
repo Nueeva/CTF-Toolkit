@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from ctf_toolkit.ui.common import print_table, read_bytes_prompt, show_text_hex
-from ctf_toolkit.utils.io import safe_input, warn
+from ctf_toolkit.utils.io import error, safe_input, warn
 
 
 def idor_payload_menu() -> None:
@@ -73,7 +73,7 @@ def mass_assignment_menu() -> None:
         warn(f"Error: {exc}")
         return
     if not results:
-        print("[-] Tidak ada pola mass assignment yang terdeteksi.")
+        error("Tidak ada pola mass assignment yang terdeteksi.")
         return
 
     rows: list[list[str]] = []

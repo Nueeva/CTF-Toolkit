@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 
 from ctf_toolkit.ui.common import print_table
-from ctf_toolkit.utils.io import safe_input, warn
+from ctf_toolkit.utils.io import info, safe_input, warn
 
 
 def menu() -> None:
@@ -36,7 +36,7 @@ def menu() -> None:
                 if rows:
                     print_table(["Time", "Source IP", "Attack Type", "Target URL"], rows)
                 else:
-                    print("(no incident detected)")
+                    info("no incident detected")
                 report_text = render_incident_report(incidents)
                 output_path = safe_input("Simpan report ke file (opsional): ").strip()
                 if output_path:
