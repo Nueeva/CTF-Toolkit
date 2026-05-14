@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ctf_toolkit.utils.io import read_bytes_file, safe_input, warn
+from ctf_toolkit.utils.io import info, read_bytes_file, safe_input, warn
 
 
 def menu() -> None:
@@ -49,7 +49,7 @@ def menu() -> None:
             for idx, value in enumerate(strings_found[:500], start=1):
                 print(f"{idx:03d}. {value}")
             if len(strings_found) > 500:
-                print(f"[i] {len(strings_found)-500} hasil lain disembunyikan.")
+                info(f"{len(strings_found)-500} hasil lain disembunyikan.")
         elif choice == "5":
             from ctf_toolkit.forensics.pcap_extract import extract_pcap_artifacts
 
@@ -73,7 +73,7 @@ def menu() -> None:
                 for name in members[:200]:
                     print(f"  - {name}")
                 if len(members) > 200:
-                    print(f"[i] {len(members)-200} entri lain disembunyikan.")
+                    info(f"{len(members)-200} entri lain disembunyikan.")
             except Exception as exc:
                 warn(f"ZIP belum bisa dibuka: {exc}")
         elif choice == "8":
