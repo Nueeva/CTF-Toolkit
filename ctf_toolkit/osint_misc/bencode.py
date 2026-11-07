@@ -34,7 +34,7 @@ def bdecode(data: bytes | str) -> object:
                 key_str = key_obj.decode("utf-8", errors="replace") if isinstance(key_obj, bytes) else str(key_obj)
                 val_obj = decode_next()
                 d[key_str] = val_obj
-            pos += 1  # consume 'e'
+            pos += 1
             return d
 
         # List: l...e
@@ -43,7 +43,7 @@ def bdecode(data: bytes | str) -> object:
             lst: list[object] = []
             while pos < len(raw) and raw[pos : pos + 1] != b"e":
                 lst.append(decode_next())
-            pos += 1  # consume 'e'
+            pos += 1
             return lst
 
         # Byte String: <len>:<bytes>
@@ -62,6 +62,32 @@ def bdecode(data: bytes | str) -> object:
         raise ValueError(f"Invalid bencode token at byte offset {pos}: {ch!r}")
 
     return decode_next()
+
+
+def find_bencode_strings(obj: object) -> list[str]:
+    """Recursively search decoded bencode structure and collect all printable strings."""
+    found: list[str] = []
+
+    def walk(curr: object) -> None:
+        if isinstance(curr, bytes):
+            try:
+                dec = curr.decode("utf-8")
+                if any(c.isprintable() for c in dec):
+                    found.append(dec)
+            except Exception:
+                pass
+        elif isinstance(curr, str):
+            found.append(curr)
+        elif isinstance(curr, dict):
+            for k, v in curr.items():
+                walk(k)
+                walk(v)
+        elif isinstance(curr, list):
+            for item in curr:
+                walk(item)
+
+    walk(obj)
+    return found
 
 
 def parse_torrent(data: bytes) -> dict[str, object]:

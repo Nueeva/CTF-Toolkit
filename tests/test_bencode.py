@@ -1,4 +1,4 @@
-from ctf_toolkit.osint_misc.bencode import bdecode, parse_torrent
+from ctf_toolkit.osint_misc.bencode import bdecode, find_bencode_strings, parse_torrent
 
 
 def test_bdecode_primitives():
@@ -15,3 +15,11 @@ def test_parse_torrent():
     assert meta["comment"] == "flag_in_comment"
     assert meta["name"] == "test.bin"
     assert meta["length"] == 1024
+
+
+def test_find_bencode_strings():
+    nested = {"list": [b"hello", {"key": b"world", "flag": b"FLAG{test}"}]}
+    strings = find_bencode_strings(nested)
+    assert "hello" in strings
+    assert "world" in strings
+    assert "FLAG{test}" in strings

@@ -1,3 +1,4 @@
+from ctf_toolkit.reversing.charcodes import decode_charcodes, encode_charcodes
 from ctf_toolkit.reversing.transforms import (
     byte_shift,
     byte_shift_bruteforce,
@@ -14,4 +15,6 @@ __all__ = [
     "byte_shift_bruteforce",
     "xor_bytes",
     "xor_bruteforce_single",
+    "decode_charcodes",
+    "encode_charcodes",
 ]
