@@ -5,6 +5,95 @@ import codecs
 import re
 
 
+BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+
+def base62_encode(data: bytes | int) -> str:
+    """
+    Encode bytes or integer using Base62 (GMP / standard alphanumeric).
+    Preserves leading zero bytes.
+    """
+    if isinstance(data, int):
+        num = data
+        leading_zeros = 0
+    else:
+        raw_bytes = bytes(data)
+        if not raw_bytes:
+            return ""
+        leading_zeros = 0
+        for b in raw_bytes:
+            if b == 0:
+                leading_zeros += 1
+            else:
+                break
+        num = int.from_bytes(raw_bytes, "big")
+
+    if num == 0:
+        return BASE62_ALPHABET[0] * (leading_zeros if leading_zeros > 0 else 1)
+
+    res: list[str] = []
+    while num > 0:
+        num, rem = divmod(num, 62)
+        res.append(BASE62_ALPHABET[rem])
+
+    return (BASE62_ALPHABET[0] * leading_zeros) + "".join(reversed(res))
+
+
+def base62_decode(s: str) -> bytes:
+    """
+    Decode a Base62 string into raw bytes.
+    Preserves leading zeros.
+    """
+    clean = s.strip()
+    if not clean:
+        return b""
+
+    leading_zeros = 0
+    for ch in clean:
+        if ch == BASE62_ALPHABET[0]:
+            leading_zeros += 1
+        else:
+            break
+
+    num = 0
+    for ch in clean:
+        idx = BASE62_ALPHABET.find(ch)
+        if idx == -1:
+            raise ValueError(f"Invalid Base62 character: {ch!r}")
+        num = num * 62 + idx
+
+    if num == 0:
+        return b"\x00" * leading_zeros
+
+    byte_len = (num.bit_length() + 7) // 8
+    raw = num.to_bytes(byte_len, "big")
+    return (b"\x00" * leading_zeros) + raw
+
+
+def decode_hexdump(dump_str: str) -> bytes:
+    """
+    Extract raw bytes from formatted hexdump text (xxd, Wireshark, space-separated, etc.).
+    Strips line headers, offsets, and ASCII sidebars.
+    """
+    lines = dump_str.strip().splitlines()
+    hex_chunks: list[str] = []
+    for line in lines:
+        cleaned_line = line.strip()
+        if not cleaned_line:
+            continue
+        if "|" in cleaned_line:
+            parts = cleaned_line.split("|")
+            cleaned_line = parts[0].strip()
+        cleaned_line = re.sub(r"^(?:0x)?[0-9a-fA-F]+:\s*", "", cleaned_line)
+        cleaned_line = re.sub(r"^[0-9a-fA-F]{4,8}\s{2,}", "", cleaned_line)
+        parts = re.split(r"\s{2,}", cleaned_line)
+        hex_part = parts[0]
+        raw_tokens = re.findall(r"[0-9a-fA-F]{2}", hex_part)
+        if raw_tokens:
+            hex_chunks.extend(raw_tokens)
+
+    return bytes.fromhex("".join(hex_chunks))
+
 def base32_decode_autopad(text: str) -> bytes:
     """Decode Base32 string with automatic padding calculation and whitespace stripping."""
     clean = re.sub(r"[^A-Za-z2-7=]", "", text.strip())
@@ -98,6 +187,15 @@ def smart_decode(text: str) -> dict[str, str]:
             results["base32"] = b32_bytes.decode("utf-8", errors="replace")
     except Exception:
         pass
+
+    # Base62
+    if re.fullmatch(r"[0-9A-Za-z]+", clean) and len(clean) >= 8:
+        try:
+            b62_bytes = base62_decode(clean)
+            if any(32 <= b <= 126 for b in b62_bytes):
+                results["base62"] = b62_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
 
     # Ascii85
     try:
