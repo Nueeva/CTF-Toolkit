@@ -484,3 +484,65 @@ def rot47(text: str) -> str:
             out.append(ch)
     return "".join(out)
 
+NATO_ALPHABET: dict[str, str] = {
+    "A": "Alpha",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliett",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "X-ray",
+    "Y": "Yankee",
+    "Z": "Zulu",
+}
+
+
+def nato_phonetic_encode(text: str, delimiter: str = " ") -> str:
+    """
+    Encode text into the ICAO/NATO phonetic spelling alphabet tokens.
+    """
+    tokens: list[str] = []
+    for ch in text.upper():
+        if ch in NATO_ALPHABET:
+            tokens.append(NATO_ALPHABET[ch])
+        elif ch.isspace():
+            continue
+    return delimiter.join(tokens)
+
+
+def nato_phonetic_decode(text: str) -> str:
+    """
+    Decode ICAO/NATO phonetic alphabet words back into characters.
+    """
+    import re
+
+    words = re.findall(r"[A-Za-z]+", text)
+    nato_upper = {v.upper(): k for k, v in NATO_ALPHABET.items()}
+    nato_upper["XRAY"] = "X"
+
+    chars: list[str] = []
+    for w in words:
+        wu = w.upper()
+        if wu in nato_upper:
+            chars.append(nato_upper[wu])
+        elif len(w) == 1 and w.isalpha():
+            chars.append(w.upper())
+    return "".join(chars).lower()
+

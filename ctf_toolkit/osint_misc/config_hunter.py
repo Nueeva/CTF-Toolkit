@@ -80,3 +80,29 @@ def extract_json_secrets(json_data: str | bytes) -> list[tuple[str, str]]:
     raw = json_data.decode("utf-8") if isinstance(json_data, bytes) else json_data
     parsed = json.loads(raw)
     return find_nested_secrets(parsed)
+
+def extract_ini_secrets(ini_data: str | bytes) -> list[tuple[str, str]]:
+    """
+    Parse an INI / CFG configuration document and extract secret keys, credentials,
+    and flag patterns across all sections.
+    """
+    import configparser
+
+    cp = configparser.ConfigParser()
+    raw = ini_data.decode("utf-8") if isinstance(ini_data, bytes) else ini_data
+    cp.read_string(raw)
+
+    keywords = ["secret", "key", "token", "password", "pass", "flag", "auth", "cred"]
+    findings: list[tuple[str, str]] = []
+
+    for section in cp.sections():
+        for k, v in cp.items(section):
+            curr_path = f"{section}.{k}"
+            k_lower = k.lower()
+            if any(kw in k_lower for kw in keywords):
+                findings.append((curr_path, v))
+            elif re.search(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", v):
+                findings.append((curr_path, v))
+
+    return findings
+
