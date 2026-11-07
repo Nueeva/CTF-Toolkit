@@ -143,3 +143,37 @@ def a1z26_encode(text: str, separator: str = "-") -> str:
         if "a" <= ch <= "z":
             nums.append(str(ord(ch) - ord("a") + 1))
     return separator.join(nums)
+
+def polybius_decode(coords: str) -> str:
+    """Decode 5x5 Polybius square coordinates (I=J) into lowercase text."""
+    import re
+
+    grid = [
+        ["a", "b", "c", "d", "e"],
+        ["f", "g", "h", "i", "k"],
+        ["l", "m", "n", "o", "p"],
+        ["q", "r", "s", "t", "u"],
+        ["v", "w", "x", "y", "z"],
+    ]
+    digits = re.findall(r"\d", coords)
+    chars = []
+    for i in range(0, len(digits), 2):
+        if i + 1 < len(digits):
+            r = int(digits[i]) - 1
+            c = int(digits[i + 1]) - 1
+            if 0 <= r < 5 and 0 <= c < 5:
+                chars.append(grid[r][c])
+    return "".join(chars)
+
+
+def polybius_encode(text: str, separator: str = " ") -> str:
+    """Encode text into 5x5 Polybius square coordinate pairs (row-column)."""
+    grid_map = {
+        "a": "11", "b": "12", "c": "13", "d": "14", "e": "15",
+        "f": "21", "g": "22", "h": "23", "i": "24", "j": "24", "k": "25",
+        "l": "31", "m": "32", "n": "33", "o": "34", "p": "35",
+        "q": "41", "r": "42", "s": "43", "t": "44", "u": "45",
+        "v": "51", "w": "52", "x": "53", "y": "54", "z": "55",
+    }
+    pairs = [grid_map[c] for c in text.lower() if c in grid_map]
+    return separator.join(pairs)
