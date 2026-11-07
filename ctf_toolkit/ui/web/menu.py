@@ -151,6 +151,16 @@ def menu() -> None:
     def attacks_action() -> None:
         attacks_menu()
 
+    def lfi_action() -> None:
+        from ctf_toolkit.web.traversal import generate_traversal_payloads
+        target = safe_input("Target file [default flag.txt]: ").strip() or "flag.txt"
+        depth_raw = safe_input("Max depth [default 5]: ").strip()
+        depth = int(depth_raw) if depth_raw.isdigit() else 5
+        payloads = generate_traversal_payloads(target, depth)
+        print(f"\n=== LFI / Path Traversal Payloads ({len(payloads)}) ===")
+        for p in payloads:
+            print(p)
+
     run_menu(
         "Web",
         {
@@ -161,5 +171,6 @@ def menu() -> None:
             "5": ("JWT Decode (no verify)", jwt_decode_action),
             "6": ("Request Templates Generator", request_templates_action),
             "7": ("Attacks / Logic Helpers", attacks_action),
+            "8": ("LFI / Path Traversal Crafter", lfi_action),
         },
     )
