@@ -88,3 +88,33 @@ def classify_login_ip(ip: str) -> str:
         return "indonesia_isp"
     return "unknown"
 
+
+def extract_git_commit_secrets(gitlog_text: str) -> list[str]:
+    """Extract flags or tokens mentioned in git commit history messages."""
+    return re.findall(r"(?:FLAG\{[^}]+\}|GETSFLAG\{[^}]+\})", gitlog_text)
+
+
+def extract_tls_subject_cn(cert_text: str) -> str | None:
+    """Extract Common Name (CN) from TLS subject field."""
+    m = re.search(r"subject\s*=\s*CN\s*=\s*([^\r\n]+)", cert_text, re.IGNORECASE)
+    return m.group(1).strip() if m else None
+
+
+def extract_redirect_hop_notes(redirect_data: dict) -> list[str]:
+    """Collect note fields across all hops in a shortlink redirect trace."""
+    notes = []
+    for hop in redirect_data.get("hops", []):
+        if "note" in hop:
+            notes.append(hop["note"])
+    return notes
+
+
+def extract_package_event_notes(track_data: dict) -> list[str]:
+    """Collect signature and event notes from shipping tracking event records."""
+    notes = []
+    for ev in track_data.get("events", []):
+        if "signature_note" in ev:
+            notes.append(ev["signature_note"])
+    return notes
+
+

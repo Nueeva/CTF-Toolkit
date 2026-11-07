@@ -28,9 +28,13 @@ from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
 from ctf_toolkit.osint_misc.osint_helpers import (
     classify_login_ip,
     detect_os_from_user_agent,
+    extract_git_commit_secrets,
     extract_git_secret_from_config,
+    extract_package_event_notes,
     extract_received_sender_ip,
+    extract_redirect_hop_notes,
     extract_san_subdomains,
+    extract_tls_subject_cn,
     lookup_city_by_coordinates,
     parse_ctlog_entries,
 )
@@ -83,4 +87,8 @@ __all__ = [
     "classify_login_ip",
     "extract_git_secret_from_config",
     "parse_ctlog_entries",
+    "extract_git_commit_secrets",
+    "extract_tls_subject_cn",
+    "extract_redirect_hop_notes",
+    "extract_package_event_notes",
 ]
