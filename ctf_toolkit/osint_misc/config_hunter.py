@@ -270,3 +270,56 @@ def parse_markdown_table(text: str) -> list[dict[str, str]]:
 
     return rows
 
+def parse_vcf(vcf_text: str) -> list[dict[str, str]]:
+    """
+    Parse vCard (.vcf) formatted text into a list of contact card dictionaries.
+    """
+    cards: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+    in_card = False
+
+    for line in vcf_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.upper() == "BEGIN:VCARD":
+            in_card = True
+            current = {}
+        elif line.upper() == "END:VCARD":
+            if in_card and current:
+                cards.append(current)
+            in_card = False
+            current = {}
+        elif in_card and ":" in line:
+            key, val = line.split(":", 1)
+            current[key.strip()] = val.strip()
+
+    return cards
+
+
+def parse_ics(ics_text: str) -> list[dict[str, str]]:
+    """
+    Parse iCalendar (.ics) formatted text into a list of event dictionaries.
+    """
+    events: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+    in_event = False
+
+    for line in ics_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.upper() == "BEGIN:VEVENT":
+            in_event = True
+            current = {}
+        elif line.upper() == "END:VEVENT":
+            if in_event and current:
+                events.append(current)
+            in_event = False
+            current = {}
+        elif in_event and ":" in line:
+            key, val = line.split(":", 1)
+            current[key.strip()] = val.strip()
+
+    return events
+

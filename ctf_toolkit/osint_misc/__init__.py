@@ -37,3 +37,5 @@ __all__ = [
     "extract_yaml_secrets",
     "find_nested_secrets",
 ]
+from .config_hunter import parse_vcf, parse_ics
+__all__.extend(['parse_vcf', 'parse_ics'])

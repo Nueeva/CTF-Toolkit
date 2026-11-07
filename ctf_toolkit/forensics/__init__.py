@@ -33,3 +33,5 @@ __all__ = [
 ]
 from .audio_tools import dtmf_digits_to_ascii, demodulate_audio_fsk
 __all__.extend(['dtmf_digits_to_ascii', 'demodulate_audio_fsk'])
+from .png_tools import repair_png_header, extract_png_text_chunks
+__all__.extend(['repair_png_header', 'extract_png_text_chunks'])
