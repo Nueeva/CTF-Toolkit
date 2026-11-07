@@ -31,3 +31,5 @@ __all__ = [
     "extract_xlsx_metadata",
     "find_flags_in_channel",
 ]
+from .audio_tools import dtmf_digits_to_ascii, demodulate_audio_fsk
+__all__.extend(['dtmf_digits_to_ascii', 'demodulate_audio_fsk'])

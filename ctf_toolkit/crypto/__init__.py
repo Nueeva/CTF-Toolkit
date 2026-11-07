@@ -15,6 +15,7 @@ from ctf_toolkit.crypto.classical import (
     multiplicative_encrypt,
     multiplicative_decrypt,
     rot18,
+    t9_decode,
     trithemius_encrypt,
 )
 from ctf_toolkit.crypto.des import des_ecb_decrypt, des_ecb_encrypt

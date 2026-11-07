@@ -6,6 +6,8 @@ from ctf_toolkit.osint_misc.config_hunter import (
     extract_json_secrets,
     extract_jsonl_secrets,
     extract_html_table_secrets,
+    parse_properties,
+    parse_markdown_table,
     extract_yaml_secrets,
     find_nested_secrets,
 )

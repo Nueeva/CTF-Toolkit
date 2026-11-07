@@ -637,3 +637,36 @@ def rot18(text: str) -> str:
             out.append(ch)
     return "".join(out)
 
+T9_KEYPAD: dict[str, str] = {
+    "2": "abc",
+    "3": "def",
+    "4": "ghi",
+    "5": "jkl",
+    "6": "mno",
+    "7": "pqrs",
+    "8": "tuv",
+    "9": "wxyz",
+    "0": " ",
+}
+
+
+def t9_decode(sequence: str) -> str:
+    """
+    Decode ITU-T E.161 mobile phone multi-tap sequence into text.
+    Tokens are typically space-separated.
+    Example: '8 33 999 66 444 66 33 8 33 99 8' -> 'teyninetext'
+    """
+    tokens = sequence.strip().split()
+    out: list[str] = []
+    for token in tokens:
+        if not token:
+            continue
+        first = token[0]
+        if first in T9_KEYPAD:
+            letters = T9_KEYPAD[first]
+            count = len(token)
+            out.append(letters[(count - 1) % len(letters)])
+        else:
+            out.append(token)
+    return "".join(out)
+

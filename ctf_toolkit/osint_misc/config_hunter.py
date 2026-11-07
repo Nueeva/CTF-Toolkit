@@ -218,3 +218,55 @@ def extract_html_table_secrets(html_content: str, pattern: str = r"GETSFLAG\{[^}
                 })
     return results
 
+def parse_properties(text: str) -> dict[str, str]:
+    """
+    Parse Java .properties configuration file content into key-value dictionary.
+    Handles # and ! comments, escaping, and : or = delimiters.
+    """
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith("!"):
+            continue
+        # Find first delimiter (= or :)
+        delim_idx = -1
+        for idx, ch in enumerate(line):
+            if ch in ("=", ":"):
+                delim_idx = idx
+                break
+        if delim_idx != -1:
+            key = line[:delim_idx].strip()
+            val = line[delim_idx + 1:].strip()
+            out[key] = val
+        else:
+            out[line] = ""
+    return out
+
+
+def parse_markdown_table(text: str) -> list[dict[str, str]]:
+    """
+    Parse GitHub Flavored Markdown table into a list of row dictionaries.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip().startswith("|")]
+    if len(lines) < 2:
+        return []
+
+    # Extract headers
+    headers = [col.strip() for col in lines[0].strip("|").split("|")]
+    
+    rows: list[dict[str, str]] = []
+    # Line 1 is typically separator (|---|---|)
+    start_row = 1
+    if len(lines) > 1 and all(c in "-: |" for c in lines[1]):
+        start_row = 2
+
+    for line in lines[start_row:]:
+        cols = [col.strip() for col in line.strip("|").split("|")]
+        row_dict = {}
+        for h, c in zip(headers, cols):
+            row_dict[h] = c
+        if row_dict:
+            rows.append(row_dict)
+
+    return rows
+
