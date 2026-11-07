@@ -273,3 +273,62 @@ def base45_decode(s: str) -> bytes:
         else:
             raise ValueError("Invalid Base45 string length")
     return bytes(res)
+
+
+BASE58_CHARSET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+BASE58_MAP = {c: i for i, c in enumerate(BASE58_CHARSET)}
+
+
+def base58_encode(data: bytes | str) -> str:
+    """Encode bytes or string into Bitcoin Base58 format."""
+    if isinstance(data, str):
+        raw = data.encode("utf-8")
+    else:
+        raw = bytes(data)
+
+    if not raw:
+        return ""
+
+    leading_zeros = 0
+    for b in raw:
+        if b == 0:
+            leading_zeros += 1
+        else:
+            break
+
+    val = int.from_bytes(raw, byteorder="big")
+    res = []
+    while val > 0:
+        res.append(BASE58_CHARSET[val % 58])
+        val //= 58
+    res.reverse()
+
+    return (BASE58_CHARSET[0] * leading_zeros) + "".join(res)
+
+
+def base58_decode(s: str) -> bytes:
+    """Decode Bitcoin Base58 string into raw bytes."""
+    clean = s.strip()
+    if not clean:
+        return b""
+
+    leading_ones = 0
+    for c in clean:
+        if c == BASE58_CHARSET[0]:
+            leading_ones += 1
+        else:
+            break
+
+    val = 0
+    for c in clean:
+        if c not in BASE58_MAP:
+            raise ValueError(f"Invalid Base58 character: {c}")
+        val = val * 58 + BASE58_MAP[c]
+
+    res = []
+    while val > 0:
+        res.append(val % 256)
+        val //= 256
+    res.reverse()
+
+    return (b"\x00" * leading_ones) + bytes(res)
