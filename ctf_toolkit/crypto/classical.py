@@ -470,4 +470,17 @@ def tap_code_decode(cipher: str) -> str:
             out.append("?")
     return "".join(out).lower()
 
+def rot47(text: str) -> str:
+    """
+    Perform ROT-47 symmetric cipher on ASCII printable characters (range 33 '!' to 126 '~').
+    The transformation is an involution: rot47(rot47(x)) == x.
+    """
+    out: list[str] = []
+    for ch in text:
+        code = ord(ch)
+        if 33 <= code <= 126:
+            out.append(chr(33 + ((code - 33 + 47) % 94)))
+        else:
+            out.append(ch)
+    return "".join(out)
 

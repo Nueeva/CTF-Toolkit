@@ -108,6 +108,21 @@ def rot13(text: str) -> str:
     return codecs.decode(text, "rot_13")
 
 
+def rot47(text: str) -> str:
+    """
+    Perform ROT-47 symmetric cipher on ASCII printable characters (range 33 '!' to 126 '~').
+    The transformation is an involution: rot47(rot47(x)) == x.
+    """
+    out: list[str] = []
+    for ch in text:
+        code = ord(ch)
+        if 33 <= code <= 126:
+            out.append(chr(33 + ((code - 33 + 47) % 94)))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def binary_to_text(binary_str: str) -> str:
     """Convert space-separated or continuous 8-bit binary representation into ASCII string."""
     clean = re.sub(r"[^01\s]", "", binary_str.strip())
@@ -209,5 +224,10 @@ def smart_decode(text: str) -> dict[str, str]:
     r13 = rot13(clean)
     if r13 != clean:
         results["rot13"] = r13
+
+    # ROT47
+    r47 = rot47(clean)
+    if r47 != clean and ("GETSFLAG" in r47 or "FLAG" in r47 or any(c.isalpha() for c in r47)):
+        results["rot47"] = r47
 
     return results

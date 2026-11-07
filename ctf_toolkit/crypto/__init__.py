@@ -18,6 +18,7 @@ from ctf_toolkit.crypto.encoding import (
     decode_hexdump,
     base85_decode,
     rot13,
+    rot47,
     smart_decode,
 )
 from ctf_toolkit.crypto.fernet import fernet_decrypt
@@ -40,6 +41,7 @@ __all__ = [
     "base85_decode",
     "fernet_decrypt",
     "rot13",
+    "rot47",
     "smart_decode",
     "morse_decode",
     "morse_encode",
