@@ -81,3 +81,65 @@ def fibonacci_index(n: int, max_terms: int = 300) -> int:
     while len(fibs) < max_terms and fibs[-1] < n:
         fibs.append(fibs[-1] + fibs[-2])
     return fibs.index(n) if n in fibs else -1
+
+
+def cellular_automaton_xor(init_cells: str | list[int], steps: int) -> bytes:
+    """Evolve 1D binary cellular automaton under XOR rule: cell[i] = cell[i] ^ cell[i-1] (cell[-1]=0)."""
+    if isinstance(init_cells, str):
+        cells = [int(c) for c in init_cells if c in "01"]
+    else:
+        cells = list(init_cells)
+
+    n = len(cells)
+    curr = cells[:]
+    for _ in range(steps):
+        nxt = [0] * n
+        nxt[0] = curr[0] ^ 0
+        for i in range(1, n):
+            nxt[i] = curr[i] ^ curr[i - 1]
+        curr = nxt
+
+    bits_str = "".join(str(b) for b in curr)
+    byte_vals = [int(bits_str[i : i + 8], 2) for i in range(0, len(bits_str) - 7, 8)]
+    return bytes(byte_vals)
+
+
+def solve_gf2_system(A_rows: list[str] | list[list[int]], b_vec: str | list[int]) -> bytes:
+    """Solve linear system A * x = b over GF(2) using Gaussian elimination and return x as bytes."""
+    if isinstance(b_vec, str):
+        b_list = [int(c) for c in b_vec if c in "01"]
+    else:
+        b_list = list(b_vec)
+
+    n = len(b_list)
+    rows: list[int] = []
+    for i in range(n):
+        row = A_rows[i]
+        if isinstance(row, str):
+            row_int = int(row.strip(), 2) << 1
+        else:
+            row_int = int("".join(str(x) for x in row), 2) << 1
+        row_int |= int(b_list[i])
+        rows.append(row_int)
+
+    for col in range(n):
+        bit_pos = n - col
+        pivot = -1
+        for r in range(col, n):
+            if (rows[r] >> bit_pos) & 1:
+                pivot = r
+                break
+        if pivot == -1:
+            raise ValueError(f"Matrix is singular at column {col}")
+
+        rows[col], rows[pivot] = rows[pivot], rows[col]
+
+        for r in range(n):
+            if r != col and ((rows[r] >> bit_pos) & 1):
+                rows[r] ^= rows[col]
+
+    x_bits = ["1" if rows[col] & 1 else "0" for col in range(n)]
+    bits_str = "".join(x_bits)
+    byte_vals = [int(bits_str[i : i + 8], 2) for i in range(0, len(bits_str) - 7, 8)]
+    return bytes(byte_vals)
+

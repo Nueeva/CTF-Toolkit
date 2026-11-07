@@ -227,3 +227,20 @@ def dna_to_bytes(seq: str, mapping: dict[str, int] | None = None) -> bytes:
         mapping = {"A": 0, "C": 1, "G": 2, "T": 3}
     bits = "".join(f"{mapping[c.upper()]:02b}" for c in seq if c.upper() in mapping)
     return bytes([int(bits[i : i + 8], 2) for i in range(0, len(bits) - 7, 8)])
+
+
+HOMOGLYPH_MAP: dict[str, str] = {
+    "А": "A", "В": "B", "С": "C", "Е": "E", "Н": "H", "І": "I", "Ј": "J", "К": "K", "М": "M",
+    "О": "O", "Р": "P", "Ѕ": "S", "Т": "T", "Х": "X", "У": "Y", "Z": "Z",
+    "а": "a", "с": "c", "е": "e", "і": "i", "ј": "j", "к": "k", "о": "o", "р": "p", "ѕ": "s",
+    "х": "x", "у": "y",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K", "Μ": "M", "Ν": "N",
+    "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+}
+
+
+def normalize_homoglyphs(text: str, custom_map: dict[str, str] | None = None) -> str:
+    """Normalize unicode lookalike homoglyphs (e.g. Cyrillic/Greek letters) to their standard ASCII Latin equivalents."""
+    mapping = {**HOMOGLYPH_MAP, **(custom_map or {})}
+    return "".join(mapping.get(c, c) for c in text)
+

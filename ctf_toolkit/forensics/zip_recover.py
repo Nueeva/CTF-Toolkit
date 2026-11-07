@@ -175,3 +175,21 @@ def fast_zip_crypto_crack(
 def extract_cascading_archives(data: bytes, max_depth: int = 100) -> bytes:
     """Recursively decompress cascading archive containers (ZIP, Gzip, Tar, Bzip2, XZ)."""
     return decompress_nested_stream(data, max_depth=max_depth)
+
+
+def extract_zip_extra_fields(zip_source: str | bytes | io.BytesIO) -> list[tuple[str, bytes]]:
+    """Extract extra field metadata bytes from all members of a ZIP archive."""
+    if isinstance(zip_source, str):
+        zf = zipfile.ZipFile(zip_source, "r")
+    elif isinstance(zip_source, bytes):
+        zf = zipfile.ZipFile(io.BytesIO(zip_source), "r")
+    else:
+        zf = zipfile.ZipFile(zip_source, "r")
+
+    results: list[tuple[str, bytes]] = []
+    with zf:
+        for info in zf.infolist():
+            if info.extra:
+                results.append((info.filename, info.extra))
+    return results
+

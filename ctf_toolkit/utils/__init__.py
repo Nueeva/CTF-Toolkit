@@ -1,6 +1,7 @@
 """Shared utility helpers."""
 
 from ctf_toolkit.utils.math import (
+    cellular_automaton_xor,
     collatz_stopping_time,
     crt,
     egcd,
@@ -8,6 +9,7 @@ from ctf_toolkit.utils.math import (
     gcd,
     integer_nthroot,
     modinv,
+    solve_gf2_system,
 )
 from ctf_toolkit.utils.text import (
     base45_decode,
@@ -18,6 +20,7 @@ from ctf_toolkit.utils.text import (
     hexdump,
     int_to_roman,
     int_to_spreadsheet_col,
+    normalize_homoglyphs,
     redact_sensitive_text,
     resistor_colors_to_int,
     roman_to_int,
@@ -43,11 +46,15 @@ __all__ = [
     "int_to_spreadsheet_col",
     "resistor_colors_to_int",
     "dna_to_bytes",
+    "normalize_homoglyphs",
     "collatz_stopping_time",
     "fibonacci_index",
+    "cellular_automaton_xor",
+    "solve_gf2_system",
     "gcd",
     "egcd",
     "modinv",
     "crt",
     "integer_nthroot",
 ]
+
