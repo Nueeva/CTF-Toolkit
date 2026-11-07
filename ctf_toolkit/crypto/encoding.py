@@ -379,3 +379,42 @@ def baudot_ita2_decode(bits_seq: list[str] | str, lsb_first: bool = True) -> str
         val = int(order, 2)
         out.append(ITA2_LETTERS.get(val, "?"))
     return "".join(out)
+
+
+def base32hex_decode(encoded_str: str) -> bytes:
+    """Decode RFC 4648 Base32 Extended Hex encoded string."""
+    import base64
+    trans = str.maketrans("0123456789ABCDEFGHIJKLMNOPQRSTUV", "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
+    clean = encoded_str.strip().upper().translate(trans)
+    padding = (8 - len(clean) % 8) % 8
+    clean += "=" * padding
+    return base64.b32decode(clean)
+
+
+def base_n_decode(encoded_str: str, base: int) -> bytes:
+    """Decode arbitrary radix big-integer string into bytes.
+    Supports a-z alphabet (a=0..z=25) when base <= 26 and text is pure alphabetic,
+    as well as standard 0-9a-z radix for bases 2-36.
+    """
+    clean = encoded_str.strip().lower()
+    if base <= 26 and clean.isalpha() and any(c > 'p' for c in clean):
+        val = 0
+        for c in clean:
+            val = val * base + (ord(c) - ord('a'))
+    else:
+        val = int(clean, base)
+    h = hex(val)[2:]
+    if len(h) % 2 != 0:
+        h = "0" + h
+    return bytes.fromhex(h)
+
+
+def xxdecode(encoded_str: str) -> bytes:
+    """Decode XXencoded ASCII string."""
+    import base64
+    xx_alpha = "+-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    b64_alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    trans = str.maketrans(xx_alpha, b64_alpha)
+    clean = encoded_str.strip().translate(trans)
+    clean += "=" * ((4 - len(clean) % 4) % 4)
+    return base64.b64decode(clean)

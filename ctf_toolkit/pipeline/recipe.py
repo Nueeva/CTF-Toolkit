@@ -186,6 +186,23 @@ def op_rail_fence(data: Any, rails_arg: str = "4") -> str:
     return rail_fence_decrypt(text, r)
 
 
+
+
+@register_op("b32hex")
+@register_op("base32hex")
+def op_base32hex(data: Any, *args: str) -> bytes:
+    from ctf_toolkit.crypto.encoding import base32hex_decode
+    text = (data.decode(errors="ignore") if isinstance(data, bytes) else str(data)).strip()
+    return base32hex_decode(text)
+
+
+@register_op("nibble_swap")
+def op_nibble_swap(data: Any, *args: str) -> bytes:
+    from ctf_toolkit.crypto.classical import nibble_swap
+    raw = data if isinstance(data, bytes) else str(data).encode()
+    return nibble_swap(raw)
+
+
 class RecipePipeline:
     """CyberChef-style recipe chaining pipeline engine."""
 

@@ -80,3 +80,17 @@ def detect_ecb(ciphertext: bytes, block_size: int = 16) -> tuple[int, int]:
     blocks = [ciphertext[i : i + block_size] for i in range(0, len(ciphertext), block_size)]
     repeats = len(blocks) - len(set(blocks))
     return repeats, len(blocks)
+
+
+def aes_cfb_decrypt(key: bytes, iv: bytes, ct: bytes, segment_size: int = 8) -> bytes:
+    """Decrypt AES in CFB (Cipher Feedback) mode."""
+    from Crypto.Cipher import AES
+    cipher = AES.new(key, AES.MODE_CFB, iv=iv, segment_size=segment_size)
+    return cipher.decrypt(ct)
+
+
+def aes_ofb_decrypt(key: bytes, iv: bytes, ct: bytes) -> bytes:
+    """Decrypt AES in OFB (Output Feedback) mode."""
+    from Crypto.Cipher import AES
+    cipher = AES.new(key, AES.MODE_OFB, iv=iv)
+    return cipher.decrypt(ct)

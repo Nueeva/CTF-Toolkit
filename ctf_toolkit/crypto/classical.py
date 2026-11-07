@@ -889,3 +889,39 @@ def variant_beaufort_decrypt(ciphertext: str, key: str) -> str:
         else:
             pt.append(c)
     return "".join(pt)
+
+
+POLYBIUS_6X6_GRID = [
+    list("abcdef"), list("ghijkl"), list("mnopqr"), list("stuvwx"), list("yz0123"), list("456789")
+]
+
+def polybius_6x6_decode(coords_str: str) -> str:
+    """Decode 6x6 Polybius square row-col coordinates (e.g. '34 33 26...')."""
+    tokens = coords_str.replace(",", " ").split()
+    out = []
+    for tok in tokens:
+        clean = tok.strip()
+        if len(clean) >= 2 and clean[0].isdigit() and clean[1].isdigit():
+            r = int(clean[0]) - 1
+            c = int(clean[1]) - 1
+            if 0 <= r < 6 and 0 <= c < 6:
+                out.append(POLYBIUS_6X6_GRID[r][c])
+    return "".join(out)
+
+
+RIPPLE_B58_ALPHABET = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+
+def base58_ripple_decode(encoded_str: str) -> bytes:
+    """Decode Base58 using Ripple/XRP custom alphabet permutation."""
+    val = 0
+    for c in encoded_str.strip():
+        val = val * 58 + RIPPLE_B58_ALPHABET.index(c)
+    h = hex(val)[2:]
+    if len(h) % 2 != 0:
+        h = "0" + h
+    return bytes.fromhex(h)
+
+
+def nibble_swap(data: bytes) -> bytes:
+    """Swap high and low 4-bit nibbles of each byte."""
+    return bytes(((b & 0x0F) << 4) | ((b & 0xF0) >> 4) for b in data)
