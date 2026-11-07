@@ -168,3 +168,21 @@ def extract_docx_embeddings(docx_data: bytes | io.BytesIO | str) -> dict[str, by
                 if fname:
                     files[fname] = zf.read(name)
     return files
+
+
+def repair_docx_broken_header(docx_bytes: bytes) -> bytes:
+    """Repair common ZIP header corruptions in DOCX files (e.g. \\x00\\x00\\x03\\x04 -> PK\\x03\\x04)."""
+    out = bytearray(docx_bytes)
+    if len(out) >= 4 and out[2:4] == b"\x03\x04":
+        out[:2] = b"PK"
+    return bytes(out)
+
+
+def decode_reversed_hex_vba(hex_data: str) -> bytes:
+    """Decode reversed hex string commonly found in obfuscated VBA macros (e.g. 'd766...74')."""
+    clean = "".join(c for c in hex_data if c in "0123456789abcdefABCDEF")
+    if len(clean) % 2 != 0:
+        clean = "0" + clean
+    reversed_pairs = "".join(clean[i : i + 2] for i in range(len(clean) - 2, -2, -2))
+    return bytes.fromhex(reversed_pairs)
+

@@ -269,3 +269,36 @@ def decode_dtmf_tones(
         c = dtmf_cols[np.argmax(cp)]
         keys.append(keypad[(r, c)])
     return "".join(keys)
+
+
+def decode_dual_band_fsk(
+    samples: np.ndarray,
+    rate: int,
+    symbol_samples: int = 880,
+    low_base: float = 500.0,
+    low_step: float = 100.0,
+    high_base: float = 2200.0,
+    high_step: float = 100.0,
+) -> bytes:
+    """
+    Decode dual-band FSK audio signal where low band encodes the high nibble
+    and high band encodes the low nibble of each transmitted byte.
+    """
+    num_symbols = len(samples) // symbol_samples
+    out = bytearray()
+    for i in range(num_symbols):
+        chunk = samples[i * symbol_samples : (i + 1) * symbol_samples]
+        fft_vals = np.abs(np.fft.rfft(chunk * np.hanning(len(chunk))))
+        freqs = np.fft.rfftfreq(len(chunk), 1.0 / rate)
+
+        low_mask = (freqs >= 300) & (freqs <= 1800)
+        low_peak = freqs[low_mask][np.argmax(fft_vals[low_mask])]
+        high_nibble = max(0, min(15, int(round((low_peak - low_base) / low_step))))
+
+        high_mask = (freqs >= 1900) & (freqs <= 4000)
+        high_peak = freqs[high_mask][np.argmax(fft_vals[high_mask])]
+        low_nibble = max(0, min(15, int(round((high_peak - high_base) / high_step))))
+
+        out.append((high_nibble << 4) | low_nibble)
+    return bytes(out)
+

@@ -1,19 +1,36 @@
 """Forensics and reverse engineering helpers."""
 
 from ctf_toolkit.forensics.audio_tools import (
+    decode_16fsk_nibbles,
+    decode_dtmf_tones,
+    decode_dual_band_fsk,
+    decode_mfsk,
     demodulate_audio_fsk,
     dtmf_digits_to_ascii,
     extract_audio_pcm_lsb,
     extract_audio_tone_bytes,
 )
-from ctf_toolkit.forensics.docx_tools import extract_docx_metadata
+from ctf_toolkit.forensics.binary_records import assemble_sharded_records_le
+from ctf_toolkit.forensics.docx_tools import (
+    decode_reversed_hex_vba,
+    extract_docx_comments,
+    extract_docx_embeddings,
+    extract_docx_hidden_vanish,
+    extract_docx_metadata,
+    extract_docx_tracked_revisions,
+    repair_docx_broken_header,
+)
 from ctf_toolkit.forensics.gzip_tools import extract_gzip_metadata
 from ctf_toolkit.forensics.image_channels import (
     decode_qr_image,
     extract_alpha_direct_bytes,
+    extract_bitplane_xor,
     extract_channel_bytes,
     extract_channel_lsb,
+    extract_channel_lsb_xor,
+    extract_gif_length_prefixed_lsb,
     extract_gif_scanline_bits,
+    extract_gif_xor_chunk_stego,
     extract_interleaved_lsb,
     extract_png_trailing_bytes,
     extract_sequential_rgb_bytes,
@@ -25,16 +42,28 @@ from ctf_toolkit.forensics.jpeg_tools import (
     extract_jpeg_comments,
     repair_jpeg_header,
 )
+from ctf_toolkit.forensics.linux_forensics import decrypt_marker_bounded_xor
 from ctf_toolkit.forensics.log_hunter import (
+    assemble_dns_b32_exfiltration,
     assemble_suricata_alert_fragments,
+    correlate_multi_log_fragments,
     extract_b64_url_parameters,
     extract_dns_subdomain_exfiltration,
+    extract_edr_beacon_sequence,
     extract_mime_encoded_words,
     extract_usb_serial_hex,
 )
-from ctf_toolkit.forensics.pdf_tools import extract_pdf_metadata
+from ctf_toolkit.forensics.memory_tools import assemble_memory_frag_headers, extract_memory_dump_xor
+from ctf_toolkit.forensics.pcap_extract import extract_http_basic_auth, extract_pcap_artifacts
+from ctf_toolkit.forensics.pdf_tools import (
+    extract_pdf_all_text_tokens,
+    extract_pdf_decompressed_streams,
+    extract_pdf_metadata,
+    repair_pdf_broken_header,
+)
 from ctf_toolkit.forensics.png_tools import (
     extract_png_all_metadata,
+    extract_png_corrupted_crc_chunks,
     extract_png_text_chunks,
     extract_png_trailing_payload,
     repair_png_header,
@@ -44,18 +73,29 @@ from ctf_toolkit.forensics.xlsx_tools import extract_xlsx_metadata
 from ctf_toolkit.forensics.zip_recover import (
     assemble_sharded_zip,
     decompress_nested_stream,
+    extract_cascading_archives,
     fast_zip_crypto_crack,
     recover_corrupted_zip,
     repair_zip_header,
 )
 
 __all__ = [
+    "assemble_dns_b32_exfiltration",
+    "assemble_memory_frag_headers",
+    "assemble_sharded_records_le",
     "assemble_sharded_zip",
     "assemble_suricata_alert_fragments",
     "concatenate_jpeg_comments",
+    "correlate_multi_log_fragments",
+    "decode_16fsk_nibbles",
+    "decode_dtmf_tones",
+    "decode_dual_band_fsk",
+    "decode_mfsk",
+    "decode_reversed_hex_vba",
     "decompile_pyc",
     "decompress_nested_stream",
     "decode_qr_image",
+    "decrypt_marker_bounded_xor",
     "demodulate_audio_fsk",
     "dtmf_digits_to_ascii",
     "extract_all_jpeg_comments_bytes",
@@ -63,17 +103,32 @@ __all__ = [
     "extract_audio_pcm_lsb",
     "extract_audio_tone_bytes",
     "extract_b64_url_parameters",
+    "extract_bitplane_xor",
     "extract_channel_bytes",
     "extract_channel_lsb",
+    "extract_channel_lsb_xor",
     "extract_dns_subdomain_exfiltration",
+    "extract_docx_comments",
+    "extract_docx_embeddings",
+    "extract_docx_hidden_vanish",
     "extract_docx_metadata",
+    "extract_docx_tracked_revisions",
+    "extract_edr_beacon_sequence",
+    "extract_gif_length_prefixed_lsb",
     "extract_gif_scanline_bits",
+    "extract_gif_xor_chunk_stego",
     "extract_gzip_metadata",
+    "extract_http_basic_auth",
     "extract_interleaved_lsb",
     "extract_jpeg_comments",
+    "extract_memory_dump_xor",
     "extract_mime_encoded_words",
+    "extract_pcap_artifacts",
+    "extract_pdf_all_text_tokens",
+    "extract_pdf_decompressed_streams",
     "extract_pdf_metadata",
     "extract_png_all_metadata",
+    "extract_png_corrupted_crc_chunks",
     "extract_png_text_chunks",
     "extract_png_trailing_bytes",
     "extract_png_trailing_payload",
@@ -81,10 +136,13 @@ __all__ = [
     "extract_sequential_rgb_bytes",
     "extract_usb_serial_hex",
     "extract_xlsx_metadata",
+    "extract_cascading_archives",
     "fast_zip_crypto_crack",
     "find_flags_in_channel",
     "recover_corrupted_zip",
+    "repair_docx_broken_header",
     "repair_jpeg_header",
+    "repair_pdf_broken_header",
     "repair_png_header",
     "repair_zip_header",
 ]

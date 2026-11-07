@@ -113,3 +113,28 @@ def extract_png_trailing_payload(png_data: bytes) -> bytes:
     if trailer_start < len(png_data):
         return png_data[trailer_start:]
     return b""
+
+
+def extract_png_corrupted_crc_chunks(png_data: bytes) -> list[tuple[bytes, bytes]]:
+    """
+    Extract all PNG chunks sequentially regardless of CRC checksum validity.
+    Returns list of (chunk_type, chunk_data) tuples.
+    """
+    chunks: list[tuple[bytes, bytes]] = []
+    if len(png_data) < 8:
+        return chunks
+
+    idx = 8
+    while idx + 8 <= len(png_data):
+        length, ctype = struct.unpack(">I4s", png_data[idx : idx + 8])
+        idx += 8
+        if idx + length > len(png_data):
+            break
+        cdata = png_data[idx : idx + length]
+        idx += length + 4
+        chunks.append((ctype, cdata))
+        if ctype == b"IEND":
+            break
+
+    return chunks
+

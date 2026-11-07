@@ -170,3 +170,8 @@ def fast_zip_crypto_crack(
                 pass
 
     return None
+
+
+def extract_cascading_archives(data: bytes, max_depth: int = 100) -> bytes:
+    """Recursively decompress cascading archive containers (ZIP, Gzip, Tar, Bzip2, XZ)."""
+    return decompress_nested_stream(data, max_depth=max_depth)

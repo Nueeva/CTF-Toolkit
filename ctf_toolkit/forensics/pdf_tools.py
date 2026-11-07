@@ -71,3 +71,16 @@ def extract_pdf_all_text_tokens(pdf_bytes: bytes) -> list[str]:
     for m in re.finditer(rb"\((.*?)\)\s*(?:Tj|TJ)", all_data):
         tokens.append(m.group(1).decode("latin-1", errors="ignore"))
     return tokens
+
+
+def repair_pdf_broken_header(pdf_bytes: bytes) -> bytes:
+    """Repair common header and trailer corruptions in PDF (e.g. %XDF -> %PDF, startzref -> startxref)."""
+    out = bytearray(pdf_bytes)
+    if out.startswith(b"%XDF"):
+        out[:4] = b"%PDF"
+    elif out.startswith(b"\x00\x00\x00\x00") and b"%PDF" in out[:16]:
+        idx = out.find(b"%PDF")
+        out = out[idx:]
+    out = out.replace(b"startzref", b"startxref")
+    return bytes(out)
+

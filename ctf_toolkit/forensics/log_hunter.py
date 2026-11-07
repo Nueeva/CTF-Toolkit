@@ -220,3 +220,41 @@ def extract_mime_encoded_words(log_text: str) -> list[str]:
         except Exception:
             pass
     return results
+
+
+def assemble_dns_b32_exfiltration(log_text: str, domain_suffix: str = "beacon.c2-shadowfox.ru") -> bytes:
+    """
+    Assemble ordered Base32 DNS queries with prefix s<index>.<base32>.<domain_suffix> and decode to bytes.
+    """
+    pattern = rf"s(\d+)\.([A-Za-z0-9=]+)\.{re.escape(domain_suffix)}"
+    frags: dict[int, str] = {}
+    for m in re.finditer(pattern, log_text, re.IGNORECASE):
+        idx = int(m.group(1))
+        frags[idx] = m.group(2)
+    b32_str = "".join(frags[i] for i in sorted(frags.keys())).upper()
+    pad = (8 - len(b32_str) % 8) % 8
+    return base64.b32decode(b32_str + "=" * pad)
+
+
+def correlate_multi_log_fragments(log_sources: list[str]) -> str:
+    """
+    Correlate log records carrying XFRAG=<index>:<b64_data> across multiple files and decode Base64 payload.
+    """
+    frags: dict[int, str] = {}
+    for text in log_sources:
+        for m in re.finditer(r"XFRAG=(\d+):([A-Za-z0-9+/=]+)", text):
+            frags[int(m.group(1))] = m.group(2)
+    b64_str = "".join(frags[i] for i in sorted(frags.keys()))
+    pad = (4 - len(b64_str) % 4) % 4
+    return base64.b64decode(b64_str + "=" * pad).decode("utf-8", errors="ignore")
+
+
+def extract_edr_beacon_sequence(log_text: str) -> str:
+    """
+    Extract sequenced numeric telemetry values (seq=<idx> size=<ord>) and convert to ASCII characters.
+    """
+    telem: dict[int, int] = {}
+    for m in re.finditer(r"seq=(\d+)\s+size=(\d+)", log_text):
+        telem[int(m.group(1))] = int(m.group(2))
+    return "".join(chr(telem[i]) for i in sorted(telem.keys()))
+

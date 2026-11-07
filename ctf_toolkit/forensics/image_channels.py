@@ -206,3 +206,79 @@ def extract_gif_scanline_bits(gif_source: str | bytes | io.BytesIO) -> list[str]
                     recovered.append(text)
 
     return recovered
+
+
+def extract_channel_lsb_xor(
+    img_data: bytes | io.BytesIO | str,
+    channel: str = "G",
+    bit_pos: int = 0,
+    xor_key: int = 0x5A,
+) -> bytes:
+    """Extract channel LSB and decrypt with single-byte XOR key."""
+    raw = extract_channel_lsb(img_data, channel=channel, bit_pos=bit_pos)
+    return bytes(b ^ xor_key for b in raw)
+
+
+def extract_bitplane_xor(
+    img_data: bytes | io.BytesIO | str,
+    channel: str = "B",
+    plane_a: int = 1,
+    plane_b: int = 3,
+) -> bytes:
+    """Extract two bitplanes from a channel, XOR their bits, and pack into bytes."""
+    ch_idx = {"R": 0, "G": 1, "B": 2, "A": 3}.get(channel.upper(), 2)
+    if isinstance(img_data, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(img_data))
+    else:
+        im = Image.open(img_data)
+    arr = np.array(im.convert("RGB"))
+    b_a = (arr[..., ch_idx] >> plane_a) & 1
+    b_b = (arr[..., ch_idx] >> plane_b) & 1
+    xored_bits = b_a ^ b_b
+    return np.packbits(xored_bits.flatten()).tobytes()
+
+
+def extract_gif_xor_chunk_stego(
+    gif_source: str | bytes | io.BytesIO,
+    row: int = 0,
+    bytes_per_frame: int = 4,
+) -> bytes:
+    """Extract row bytes per frame from GIF and XOR decrypt with (frame_index + 1)."""
+    from PIL import ImageSequence
+
+    if isinstance(gif_source, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(gif_source))
+    else:
+        im = Image.open(gif_source)
+
+    chunks: list[bytes] = []
+    for frame_idx, frame in enumerate(ImageSequence.Iterator(im)):
+        rgb = np.array(frame.convert("RGB"))
+        pixel_bytes = rgb[row, :bytes_per_frame, 0]
+        key = frame_idx + 1
+        dec = bytes(int(b) ^ key for b in pixel_bytes)
+        chunks.append(dec)
+    return b"".join(chunks)
+
+
+def extract_gif_length_prefixed_lsb(
+    gif_source: str | bytes | io.BytesIO,
+    frame_idx: int = 1,
+) -> bytes:
+    """Extract length-prefixed bytes from GIF frame pixel data."""
+    from PIL import ImageSequence
+
+    if isinstance(gif_source, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(gif_source))
+    else:
+        im = Image.open(gif_source)
+
+    frames = list(ImageSequence.Iterator(im))
+    if frame_idx >= len(frames):
+        return b""
+    target_frame = frames[frame_idx].convert("RGB")
+    arr = np.array(target_frame)
+    flat = arr[..., 0].flatten()
+    length = int(flat[0])
+    return flat[1 : 1 + length].tobytes()
+

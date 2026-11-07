@@ -8,7 +8,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-import dpkt
+try:
+    import dpkt
+except ImportError:
+    dpkt = None
 
 
 @dataclass(slots=True)

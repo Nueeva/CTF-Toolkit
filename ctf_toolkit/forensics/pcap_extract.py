@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-import dpkt
+try:
+    import dpkt
+except ImportError:
+    dpkt = None
 
 from ctf_toolkit.utils.text import extract_printable_strings
 
@@ -144,3 +147,26 @@ def extract_pcap_artifacts(path: str, output_root: str = "output") -> Path:
     (out_dir / "summary.txt").write_text(summary + "\n", encoding="utf-8")
 
     return out_dir
+
+
+def extract_http_basic_auth(pcap_source: bytes | str | Path) -> list[str]:
+    """
+    Extract HTTP Basic Authorization header credentials (base64 decoded) from raw PCAP or file path.
+    """
+    import base64
+
+    if isinstance(pcap_source, (str, Path)):
+        with open(pcap_source, "rb") as f:
+            data = f.read()
+    else:
+        data = bytes(pcap_source)
+
+    results: list[str] = []
+    for m in re.finditer(rb"Authorization:\s*Basic\s+([A-Za-z0-9+/=]+)", data, re.IGNORECASE):
+        try:
+            dec = base64.b64decode(m.group(1)).decode("utf-8", errors="ignore")
+            if dec and dec not in results:
+                results.append(dec)
+        except Exception:
+            pass
+    return results
