@@ -1,5 +1,10 @@
 from ctf_toolkit.blockchain.calldata import parse_calldata
 from ctf_toolkit.blockchain.events import decode_event_log_data
+from ctf_toolkit.blockchain.evm_solver import (
+    invert_evm_minivm,
+    solve_evm_affine_constraint,
+    xor_bytes32,
+)
 from ctf_toolkit.blockchain.revert import decode_revert_reason
 from ctf_toolkit.blockchain.storage import (
     decode_storage_multislot_string,
@@ -12,4 +17,7 @@ __all__ = [
     "decode_revert_reason",
     "decode_storage_slot_string",
     "decode_storage_multislot_string",
+    "solve_evm_affine_constraint",
+    "invert_evm_minivm",
+    "xor_bytes32",
 ]
