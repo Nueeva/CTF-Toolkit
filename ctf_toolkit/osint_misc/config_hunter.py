@@ -106,3 +106,30 @@ def extract_ini_secrets(ini_data: str | bytes) -> list[tuple[str, str]]:
 
     return findings
 
+def extract_csv_secrets(csv_data: str | bytes) -> list[tuple[str, str]]:
+    """
+    Parse a CSV table and extract cells containing flag patterns or sensitive credentials.
+    Returns list of (row_col_info, cell_value).
+    """
+    import csv
+    import io
+
+    raw = csv_data.decode("utf-8") if isinstance(csv_data, bytes) else csv_data
+    reader = csv.reader(io.StringIO(raw))
+    findings: list[tuple[str, str]] = []
+    header = None
+
+    for row_idx, row in enumerate(reader):
+        if row_idx == 0 and not any("GETSFLAG" in cell for cell in row):
+            header = row
+            continue
+        for col_idx, cell in enumerate(row):
+            col_name = header[col_idx] if header and col_idx < len(header) else f"col_{col_idx}"
+            curr_path = f"row_{row_idx}.{col_name}"
+            if re.search(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", cell):
+                findings.append((curr_path, cell))
+            elif any(kw in cell.lower() for kw in ["secret", "token", "password"]):
+                findings.append((curr_path, cell))
+
+    return findings
+

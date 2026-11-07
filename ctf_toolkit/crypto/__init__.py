@@ -11,6 +11,8 @@ from ctf_toolkit.crypto.classical import (
     scytale_encrypt,
     tap_code_decode,
     tap_code_encode,
+    trithemius_decrypt,
+    trithemius_encrypt,
 )
 from ctf_toolkit.crypto.encoding import (
     ascii85_decode,
@@ -38,6 +40,8 @@ __all__ = [
     "scytale_encrypt",
     "tap_code_decode",
     "tap_code_encode",
+    "trithemius_decrypt",
+    "trithemius_encrypt",
     "ascii85_decode",
     "base32_decode_autopad",
     "base62_decode",

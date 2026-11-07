@@ -546,3 +546,39 @@ def nato_phonetic_decode(text: str) -> str:
             chars.append(w.upper())
     return "".join(chars).lower()
 
+def trithemius_encrypt(text: str, step: int = 1) -> str:
+    """
+    Encrypt text using Johannes Trithemius progressive Caesar cipher (Polygraphia, 1518).
+    Each alphabetical character's Caesar shift increases by `step` per letter.
+    """
+    out: list[str] = []
+    shift = 0
+    for ch in text:
+        if "a" <= ch <= "z":
+            out.append(chr((ord(ch) - ord("a") + shift) % 26 + ord("a")))
+            shift += step
+        elif "A" <= ch <= "Z":
+            out.append(chr((ord(ch) - ord("A") + shift) % 26 + ord("A")))
+            shift += step
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def trithemius_decrypt(text: str, step: int = 1) -> str:
+    """
+    Decrypt text encrypted with Trithemius progressive Caesar cipher.
+    """
+    out: list[str] = []
+    shift = 0
+    for ch in text:
+        if "a" <= ch <= "z":
+            out.append(chr((ord(ch) - ord("a") - shift) % 26 + ord("a")))
+            shift += step
+        elif "A" <= ch <= "Z":
+            out.append(chr((ord(ch) - ord("A") - shift) % 26 + ord("A")))
+            shift += step
+        else:
+            out.append(ch)
+    return "".join(out)
+
