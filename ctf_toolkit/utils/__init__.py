@@ -1,13 +1,28 @@
 """Shared utility helpers."""
 
+from ctf_toolkit.utils.math import (
+    collatz_stopping_time,
+    crt,
+    egcd,
+    fibonacci_index,
+    gcd,
+    integer_nthroot,
+    modinv,
+)
 from ctf_toolkit.utils.text import (
     base45_decode,
     base45_encode,
     chem_elements_to_bytes,
+    dna_to_bytes,
     extract_printable_strings,
     hexdump,
+    int_to_roman,
+    int_to_spreadsheet_col,
     redact_sensitive_text,
+    resistor_colors_to_int,
+    roman_to_int,
     shannon_entropy,
+    spreadsheet_col_to_int,
     z85_decode,
     z85_encode,
 )
@@ -22,4 +37,17 @@ __all__ = [
     "z85_decode",
     "z85_encode",
     "chem_elements_to_bytes",
+    "roman_to_int",
+    "int_to_roman",
+    "spreadsheet_col_to_int",
+    "int_to_spreadsheet_col",
+    "resistor_colors_to_int",
+    "dna_to_bytes",
+    "collatz_stopping_time",
+    "fibonacci_index",
+    "gcd",
+    "egcd",
+    "modinv",
+    "crt",
+    "integer_nthroot",
 ]

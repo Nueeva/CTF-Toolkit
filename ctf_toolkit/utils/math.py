@@ -59,3 +59,25 @@ def integer_nthroot(value: int, n: int) -> tuple[int, bool]:
         else:
             high = mid - 1
     return high, high**n == value
+
+
+def collatz_stopping_time(n: int) -> int:
+    """Calculate the number of steps to reach 1 in the 3n + 1 (Collatz) sequence."""
+    if n <= 0:
+        raise ValueError("n must be a positive integer")
+    steps = 0
+    while n != 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3 * n + 1
+        steps += 1
+    return steps
+
+
+def fibonacci_index(n: int, max_terms: int = 300) -> int:
+    """Return the 0-based index of Fibonacci number n, or -1 if not found."""
+    fibs = [0, 1]
+    while len(fibs) < max_terms and fibs[-1] < n:
+        fibs.append(fibs[-1] + fibs[-2])
+    return fibs.index(n) if n in fibs else -1
