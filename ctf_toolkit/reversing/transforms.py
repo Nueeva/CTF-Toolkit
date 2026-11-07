@@ -311,3 +311,35 @@ def fibonacci_keystream(length: int, a: int = 1, b: int = 1) -> bytes:
         curr_a, curr_b = curr_b, (curr_a + curr_b) & 0xFF
     return bytes(res)
 
+
+def triangular_keystream(length: int) -> bytes:
+    """Generate keystream of triangular numbers T(i) = i*(i+1)//2 modulo 256."""
+    return bytes([((i * (i + 1) // 2) % 256) for i in range(length)])
+
+
+def interleave_sequences(seq1: bytes | str, seq2: bytes | str) -> bytes | str:
+    """Interleave two sequences alternatingly: seq1[0], seq2[0], seq1[1], seq2[1], ..."""
+    is_bytes = isinstance(seq1, bytes)
+    res = []
+    i = 0
+    while i < len(seq1) or i < len(seq2):
+        if i < len(seq1):
+            res.append(seq1[i])
+        if i < len(seq2):
+            res.append(seq2[i])
+        i += 1
+    if is_bytes:
+        return bytes(res)
+    return "".join(res)
+
+
+def deinterleave_sequence(seq: bytes | str) -> tuple[bytes | str, bytes | str]:
+    """Deinterleave sequence into even and odd index subsequences."""
+    is_bytes = isinstance(seq, bytes)
+    even = seq[0::2]
+    odd = seq[1::2]
+    if is_bytes:
+        return bytes(even), bytes(odd)
+    return "".join(even), "".join(odd)
+
+
