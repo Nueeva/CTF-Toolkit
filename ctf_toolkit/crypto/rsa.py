@@ -30,6 +30,13 @@ def rsa_solve_pqec(p: int, q: int, e: int, c: int) -> bytes:
     return int_to_bytes(m)
 
 
+def rsa_solve_phi_e_c(n: int, phi: int, e: int, c: int) -> bytes:
+    """Decrypt textbook RSA given modulus n, Euler totient phi, public exponent e, and ciphertext c."""
+    d = modinv(e, phi)
+    m = pow(c, d, n)
+    return int_to_bytes(m)
+
+
 def common_modulus_attack(c1: int, e1: int, c2: int, e2: int, n: int) -> int:
     g, a, b = egcd(e1, e2)
     if abs(g) != 1:
