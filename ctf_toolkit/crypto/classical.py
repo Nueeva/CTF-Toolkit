@@ -177,3 +177,47 @@ def polybius_encode(text: str, separator: str = " ") -> str:
     }
     pairs = [grid_map[c] for c in text.lower() if c in grid_map]
     return separator.join(pairs)
+
+
+def gronsfeld_encrypt(text: str, key: str | list[int] | int) -> str:
+    """Encrypt text using Gronsfeld cipher (Vigenere with numeric digit keys)."""
+    digits = [int(d) for d in str(key) if d.isdigit()]
+    if not digits:
+        raise ValueError("Gronsfeld key must contain numeric digits")
+    out = []
+    j = 0
+    for ch in text:
+        if ch.isalpha():
+            shift = digits[j % len(digits)]
+            base = ord("A") if ch.isupper() else ord("a")
+            out.append(chr((ord(ch) - base + shift) % 26 + base))
+            j += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def gronsfeld_decrypt(text: str, key: str | list[int] | int) -> str:
+    """Decrypt text using Gronsfeld cipher (Vigenere with numeric digit keys)."""
+    digits = [int(d) for d in str(key) if d.isdigit()]
+    if not digits:
+        raise ValueError("Gronsfeld key must contain numeric digits")
+    out = []
+    j = 0
+    for ch in text:
+        if ch.isalpha():
+            shift = digits[j % len(digits)]
+            base = ord("A") if ch.isupper() else ord("a")
+            out.append(chr((ord(ch) - base - shift) % 26 + base))
+            j += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def base64url_decode(s: str) -> bytes:
+    """Decode RFC 4648 Section 5 URL-safe base64 string with automatic padding."""
+    import base64
+    clean = s.strip()
+    padded = clean + "=" * ((4 - len(clean) % 4) % 4)
+    return base64.urlsafe_b64decode(padded)
