@@ -185,3 +185,87 @@ def demodulate_audio_fsk(
 
     return bytes(byte_arr)
 
+
+
+def decode_mfsk(
+    samples: np.ndarray,
+    rate: int,
+    tone_frequencies: list[float],
+    symbol_samples: int,
+) -> bytes:
+    """Demodulate M-ary Frequency Shift Keying (M-FSK) audio signal into bytes."""
+    num_symbols = len(samples) // symbol_samples
+    symbols: list[int] = []
+    for i in range(num_symbols):
+        chunk = samples[i * symbol_samples : (i + 1) * symbol_samples]
+        fft_vals = np.abs(np.fft.rfft(chunk))
+        fft_freqs = np.fft.rfftfreq(len(chunk), 1.0 / rate)
+        peak = fft_freqs[np.argmax(fft_vals)]
+        best_sym = int(np.argmin([abs(peak - f) for f in tone_frequencies]))
+        symbols.append(best_sym)
+
+    M = len(tone_frequencies)
+    bits_per_symbol = int(np.log2(M))
+    symbols_per_byte = 8 // bits_per_symbol
+
+    result = bytearray()
+    for i in range(0, len(symbols) - symbols_per_byte + 1, symbols_per_byte):
+        val = 0
+        for b in range(symbols_per_byte):
+            val = (val << bits_per_symbol) | symbols[i + b]
+        result.append(val)
+    return bytes(result)
+
+
+def decode_16fsk_nibbles(
+    samples: np.ndarray,
+    rate: int,
+    base_freq: float = 400.0,
+    step_freq: float = 120.0,
+    chunk_samples: int = 800,
+) -> str:
+    """Decode 16-FSK ladder audio into hex string and ASCII plaintext."""
+    num_chunks = len(samples) // chunk_samples
+    nibbles: list[str] = []
+    for i in range(num_chunks):
+        chunk = samples[i * chunk_samples : (i + 1) * chunk_samples]
+        fft_vals = np.abs(np.fft.rfft(chunk * np.hanning(len(chunk))))
+        peak = np.fft.rfftfreq(len(chunk), 1.0 / rate)[np.argmax(fft_vals)]
+        k = max(0, min(15, int(round((peak - base_freq) / step_freq))))
+        nibbles.append(f"{k:x}")
+
+    hex_str = "".join(nibbles)
+    if len(hex_str) % 2 != 0:
+        hex_str = hex_str[:-1]
+    try:
+        return bytes.fromhex(hex_str).decode("latin-1", errors="ignore")
+    except Exception:
+        return hex_str
+
+
+def decode_dtmf_tones(
+    samples: np.ndarray,
+    rate: int,
+    period_samples: int = 880,
+    tone_active_samples: int = 550,
+) -> str:
+    """Decode standard DTMF dual-frequency touch-tone keypad bursts."""
+    dtmf_rows = [697, 770, 852, 941]
+    dtmf_cols = [1209, 1336, 1477, 1633]
+    keypad = {
+        (697, 1209): "1", (697, 1336): "2", (697, 1477): "3", (697, 1633): "A",
+        (770, 1209): "4", (770, 1336): "5", (770, 1477): "6", (770, 1633): "B",
+        (852, 1209): "7", (852, 1336): "8", (852, 1477): "9", (852, 1633): "C",
+        (941, 1209): "*", (941, 1336): "0", (941, 1477): "#", (941, 1633): "D",
+    }
+
+    num_tones = len(samples) // period_samples
+    keys: list[str] = []
+    for i in range(num_tones):
+        chunk = samples[i * period_samples : i * period_samples + tone_active_samples]
+        rp = [np.sum(chunk * np.sin(2 * np.pi * f * np.arange(len(chunk)) / rate))**2 + np.sum(chunk * np.cos(2 * np.pi * f * np.arange(len(chunk)) / rate))**2 for f in dtmf_rows]
+        cp = [np.sum(chunk * np.sin(2 * np.pi * f * np.arange(len(chunk)) / rate))**2 + np.sum(chunk * np.cos(2 * np.pi * f * np.arange(len(chunk)) / rate))**2 for f in dtmf_cols]
+        r = dtmf_rows[np.argmax(rp)]
+        c = dtmf_cols[np.argmax(cp)]
+        keys.append(keypad[(r, c)])
+    return "".join(keys)

@@ -86,3 +86,81 @@ def extract_xlsx_metadata(xlsx_data: bytes | io.BytesIO | str) -> dict[str, str]
             result["flags"] = ", ".join(flags)
 
     return result
+
+
+def extract_xlsx_hidden_sheets(xlsx_data: bytes | io.BytesIO | str) -> list[str]:
+    """Extract strings from worksheets marked with state='hidden' or state='veryHidden' in XLSX."""
+    if isinstance(xlsx_data, (bytes, bytearray)):
+        zf = zipfile.ZipFile(io.BytesIO(xlsx_data), "r")
+    elif isinstance(xlsx_data, io.BytesIO):
+        zf = zipfile.ZipFile(xlsx_data, "r")
+    else:
+        zf = zipfile.ZipFile(str(xlsx_data), "r")
+
+    hidden_results: list[str] = []
+    with zf:
+        namelist = zf.namelist()
+        if "xl/workbook.xml" in namelist:
+            wb_xml = zf.read("xl/workbook.xml")
+            hidden_sheet_ids = re.findall(rb'<sheet\b[^>]*state=["\'](?:hidden|veryHidden)["\'][^>]*r:id="([^"]+)"', wb_xml)
+            if not hidden_sheet_ids:
+                hidden_sheet_ids = re.findall(rb'<sheet\b[^>]*r:id="([^"]+)"[^>]*state=["\'](?:hidden|veryHidden)["\']', wb_xml)
+
+            # Map r:id to target sheet file in xl/_rels/workbook.xml.rels
+            target_files = []
+            if "xl/_rels/workbook.xml.rels" in namelist:
+                rels_xml = zf.read("xl/_rels/workbook.xml.rels")
+                for sid in hidden_sheet_ids:
+                    m = re.search(rb'<Relationship\b[^>]*Id="' + sid + rb'"[^>]*Target="([^"]+)"', rels_xml)
+                    if m:
+                        target = m.group(1).decode("utf-8").lstrip("/")
+                        if not target.startswith("xl/"):
+                            target = "xl/" + target
+                        target_files.append(target)
+            else:
+                target_files = ["xl/worksheets/sheet2.xml"]
+
+            for tfile in target_files:
+                if tfile in namelist:
+                    s_xml = zf.read(tfile)
+                    texts = re.findall(rb"<t(?: [^>]*)?>(.*?)</t>", s_xml)
+                    hidden_results.extend(t.decode("utf-8", errors="ignore") for t in texts)
+    return hidden_results
+
+
+def extract_xlsx_cell_comments(xlsx_data: bytes | io.BytesIO | str) -> list[str]:
+    """Extract cell notes and comments from xl/comments/*.xml in XLSX."""
+    if isinstance(xlsx_data, (bytes, bytearray)):
+        zf = zipfile.ZipFile(io.BytesIO(xlsx_data), "r")
+    elif isinstance(xlsx_data, io.BytesIO):
+        zf = zipfile.ZipFile(xlsx_data, "r")
+    else:
+        zf = zipfile.ZipFile(str(xlsx_data), "r")
+
+    comments: list[str] = []
+    with zf:
+        for name in zf.namelist():
+            if "comments" in name and name.endswith(".xml"):
+                c_xml = zf.read(name)
+                texts = re.findall(rb"<t(?: [^>]*)?>(.*?)</t>", c_xml)
+                comments.extend(t.decode("utf-8", errors="ignore") for t in texts)
+    return comments
+
+
+def extract_ooxml_vba_strings(data: bytes | io.BytesIO | str) -> list[str]:
+    """Extract ASCII strings from vbaProject.bin in Macro-Enabled Office docs (.docm, .xlsm)."""
+    if isinstance(data, (bytes, bytearray)):
+        zf = zipfile.ZipFile(io.BytesIO(data), "r")
+    elif isinstance(data, io.BytesIO):
+        zf = zipfile.ZipFile(data, "r")
+    else:
+        zf = zipfile.ZipFile(str(data), "r")
+
+    strings: list[str] = []
+    with zf:
+        for name in zf.namelist():
+            if name.endswith("vbaProject.bin"):
+                vba_raw = zf.read(name)
+                found = re.findall(rb"[A-Za-z0-9_\{\}\-]{5,}", vba_raw)
+                strings.extend(s.decode("latin-1", errors="ignore") for s in found)
+    return strings
