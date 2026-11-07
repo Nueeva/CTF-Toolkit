@@ -94,3 +94,64 @@ def base45_encode(data: bytes) -> str:
             c1 = val // 45
             res.extend([BASE45_CHARSET[c0], BASE45_CHARSET[c1]])
     return "".join(res)
+
+
+Z85_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#"
+_Z85_MAP = {c: i for i, c in enumerate(Z85_ALPHABET)}
+
+
+def z85_decode(s: str) -> bytes:
+    """Decode a ZeroMQ Z85 encoded ASCII string into bytes."""
+    if len(s) % 5 != 0:
+        raise ValueError("Z85 string length must be a multiple of 5")
+    out = bytearray()
+    for i in range(0, len(s), 5):
+        chunk = s[i : i + 5]
+        val = 0
+        for c in chunk:
+            if c not in _Z85_MAP:
+                raise ValueError(f"Invalid character '{c}' in Z85 string")
+            val = val * 85 + _Z85_MAP[c]
+        out.extend(val.to_bytes(4, "big"))
+    return bytes(out)
+
+
+def z85_encode(data: bytes) -> str:
+    """Encode bytes into a ZeroMQ Z85 ASCII string."""
+    if len(data) % 4 != 0:
+        raise ValueError("Z85 input data length must be a multiple of 4 bytes")
+    chars: list[str] = []
+    for i in range(0, len(data), 4):
+        val = int.from_bytes(data[i : i + 4], "big")
+        chunk_chars = [""] * 5
+        for j in range(4, -1, -1):
+            chunk_chars[j] = Z85_ALPHABET[val % 85]
+            val //= 85
+        chars.extend(chunk_chars)
+    return "".join(chars)
+
+
+PERIODIC_TABLE_ATOMIC = {
+    "H": 1, "He": 2, "Li": 3, "Be": 4, "B": 5, "C": 6, "N": 7, "O": 8, "F": 9, "Ne": 10,
+    "Na": 11, "Mg": 12, "Al": 13, "Si": 14, "P": 15, "S": 16, "Cl": 17, "Ar": 18, "K": 19, "Ca": 20,
+    "Sc": 21, "Ti": 22, "V": 23, "Cr": 24, "Mn": 25, "Fe": 26, "Co": 27, "Ni": 28, "Cu": 29, "Zn": 30
+}
+
+
+def chem_elements_to_bytes(symbols: list[str] | str) -> bytes:
+    """Decode periodic table chemical element symbols (1-based hex nibbles) to bytes."""
+    if isinstance(symbols, str):
+        sym_list = symbols.strip().split()
+    else:
+        sym_list = symbols
+
+    nums = [PERIODIC_TABLE_ATOMIC[s] for s in sym_list]
+    if len(nums) % 2 != 0:
+        raise ValueError("Symbol list length must be even to form byte pairs")
+
+    out = bytearray()
+    for i in range(0, len(nums), 2):
+        high = (nums[i] - 1) & 0x0F
+        low = (nums[i + 1] - 1) & 0x0F
+        out.append((high << 4) | low)
+    return bytes(out)

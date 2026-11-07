@@ -112,3 +112,60 @@ def encode_xx(data: bytes, filename: str = "data.xxe", mode: int = 644) -> str:
     lines.append("end")
     return "\n".join(lines) + "\n"
 
+
+
+def yenc_decode(data: bytes | str) -> bytes:
+    """Decode yEnc encoded binary data, handling =ybegin/=yend envelopes and = escaped bytes."""
+    if isinstance(data, str):
+        raw = data.encode("latin1", errors="ignore")
+    else:
+        raw = data
+
+    lines = raw.splitlines()
+    body = bytearray()
+    in_body = False
+    has_envelope = any(l.startswith(b"=ybegin") for l in lines)
+
+    for line in lines:
+        if line.startswith(b"=ybegin"):
+            in_body = True
+            continue
+        if line.startswith(b"=yend"):
+            in_body = False
+            break
+        if not has_envelope or in_body:
+            body.extend(line)
+
+    out = bytearray()
+    i = 0
+    while i < len(body):
+        b = body[i]
+        if b == ord("="):
+            i += 1
+            if i < len(body):
+                b = body[i]
+                out.append((b - 64 - 42) & 0xFF)
+        else:
+            out.append((b - 42) & 0xFF)
+        i += 1
+    return bytes(out)
+
+
+def yenc_encode(data: bytes, filename: str = "data.bin") -> bytes:
+    """Encode binary data into yEnc format with =ybegin/=yend envelope."""
+    escaped_chars = {0, 10, 13, ord("=")}
+    lines = [f"=ybegin line=128 size={len(data)} name={filename}".encode("latin1")]
+    cur_line = bytearray()
+    for b in data:
+        c = (b + 42) & 0xFF
+        if c in escaped_chars:
+            cur_line.extend([ord("="), (c + 64) & 0xFF])
+        else:
+            cur_line.append(c)
+        if len(cur_line) >= 128:
+            lines.append(bytes(cur_line))
+            cur_line = bytearray()
+    if cur_line:
+        lines.append(bytes(cur_line))
+    lines.append(f"=yend size={len(data)}".encode("latin1"))
+    return b"\r\n".join(lines) + b"\r\n"

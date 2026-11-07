@@ -24,7 +24,14 @@ from ctf_toolkit.osint_misc.esolang import (
     piet_nibbles_decode,
 )
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
-from ctf_toolkit.osint_misc.uudecode import decode_uu, encode_uu, decode_xx, encode_xx
+from ctf_toolkit.osint_misc.uudecode import (
+    decode_uu,
+    encode_uu,
+    decode_xx,
+    encode_xx,
+    yenc_decode,
+    yenc_encode,
+)
 
 __all__ = [
     "brainfuck_eval",
@@ -44,6 +51,8 @@ __all__ = [
     "encode_uu",
     "decode_xx",
     "encode_xx",
+    "yenc_decode",
+    "yenc_encode",
     "extract_csv_secrets",
     "extract_tsv_secrets",
     "extract_ini_secrets",
