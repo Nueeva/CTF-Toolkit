@@ -95,3 +95,36 @@ def phi_from_primes(primes: list[int]) -> int:
 def private_exponent_from_factors(e: int, factors: list[int]) -> int:
     phi = phi_from_primes(factors)
     return modinv(e, phi)
+
+
+def integer_nth_root(val: int, n: int) -> int:
+    """Compute exact or floor integer nth root of a positive integer."""
+    if val < 0:
+        raise ValueError("Cannot compute root of negative integer")
+    if val == 0:
+        return 0
+    low = 0
+    high = 1 << ((val.bit_length() + n - 1) // n * n)
+    while low < high:
+        mid = (low + high) // 2
+        if mid ** n < val:
+            low = mid + 1
+        else:
+            high = mid
+    return low if low ** n == val else low - 1
+
+
+def rsa_cube_root(ciphertext: int) -> int:
+    """Recover plaintext for unpadded e=3 RSA when m^3 < n."""
+    return integer_nth_root(ciphertext, 3)
+
+
+def rsa_multiprime_decrypt(factors: list[int], e: int, c: int) -> int:
+    """Decrypt RSA ciphertext given multi-prime factors of n."""
+    n = 1
+    phi = 1
+    for p in factors:
+        n *= p
+        phi *= (p - 1)
+    d = pow(e, -1, phi)
+    return pow(c, d, n)

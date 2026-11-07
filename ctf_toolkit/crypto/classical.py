@@ -701,3 +701,79 @@ def repeating_key_xor(data: bytes, key: bytes) -> bytes:
     if not key:
         raise ValueError("Key cannot be empty")
     return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
+
+
+def beaufort_encrypt(plaintext: str, key: str) -> str:
+    """Encrypt using the Beaufort cipher (reciprocal): C = (K - P) % 26."""
+    return beaufort_decrypt(plaintext, key)
+
+
+def beaufort_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt using the Beaufort cipher (reciprocal): P = (K - C) % 26."""
+    out: list[str] = []
+    key = key.upper()
+    k_idx = 0
+    for ch in ciphertext:
+        if "a" <= ch <= "z":
+            k = ord(key[k_idx % len(key)]) - ord("A")
+            c = ord(ch) - ord("a")
+            p = (k - c) % 26
+            out.append(chr(p + ord("a")))
+            k_idx += 1
+        elif "A" <= ch <= "Z":
+            k = ord(key[k_idx % len(key)]) - ord("A")
+            c = ord(ch) - ord("A")
+            p = (k - c) % 26
+            out.append(chr(p + ord("A")))
+            k_idx += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def autokey_encrypt(plaintext: str, primer: str) -> str:
+    """Encrypt using Vigenère autokey cipher (key = primer + plaintext)."""
+    out: list[str] = []
+    key_stream: list[str] = list(primer.lower())
+    k_idx = 0
+    for ch in plaintext:
+        if "a" <= ch <= "z":
+            k = ord(key_stream[k_idx]) - ord("a")
+            c = (ord(ch) - ord("a") + k) % 26
+            out.append(chr(c + ord("a")))
+            key_stream.append(ch)
+            k_idx += 1
+        elif "A" <= ch <= "Z":
+            k = ord(key_stream[k_idx]) - ord("a")
+            c = (ord(ch) - ord("A") + k) % 26
+            out.append(chr(c + ord("A")))
+            key_stream.append(ch.lower())
+            k_idx += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def autokey_decrypt(ciphertext: str, primer: str) -> str:
+    """Decrypt using Vigenère autokey cipher (key = primer + plaintext)."""
+    out: list[str] = []
+    key_stream: list[str] = list(primer.lower())
+    k_idx = 0
+    for ch in ciphertext:
+        if "a" <= ch <= "z":
+            k = ord(key_stream[k_idx]) - ord("a")
+            p = (ord(ch) - ord("a") - k) % 26
+            pch = chr(p + ord("a"))
+            out.append(pch)
+            key_stream.append(pch)
+            k_idx += 1
+        elif "A" <= ch <= "Z":
+            k = ord(key_stream[k_idx]) - ord("a")
+            p = (ord(ch) - ord("A") - k) % 26
+            pch = chr(p + ord("A"))
+            out.append(pch)
+            key_stream.append(pch.lower())
+            k_idx += 1
+        else:
+            out.append(ch)
+    return "".join(out)
