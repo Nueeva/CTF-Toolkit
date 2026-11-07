@@ -25,6 +25,12 @@ from ctf_toolkit.osint_misc.esolang import (
     whitespace_eval,
 )
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
+from ctf_toolkit.osint_misc.osint_helpers import (
+    detect_os_from_user_agent,
+    extract_received_sender_ip,
+    extract_san_subdomains,
+    lookup_city_by_coordinates,
+)
 from ctf_toolkit.osint_misc.uudecode import (
     decode_uu,
     encode_uu,
@@ -67,4 +73,8 @@ __all__ = [
     "parse_ics",
     "parse_properties",
     "parse_markdown_table",
+    "detect_os_from_user_agent",
+    "extract_received_sender_ip",
+    "extract_san_subdomains",
+    "lookup_city_by_coordinates",
 ]
