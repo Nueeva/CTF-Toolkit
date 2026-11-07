@@ -87,9 +87,55 @@ def decode_qr_image(img_data: bytes | io.BytesIO | str | Image.Image) -> list[st
         for angle in [0, 90, 180, 270]:
             rot = base_im.rotate(angle, expand=True) if angle else base_im
             arr = cv2.cvtColor(np.array(rot.convert("RGB")), cv2.COLOR_RGB2BGR)
-            val, pts, _ = detector.detectAndDecode(arr)
-            if val and val not in results:
-                results.append(val)
+            for border in [0, 20, 40]:
+                curr = (
+                    cv2.copyMakeBorder(arr, border, border, border, border, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+                    if border > 0
+                    else arr
+                )
+                val, pts, _ = detector.detectAndDecode(curr)
+                if val and val not in results:
+                    results.append(val)
+                    break
 
     return results
+
+def extract_gif_scanline_bits(gif_source: str | bytes | io.BytesIO) -> list[str]:
+    """
+    Extract embedded binary scanlines from animated GIF frames.
+    Finds frames with bi-level pixel rows at edges (e.g. rows 0 and 1) and reconstructs ASCII strings.
+    """
+    from PIL import ImageSequence
+
+    if isinstance(gif_source, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(gif_source))
+    elif isinstance(gif_source, io.BytesIO):
+        im = Image.open(gif_source)
+    else:
+        im = Image.open(gif_source)
+
+    recovered: list[str] = []
+    for frame_idx, frame in enumerate(ImageSequence.Iterator(im)):
+        rgb = frame.convert("RGB")
+        w, h = rgb.size
+        # Overall frame background from bottom corner
+        bg_color = rgb.getpixel((0, h - 1))
+
+        bit_accum = ""
+        for y in range(min(4, h)):
+            row = [rgb.getpixel((x, y)) for x in range(w)]
+            unique_colors = set(row)
+            if len(unique_colors) == 2 and bg_color in unique_colors:
+                bits = "".join(["0" if p == bg_color else "1" for p in row])
+                bit_accum += bits
+
+        if len(bit_accum) >= 64:
+            for inv in [False, True]:
+                b_str = "".join(["1" if b == "0" else "0" for b in bit_accum]) if inv else bit_accum
+                dec = bytes([int(b_str[i : i + 8], 2) for i in range(0, len(b_str) - len(b_str) % 8, 8)])
+                text = dec.decode("latin1", errors="ignore").strip("\x00 ")
+                if text and text not in recovered:
+                    recovered.append(text)
+
+    return recovered
 

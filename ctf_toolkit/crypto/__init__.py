@@ -16,6 +16,7 @@ from ctf_toolkit.crypto.classical import (
     multiplicative_decrypt,
     trithemius_encrypt,
 )
+from ctf_toolkit.crypto.hashes import crack_numeric_hash
 from ctf_toolkit.crypto.encoding import (
     ascii85_decode,
     base32_decode_autopad,
@@ -45,6 +46,7 @@ __all__ = [
     "trithemius_decrypt",
     "multiplicative_encrypt",
     "multiplicative_decrypt",
+    "crack_numeric_hash",
     "trithemius_encrypt",
     "ascii85_decode",
     "base32_decode_autopad",
