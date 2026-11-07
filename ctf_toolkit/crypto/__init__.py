@@ -8,6 +8,7 @@ from ctf_toolkit.crypto.encoding import (
     rot13,
     smart_decode,
 )
+from ctf_toolkit.crypto.fernet import fernet_decrypt
 from ctf_toolkit.crypto.morse import morse_decode, morse_encode
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "ascii85_decode",
     "base32_decode_autopad",
     "base85_decode",
+    "fernet_decrypt",
     "rot13",
     "smart_decode",
     "morse_decode",
