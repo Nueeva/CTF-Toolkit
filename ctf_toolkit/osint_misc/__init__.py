@@ -4,6 +4,7 @@ from ctf_toolkit.osint_misc.config_hunter import (
     extract_tsv_secrets,
     extract_ini_secrets,
     extract_json_secrets,
+    extract_jsonl_secrets,
     extract_yaml_secrets,
     find_nested_secrets,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "extract_tsv_secrets",
     "extract_ini_secrets",
     "extract_json_secrets",
+    "extract_jsonl_secrets",
     "extract_yaml_secrets",
     "find_nested_secrets",
 ]

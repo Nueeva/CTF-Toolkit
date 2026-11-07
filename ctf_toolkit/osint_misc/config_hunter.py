@@ -164,3 +164,33 @@ def extract_tsv_secrets(content: str, pattern: str = r"GETSFLAG\{[^}]+\}") -> li
                 })
     return results
 
+def extract_jsonl_secrets(content: str, pattern: str = r"GETSFLAG\{[^}]+\}") -> list[dict[str, str]]:
+    """
+    Scan a JSON Lines (.jsonl) document line by line for secrets or flags.
+    """
+    results: list[dict[str, str]] = []
+    regex = re.compile(pattern)
+
+    for line_idx, line in enumerate(content.splitlines()):
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        try:
+            obj = json.loads(line_clean)
+            nested = find_nested_secrets(obj, pattern=pattern)
+            for path_str, val in nested:
+                results.append({
+                    "line": str(line_idx + 1),
+                    "path": path_str,
+                    "secret": val,
+                })
+        except Exception:
+            m = regex.search(line_clean)
+            if m:
+                results.append({
+                    "line": str(line_idx + 1),
+                    "path": "raw_line",
+                    "secret": m.group(0),
+                })
+    return results
+
