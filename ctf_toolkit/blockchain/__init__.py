@@ -21,8 +21,11 @@ from ctf_toolkit.blockchain.protocols import (
 )
 from ctf_toolkit.blockchain.revert import decode_revert_reason
 from ctf_toolkit.blockchain.storage import (
+    compute_array_storage_slot,
+    compute_mapping_storage_slot,
     decode_storage_multislot_string,
     decode_storage_slot_string,
+    extract_packed_storage_locator,
 )
 
 __all__ = [
@@ -35,6 +38,9 @@ __all__ = [
     "decode_revert_reason",
     "decode_storage_slot_string",
     "decode_storage_multislot_string",
+    "compute_mapping_storage_slot",
+    "compute_array_storage_slot",
+    "extract_packed_storage_locator",
     "solve_evm_affine_constraint",
     "invert_evm_minivm",
     "xor_bytes32",
