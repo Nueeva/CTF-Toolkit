@@ -14,6 +14,8 @@ KNOWN_CITIES: list[tuple[float, float, str]] = [
     (-7.9826, 112.6308, "malang"),
     (-5.1477, 119.4327, "makassar"),
     (3.5952, 98.6722, "medan"),
+    (48.8566, 2.3522, "paris"),
+    (51.5074, -0.1278, "london"),
 ]
 
 
@@ -61,5 +63,28 @@ def extract_received_sender_ip(eml_text: str) -> str | None:
 
 def extract_san_subdomains(cert_text: str) -> list[str]:
     """Parse Subject Alternative Name (SAN) DNS entries from text certificate representations."""
-    dns_entries = re.findall(r"DNS:([a-zA-Z0-9.-]+)", cert_text)
-    return dns_entries
+    dns_entries = re.findall(r"DNS:([^\s,]+)", cert_text)
+    return [d.strip() for d in dns_entries if d.strip()]
+
+
+def extract_git_secret_from_config(config_text: str) -> str | None:
+    """Extract embedded secret token or password from .git/config remote URLs."""
+    m = re.search(r"url\s*=\s*https?://[^:]+:([^@]+)@", config_text)
+    return m.group(1) if m else None
+
+
+def parse_ctlog_entries(ctlog_text: str) -> list[str]:
+    """Extract hostnames from Certificate Transparency log dump text."""
+    return re.findall(r"(?:id=\d+\s*\|\s*|staging\s*:\s*)([a-zA-Z0-9.-]+)", ctlog_text)
+
+
+def classify_login_ip(ip: str) -> str:
+    """Classify suspicious login IP into archetypes (e.g., tor_exit, google_dns, indonesia_isp)."""
+    if ip.startswith("185.220.") or ip.startswith("185.246."):
+        return "tor_exit"
+    if ip in ("8.8.8.8", "8.8.4.4", "1.1.1.1", "9.9.9.9"):
+        return "google_dns" if "8.8" in ip else "public_dns"
+    if ip.startswith("103.10.") or ip.startswith("36.68.") or ip.startswith("180.252."):
+        return "indonesia_isp"
+    return "unknown"
+

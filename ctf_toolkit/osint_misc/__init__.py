@@ -26,10 +26,13 @@ from ctf_toolkit.osint_misc.esolang import (
 )
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
 from ctf_toolkit.osint_misc.osint_helpers import (
+    classify_login_ip,
     detect_os_from_user_agent,
+    extract_git_secret_from_config,
     extract_received_sender_ip,
     extract_san_subdomains,
     lookup_city_by_coordinates,
+    parse_ctlog_entries,
 )
 from ctf_toolkit.osint_misc.uudecode import (
     decode_uu,
@@ -77,4 +80,7 @@ __all__ = [
     "extract_received_sender_ip",
     "extract_san_subdomains",
     "lookup_city_by_coordinates",
+    "classify_login_ip",
+    "extract_git_secret_from_config",
+    "parse_ctlog_entries",
 ]
