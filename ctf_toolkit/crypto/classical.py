@@ -221,3 +221,55 @@ def base64url_decode(s: str) -> bytes:
     clean = s.strip()
     padded = clean + "=" * ((4 - len(clean) % 4) % 4)
     return base64.urlsafe_b64decode(padded)
+
+
+BASE45_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+BASE45_MAP = {c: i for i, c in enumerate(BASE45_CHARSET)}
+
+
+def base45_encode(data: bytes | str) -> str:
+    """Encode bytes or string into RFC 9285 Base45 format."""
+    if isinstance(data, str):
+        raw = data.encode("utf-8")
+    else:
+        raw = bytes(data)
+
+    res = []
+    i = 0
+    while i < len(raw):
+        if i + 1 < len(raw):
+            val = (raw[i] << 8) + raw[i + 1]
+            c0 = BASE45_CHARSET[val % 45]
+            c1 = BASE45_CHARSET[(val // 45) % 45]
+            c2 = BASE45_CHARSET[(val // (45 * 45)) % 45]
+            res.extend([c0, c1, c2])
+            i += 2
+        else:
+            val = raw[i]
+            c0 = BASE45_CHARSET[val % 45]
+            c1 = BASE45_CHARSET[(val // 45) % 45]
+            res.extend([c0, c1])
+            i += 1
+    return "".join(res)
+
+
+def base45_decode(s: str) -> bytes:
+    """Decode RFC 9285 Base45 string into raw bytes."""
+    clean = s.strip()
+    res = bytearray()
+    i = 0
+    while i < len(clean):
+        if i + 2 < len(clean):
+            c0, c1, c2 = clean[i], clean[i + 1], clean[i + 2]
+            val = BASE45_MAP[c0] + BASE45_MAP[c1] * 45 + BASE45_MAP[c2] * 45 * 45
+            res.append(val // 256)
+            res.append(val % 256)
+            i += 3
+        elif i + 1 < len(clean):
+            c0, c1 = clean[i], clean[i + 1]
+            val = BASE45_MAP[c0] + BASE45_MAP[c1] * 45
+            res.append(val)
+            i += 2
+        else:
+            raise ValueError("Invalid Base45 string length")
+    return bytes(res)
