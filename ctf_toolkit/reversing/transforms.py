@@ -253,3 +253,61 @@ def invert_sbox(data: bytes, sbox: bytes) -> bytes:
     """Invert substitution box (S-box) lookup."""
     inv = {sbox[i]: i for i in range(len(sbox))}
     return bytes([inv[b] for b in data])
+
+
+def caesar_ascii(text: str, shift: int, base: int = 32, modulus: int = 95) -> str:
+    """Caesar cipher transformation over printable ASCII character range."""
+    res = []
+    for c in text:
+        code = ord(c)
+        if base <= code < base + modulus:
+            res.append(chr((code - base + shift) % modulus + base))
+        else:
+            res.append(c)
+    return "".join(res)
+
+
+def rotate_left(data: bytes, k: int) -> bytes:
+    """Cyclic left rotation of byte sequence (equivalent to C++ std::rotate(begin, begin + k, end))."""
+    if not data:
+        return data
+    k = k % len(data)
+    return data[k:] + data[:k]
+
+
+def rotate_right(data: bytes, k: int) -> bytes:
+    """Cyclic right rotation of byte sequence (inversion of left rotation)."""
+    if not data:
+        return data
+    k = k % len(data)
+    return data[-k:] + data[:-k]
+
+
+def swap_adjacent(data: bytes) -> bytes:
+    """Swap adjacent pairs of bytes: (data[0], data[1]), (data[2], data[3]), etc."""
+    b = bytearray(data)
+    for i in range(0, len(b) - 1, 2):
+        b[i], b[i + 1] = b[i + 1], b[i]
+    return bytes(b)
+
+
+def bit_reverse_bytes(data: bytes) -> bytes:
+    """Reverse bit order for each byte individually (bit 0 <-> bit 7, etc.)."""
+    def _rev8(v: int) -> int:
+        r = 0
+        for j in range(8):
+            if (v >> j) & 1:
+                r |= 1 << (7 - j)
+        return r
+    return bytes([_rev8(b) for b in data])
+
+
+def fibonacci_keystream(length: int, a: int = 1, b: int = 1) -> bytes:
+    """Generate keystream of length bytes from Fibonacci recurrence modulo 256."""
+    res = bytearray()
+    curr_a, curr_b = a, b
+    for _ in range(length):
+        res.append(curr_a & 0xFF)
+        curr_a, curr_b = curr_b, (curr_a + curr_b) & 0xFF
+    return bytes(res)
+
