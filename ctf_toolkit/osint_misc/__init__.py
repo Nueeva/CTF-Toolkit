@@ -16,12 +16,13 @@ from ctf_toolkit.osint_misc.config_hunter import (
 from ctf_toolkit.osint_misc.compression import decompress_blob
 from ctf_toolkit.osint_misc.esolang import (
     brainfuck_eval,
+    deadfish_eval,
+    eval_stack_vm,
     ook_eval,
     ook_to_brainfuck,
-    deadfish_eval,
+    piet_nibbles_decode,
     spoon_eval,
     whitespace_eval,
-    piet_nibbles_decode,
 )
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
 from ctf_toolkit.osint_misc.uudecode import (
@@ -38,6 +39,7 @@ __all__ = [
     "ook_eval",
     "ook_to_brainfuck",
     "deadfish_eval",
+    "eval_stack_vm",
     "spoon_eval",
     "whitespace_eval",
     "piet_nibbles_decode",

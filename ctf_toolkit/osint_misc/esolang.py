@@ -189,3 +189,38 @@ def piet_nibbles_decode(codels: list[tuple[int, int, int]]) -> str:
     chars = [chr((nibbles[i] << 4) | nibbles[i + 1]) for i in range(0, len(nibbles) - 1, 2)]
     return "".join(chars)
 
+
+def eval_stack_vm(code: str) -> str:
+    """Execute a simple stack-based bytecode program (PUSH, ADD, SUB, MUL, XOR, EMIT)."""
+    stack: list[int] = []
+    output: list[str] = []
+    for line in code.splitlines():
+        line = line.strip()
+        if not line or line.startswith(";"):
+            continue
+        parts = line.split()
+        op = parts[0].upper()
+        if op == "PUSH":
+            stack.append(int(parts[1]))
+        elif op == "ADD":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a + b)
+        elif op == "SUB":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a - b)
+        elif op == "MUL":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a * b)
+        elif op == "XOR":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a ^ b)
+        elif op == "EMIT":
+            val = stack.pop()
+            output.append(chr(val & 0xFF))
+    return "".join(output)
+
+
