@@ -6,7 +6,7 @@ import traceback
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-test_files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "tests", "test_*.py")))
+test_files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "tests", "**", "test_*.py"), recursive=True))
 
 total = 0
 passed = 0
