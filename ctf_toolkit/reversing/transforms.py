@@ -168,3 +168,88 @@ def rotate_and_xor_byte(data: bytes, rot_left: int = 3, xor_k: int = 0x3C) -> by
         res.append(((v >> s) | ((v << (8 - s)) & 0xFF)))
     return bytes(res)
 
+
+
+def invert_odd_multiplier(data: bytes, multiplier: int = 73) -> bytes:
+    """Invert odd multiplication modulo 256."""
+    inv = pow(multiplier, -1, 256)
+    return bytes([(b * inv) & 0xFF for b in data])
+
+
+def gray_decode(data: bytes) -> bytes:
+    """Invert 8-bit binary-reflected Gray code to normal binary bytes."""
+    res = bytearray()
+    for g in data:
+        b = g
+        while g > 0:
+            g >>= 1
+            b ^= g
+        res.append(b & 0xFF)
+    return bytes(res)
+
+
+def invert_rol_xor(data: bytes, rot_left: int = 2, xor_k: int = 0x1F) -> bytes:
+    """Invert ROL then XOR: out[i] = ROR(data[i] ^ xor_k, rot_left)."""
+    s = rot_left % 8
+    res = bytearray()
+    for b in data:
+        t = b ^ (xor_k & 0xFF)
+        res.append(((t >> s) | ((t << (8 - s)) & 0xFF)))
+    return bytes(res)
+
+
+def invert_ror_add(data: bytes, rot_right: int = 3, add_c: int = 9) -> bytes:
+    """Invert ROR then ADD: out[i] = ROL((data[i] - add_c) mod 256, rot_right)."""
+    s = rot_right % 8
+    res = bytearray()
+    for b in data:
+        t = (b - add_c) & 0xFF
+        res.append(((t << s) | (t >> (8 - s))) & 0xFF)
+    return bytes(res)
+
+
+def invert_compound_index_add(data: bytes, scale: int = 5, offset: int = 1) -> bytes:
+    """Invert compound linear addition: out[i] = (data[i] - scale * i - offset) mod 256."""
+    return bytes([(b - scale * i - offset) & 0xFF for i, b in enumerate(data)])
+
+
+def invert_alternating_xor(data: bytes, val_even: int = 0xAA, val_odd: int = 0x55) -> bytes:
+    """Invert alternating XOR: out[i] = data[i] ^ (val_odd if i & 1 else val_even)."""
+    return bytes([b ^ (val_odd if (i & 1) else val_even) for i, b in enumerate(data)])
+
+
+def invert_cbc_xor(data: bytes, iv: int = 0, xor_k: int = 0x5A) -> bytes:
+    """Invert CBC-style feedback XOR: out[i] = data[i] ^ prev ^ xor_k; prev = data[i]."""
+    res = bytearray()
+    prev = iv & 0xFF
+    for b in data:
+        res.append(b ^ prev ^ (xor_k & 0xFF))
+        prev = b
+    return bytes(res)
+
+
+def invert_cumulative_xor(data: bytes, initial_prev: int = 0x3C) -> bytes:
+    """Invert cumulative prefix XOR: out[i] = data[i] ^ prev; prev = out[i]."""
+    res = bytearray()
+    prev = initial_prev & 0xFF
+    for b in data:
+        c = (b ^ prev) & 0xFF
+        res.append(c)
+        prev = c
+    return bytes(res)
+
+
+def lcg_keystream(seed: int, length: int, a: int = 0x41C64E6D, c: int = 0x3039, m: int = 0x7FFFFFFF) -> bytes:
+    """Generate keystream bytes using 32-bit linear congruential generator."""
+    res = bytearray()
+    curr = seed
+    for _ in range(length):
+        curr = (curr * a + c) & m
+        res.append((curr >> 16) & 0xFF)
+    return bytes(res)
+
+
+def invert_sbox(data: bytes, sbox: bytes) -> bytes:
+    """Invert substitution box (S-box) lookup."""
+    inv = {sbox[i]: i for i in range(len(sbox))}
+    return bytes([inv[b] for b in data])

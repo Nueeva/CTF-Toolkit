@@ -1,3 +1,8 @@
+"""Synthetic twin benchmarks for Batch 43 reversing challenges (#778-#802).
+
+Validates inversion and reconstruction primitives under strict air-gap.
+"""
+
 from __future__ import annotations
 
 import base64
@@ -126,7 +131,6 @@ def test_twin_325_c_rc4_decrypt():
 
 def test_twin_326_c_rol3_then_xor3c():
     flag = b"FLAG{twin_326_c_rol3_xor3c}"
-    # rol 3 then xor 0x3C
     target = bytes(((((b << 3) & 0xFF) | (b >> 5)) ^ 0x3C) for b in flag)
     assert rotate_and_xor_byte(target, rot_left=3, xor_k=0x3C) == flag
 
@@ -148,7 +152,6 @@ def test_twin_328_c_interleaved_two_arrays():
 
 def test_twin_329_c_fibonacci_keyed_xor():
     flag = b"FLAG{twin_329_fibo_key_xor}"
-    # generate fibo mod 256
     fib = [0, 1]
     while len(fib) < len(flag):
         fib.append((fib[-1] + fib[-2]) % 256)
