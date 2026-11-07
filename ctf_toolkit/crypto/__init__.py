@@ -67,6 +67,19 @@ __all__ = [
     "smart_decode",
     "morse_decode",
     "morse_encode",
+    "bin_to_gray",
+    "gray_to_bin",
+    "gray_encode_bytes",
+    "gray_decode_bytes",
+    "repeating_key_xor",
 ]
 from .encoding import decode_html_entities
 __all__.append('decode_html_entities')
+
+from ctf_toolkit.crypto.classical import (
+    bin_to_gray,
+    gray_to_bin,
+    gray_encode_bytes,
+    gray_decode_bytes,
+    repeating_key_xor,
+)

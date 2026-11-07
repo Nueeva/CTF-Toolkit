@@ -670,3 +670,34 @@ def t9_decode(sequence: str) -> str:
             out.append(token)
     return "".join(out)
 
+
+
+def bin_to_gray(n: int) -> int:
+    """Convert binary integer to Gray code."""
+    return n ^ (n >> 1)
+
+
+def gray_to_bin(g: int) -> int:
+    """Convert Gray code integer to binary integer."""
+    b = 0
+    while g > 0:
+        b ^= g
+        g >>= 1
+    return b
+
+
+def gray_encode_bytes(data: bytes) -> bytes:
+    """Encode each byte using Gray code."""
+    return bytes(bin_to_gray(b) & 0xFF for b in data)
+
+
+def gray_decode_bytes(data: bytes) -> bytes:
+    """Decode each byte from Gray code to standard binary."""
+    return bytes(gray_to_bin(b) & 0xFF for b in data)
+
+
+def repeating_key_xor(data: bytes, key: bytes) -> bytes:
+    """XOR data bytes with a repeating key bytes."""
+    if not key:
+        raise ValueError("Key cannot be empty")
+    return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
