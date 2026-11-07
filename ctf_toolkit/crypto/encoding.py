@@ -455,3 +455,14 @@ def custom_base64_decode(text: str, custom_alphabet: str) -> bytes:
 def ebcdic_decode(data: bytes, encoding: str = "cp037") -> str:
     """Decode EBCDIC bytes to string using specified code page."""
     return data.decode(encoding)
+
+
+def zeckendorf_decode(bits: str) -> bytes:
+    """Decode Zeckendorf binary representation (Fibonacci base, MSB first) into bytes."""
+    clean = bits.strip()
+    fibs = [1, 2]
+    while len(fibs) < len(clean):
+        fibs.append(fibs[-1] + fibs[-2])
+    val = sum(f for bit, f in zip(clean, reversed(fibs[:len(clean)])) if bit == "1")
+    length = (val.bit_length() + 7) // 8
+    return val.to_bytes(length, "big")

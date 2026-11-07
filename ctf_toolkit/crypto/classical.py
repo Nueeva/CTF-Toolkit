@@ -1088,3 +1088,145 @@ def spiral_route_decrypt(ciphertext: str, rows: int, cols: int) -> str:
         if i < len(ciphertext):
             grid[r][c] = ciphertext[i]
     return "".join("".join(row) for row in grid)
+
+
+def merkle_hellman_decrypt(sums: list[int], public_key: list[int], q: int) -> str:
+    """Decrypt Merkle-Hellman knapsack cryptosystem given public key B and modulus q."""
+    import math
+
+    found_r = None
+    found_w = None
+    for r in range(1, q):
+        if math.gcd(r, q) == 1:
+            r_inv = pow(r, -1, q)
+            w = [(r_inv * b) % q for b in public_key]
+            is_si = True
+            acc = 0
+            for val in w:
+                if val <= acc:
+                    is_si = False
+                    break
+                acc += val
+            if is_si:
+                found_r = r
+                found_w = w
+                break
+
+    if not found_r or not found_w:
+        raise ValueError("Cannot recover superincreasing sequence")
+
+    r_inv = pow(found_r, -1, q)
+    flag_bytes = []
+    for s in sums:
+        s_prime = (s * r_inv) % q
+        bits = [0] * len(found_w)
+        rem = s_prime
+        for i in range(len(found_w) - 1, -1, -1):
+            if rem >= found_w[i]:
+                bits[i] = 1
+                rem -= found_w[i]
+        byte_val = 0
+        for b in bits:
+            byte_val = (byte_val << 1) | b
+        flag_bytes.append(byte_val)
+    return bytes(flag_bytes).decode(errors="ignore")
+
+
+def adfgx_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt ADFGX cipher using standard 5x5 Polybius square (I=J)."""
+    adfgx_chars = "ADFGX"
+    polybius_5x5 = [
+        ["a", "b", "c", "d", "e"],
+        ["f", "g", "h", "i", "k"],
+        ["l", "m", "n", "o", "p"],
+        ["q", "r", "s", "t", "u"],
+        ["v", "w", "x", "y", "z"],
+    ]
+    num_cols = len(key)
+    order = sorted(range(num_cols), key=lambda i: key[i])
+    col_lens = [len(ciphertext) // num_cols + (1 if i < (len(ciphertext) % num_cols) else 0) for i in range(num_cols)]
+    cols: dict[int, str] = {}
+    idx = 0
+    for col_idx in order:
+        l = col_lens[col_idx]
+        cols[col_idx] = ciphertext[idx : idx + l]
+        idx += l
+
+    trans_pt: list[str] = []
+    max_len = max(len(c) for c in cols.values())
+    for r in range(max_len):
+        for c in range(num_cols):
+            if r < len(cols[c]):
+                trans_pt.append(cols[c][r])
+    trans_str = "".join(trans_pt)
+
+    pt: list[str] = []
+    for i in range(0, len(trans_str) - 1, 2):
+        r_ch, c_ch = trans_str[i], trans_str[i + 1]
+        r = adfgx_chars.index(r_ch)
+        c = adfgx_chars.index(c_ch)
+        pt.append(polybius_5x5[r][c])
+    return "".join(pt)
+
+
+def trifid_decrypt(ciphertext: str) -> str:
+    """Decrypt Trifid cipher (3x3x3 cube over A-Z + '.') with full period."""
+    trifid_alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ."
+    trifid_pos = {}
+    for i, ch in enumerate(trifid_alpha):
+        l = i // 9 + 1
+        r = (i % 9) // 3 + 1
+        c = i % 3 + 1
+        trifid_pos[ch] = (l, r, c)
+    trifid_inv = {(l, r, c): ch for ch, (l, r, c) in trifid_pos.items()}
+
+    clean_ct = [c.upper() for c in ciphertext if c.upper() in trifid_alpha]
+    L = len(clean_ct)
+    coords_flat: list[int] = []
+    for ch in clean_ct:
+        coords_flat.extend(trifid_pos[ch])
+
+    l_row = coords_flat[:L]
+    r_row = coords_flat[L : 2 * L]
+    c_row = coords_flat[2 * L :]
+    pt: list[str] = []
+    for l, r, c in zip(l_row, r_row, c_row):
+        pt.append(trifid_inv[(l, r, c)])
+    return "".join(pt)
+
+
+def adfgvx_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt ADFGVX cipher using standard 6x6 grid (A-Z0-9)."""
+    adfgvx_chars = "ADFGVX"
+    grid_6x6 = [
+        ["A", "B", "C", "D", "E", "F"],
+        ["G", "H", "I", "J", "K", "L"],
+        ["M", "N", "O", "P", "Q", "R"],
+        ["S", "T", "U", "V", "W", "X"],
+        ["Y", "Z", "0", "1", "2", "3"],
+        ["4", "5", "6", "7", "8", "9"],
+    ]
+    num_cols = len(key)
+    order = sorted(range(num_cols), key=lambda i: key[i])
+    col_lens = [len(ciphertext) // num_cols + (1 if i < (len(ciphertext) % num_cols) else 0) for i in range(num_cols)]
+    cols: dict[int, str] = {}
+    idx = 0
+    for col_idx in order:
+        l = col_lens[col_idx]
+        cols[col_idx] = ciphertext[idx : idx + l]
+        idx += l
+
+    trans_str: list[str] = []
+    max_len = max(len(c) for c in cols.values())
+    for r in range(max_len):
+        for c in range(num_cols):
+            if r < len(cols[c]):
+                trans_str.append(cols[c][r])
+
+    pt: list[str] = []
+    for i in range(0, len(trans_str) - 1, 2):
+        r_ch, c_ch = trans_str[i], trans_str[i + 1]
+        r = adfgvx_chars.index(r_ch)
+        c = adfgvx_chars.index(c_ch)
+        pt.append(grid_6x6[r][c].lower())
+    return "".join(pt)

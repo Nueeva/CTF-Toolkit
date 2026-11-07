@@ -78,3 +78,31 @@ def morse_encode(text: str) -> str:
         encoded_words.append(" ".join(tokens))
 
     return " / ".join(encoded_words)
+
+
+def fractionated_morse_decode(ciphertext: str) -> str:
+    """Decode Fractionated Morse cipher."""
+    trigrams = []
+    for c1 in [".", "-", "x"]:
+        for c2 in [".", "-", "x"]:
+            for c3 in [".", "-", "x"]:
+                trigrams.append(c1 + c2 + c3)
+    frac_alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0"
+    frac_map = {frac_alpha[i]: trigrams[i] for i in range(27)}
+
+    morse_stream = "".join(frac_map.get(c.upper(), "") for c in ciphertext)
+    morse_words = morse_stream.rstrip("x").split("x")
+    return "".join(REVERSE_MORSE.get(m, "?") for m in morse_words if m).lower()
+
+
+def morbit_decode(ciphertext: str) -> str:
+    """Decode Morbit cipher."""
+    morbit_pairs = []
+    for c1 in [".", "-", "x"]:
+        for c2 in [".", "-", "x"]:
+            morbit_pairs.append(c1 + c2)
+    morbit_map = {str(i + 1): morbit_pairs[i] for i in range(9)}
+
+    morse_stream = "".join(morbit_map.get(c, "") for c in ciphertext if c in morbit_map)
+    morse_words = morse_stream.rstrip("x").split("x")
+    return "".join(REVERSE_MORSE.get(m, "?") for m in morse_words if m).lower()

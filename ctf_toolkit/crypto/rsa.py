@@ -161,3 +161,40 @@ def shamir_reconstruct_secret(shares: list[tuple[int, int]], p: int) -> int:
                 den = (den * (xj - xm)) % p
         secret = (secret + yj * num * pow(den, -1, p)) % p
     return secret
+
+
+def wiener_attack(e: int, n: int) -> int | None:
+    """Wiener continued fractions attack to recover small private exponent d < (1/3) * n^(1/4)."""
+    import math
+
+    # Continued fractions expansion of e / n
+    cf: list[int] = []
+    num, den = e, n
+    while den != 0:
+        q = num // den
+        cf.append(q)
+        num, den = den, num - q * den
+
+    # Compute convergents
+    h0, h1 = 0, 1
+    k0, k1 = 1, 0
+    for q in cf:
+        h = q * h1 + h0
+        k = q * k1 + k0
+        h0, h1 = h1, h
+        k0, k1 = k1, k
+        if h == 0 or k == 0:
+            continue
+        if (e * k - 1) % h != 0:
+            continue
+        phi = (e * k - 1) // h
+        s = n - phi + 1
+        disc = s * s - 4 * n
+        if disc >= 0:
+            sq = math.isqrt(disc)
+            if sq * sq == disc and (s + sq) % 2 == 0:
+                p = (s + sq) // 2
+                q_val = (s - sq) // 2
+                if p * q_val == n:
+                    return k
+    return None
