@@ -68,3 +68,5 @@ __all__ = [
     "morse_decode",
     "morse_encode",
 ]
+from .encoding import decode_html_entities
+__all__.append('decode_html_entities')

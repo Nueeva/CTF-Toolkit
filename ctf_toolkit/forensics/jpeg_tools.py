@@ -82,3 +82,34 @@ def patch_jpeg_dimensions(path: str, width: int, height: int, output_path: str |
     out = Path(output_path) if output_path else source.with_name(f"{source.stem}_patched.jpg")
     out.write_bytes(bytes(data))
     return out
+
+def repair_jpeg_header(data: bytes | bytearray) -> bytes:
+    """
+    Restore standard JPEG Start-Of-Image (SOI) marker (\xff\xd8) if zeroed out or corrupted.
+    """
+    arr = bytearray(data)
+    if len(arr) < 2:
+        raise ValueError("Data too short to be a JPEG image")
+    arr[0] = 0xFF
+    arr[1] = 0xD8
+    return bytes(arr)
+
+
+def extract_jpeg_comments(data: bytes) -> list[str]:
+    """
+    Extract all COM (Comment, marker 0xFF 0xFE) segments from JPEG stream.
+    """
+    comments: list[str] = []
+    idx = 0
+    length = len(data)
+    while idx + 4 < length:
+        if data[idx] == 0xFF and data[idx + 1] == 0xFE:
+            seg_len = int.from_bytes(data[idx + 2 : idx + 4], "big")
+            if seg_len >= 2 and idx + 2 + seg_len <= length:
+                comment_bytes = data[idx + 4 : idx + 2 + seg_len]
+                comments.append(comment_bytes.decode("utf-8", errors="ignore"))
+                idx += 2 + seg_len
+                continue
+        idx += 1
+    return comments
+

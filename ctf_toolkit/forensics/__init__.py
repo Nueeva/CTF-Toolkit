@@ -35,3 +35,6 @@ from .audio_tools import dtmf_digits_to_ascii, demodulate_audio_fsk
 __all__.extend(['dtmf_digits_to_ascii', 'demodulate_audio_fsk'])
 from .png_tools import repair_png_header, extract_png_text_chunks
 __all__.extend(['repair_png_header', 'extract_png_text_chunks'])
+from .jpeg_tools import repair_jpeg_header, extract_jpeg_comments
+from .zip_recover import repair_zip_header
+__all__.extend(['repair_jpeg_header', 'extract_jpeg_comments', 'repair_zip_header'])

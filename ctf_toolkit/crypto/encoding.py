@@ -250,3 +250,14 @@ def smart_decode(text: str) -> dict[str, str]:
             pass
 
     return results
+
+import re
+import html
+
+
+def decode_html_entities(text: str) -> str:
+    """
+    Decode HTML numeric character references (&#NN; and &#xHH;) and standard HTML entities.
+    """
+    return html.unescape(text)
+

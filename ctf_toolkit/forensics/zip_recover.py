@@ -37,3 +37,14 @@ def list_zip_members(path: str) -> list[str]:
     target = Path(path)
     with zipfile.ZipFile(target, "r") as zf:
         return zf.namelist()
+
+def repair_zip_header(data: bytes | bytearray) -> bytes:
+    """
+    Restore PK\x03\x04 local file header at offset 0 if zeroed out or damaged.
+    """
+    arr = bytearray(data)
+    if len(arr) < 4:
+        raise ValueError("Data too short to be a ZIP archive")
+    arr[:4] = ZIP_LOCAL_FILE_HEADER
+    return bytes(arr)
+
