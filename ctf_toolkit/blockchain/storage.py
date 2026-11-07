@@ -33,3 +33,20 @@ def decode_storage_slot_string(slot_hex: str) -> str:
         return matches[0].decode("utf-8", errors="ignore")
 
     return ""
+
+
+def decode_storage_multislot_string(slots: list[str]) -> str:
+    """Concatenate and decode multiple 32-byte storage slot hex strings into a continuous string."""
+    combined = bytearray()
+    for s in slots:
+        clean = s.strip()
+        if clean.startswith("0x") or clean.startswith("0X"):
+            clean = clean[2:]
+        if len(clean) < 64:
+            clean = clean.ljust(64, "0")
+        combined.extend(bytes.fromhex(clean))
+    # Extract string up to null or valid printable
+    clean_bytes = bytes(combined).rstrip(b"\x00")
+    m = re.findall(rb"[\x20-\x7e]{4,}", clean_bytes)
+    return m[0].decode("utf-8", errors="ignore") if m else clean_bytes.decode("utf-8", errors="ignore")
+
