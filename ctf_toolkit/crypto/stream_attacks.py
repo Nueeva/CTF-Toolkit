@@ -49,3 +49,18 @@ def masked_utf8_view(data: bytes, known_mask: list[bool], unknown_char: str = ".
         raise ValueError("unknown_char must map to exactly one byte")
     mapped = bytes(byte if known else unknown_byte[0] for byte, known in zip(data, known_mask))
     return mapped.decode("utf-8", errors="ignore")
+
+
+def repeating_key_xor(data: bytes, key: bytes) -> bytes:
+    """XOR bytes with a repeating key sequence."""
+    if not key:
+        raise ValueError("key cannot be empty")
+    return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
+
+
+def two_time_pad_decrypt(target_ct: bytes, known_ct: bytes, known_pt: bytes) -> bytes:
+    """Recover plaintext from two ciphertexts sharing a one-time pad keystream,
+    using known plaintext from one of them."""
+    keystream = keystream_from_known_pair(known_ct, known_pt)
+    size = min(len(target_ct), len(keystream))
+    return bytes(target_ct[i] ^ keystream[i] for i in range(size))

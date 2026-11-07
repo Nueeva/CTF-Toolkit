@@ -17,6 +17,14 @@ from ctf_toolkit.crypto.classical import (
     rot18,
     t9_decode,
     trithemius_encrypt,
+    affine_decrypt,
+    affine_encrypt,
+    bacon_decode,
+    bacon_encode,
+    bin_to_gray,
+    gray_to_bin,
+    gray_encode_bytes,
+    gray_decode_bytes,
 )
 from ctf_toolkit.crypto.des import des_ecb_decrypt, des_ecb_encrypt
 from ctf_toolkit.crypto.hashes import crack_numeric_hash
@@ -31,9 +39,14 @@ from ctf_toolkit.crypto.encoding import (
     rot13,
     rot47,
     smart_decode,
+    decode_html_entities,
 )
 from ctf_toolkit.crypto.fernet import fernet_decrypt
 from ctf_toolkit.crypto.morse import morse_decode, morse_encode
+from ctf_toolkit.crypto.stream_attacks import (
+    repeating_key_xor,
+    two_time_pad_decrypt,
+)
 
 __all__ = [
     "a1z26_decode",
@@ -72,14 +85,10 @@ __all__ = [
     "gray_encode_bytes",
     "gray_decode_bytes",
     "repeating_key_xor",
+    "two_time_pad_decrypt",
+    "decode_html_entities",
+    "affine_decrypt",
+    "affine_encrypt",
+    "bacon_decode",
+    "bacon_encode",
 ]
-from .encoding import decode_html_entities
-__all__.append('decode_html_entities')
-
-from ctf_toolkit.crypto.classical import (
-    bin_to_gray,
-    gray_to_bin,
-    gray_encode_bytes,
-    gray_decode_bytes,
-    repeating_key_xor,
-)
