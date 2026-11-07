@@ -13,6 +13,12 @@ from ctf_toolkit.blockchain.evm_solver import (
     solve_evm_affine_constraint,
     xor_bytes32,
 )
+from ctf_toolkit.blockchain.protocols import (
+    compute_create2_address,
+    compute_create_address,
+    hash_eip191_message,
+    verify_merkle_proof,
+)
 from ctf_toolkit.blockchain.revert import decode_revert_reason
 from ctf_toolkit.blockchain.storage import (
     decode_storage_multislot_string,
@@ -32,4 +38,8 @@ __all__ = [
     "solve_evm_affine_constraint",
     "invert_evm_minivm",
     "xor_bytes32",
+    "hash_eip191_message",
+    "compute_create2_address",
+    "compute_create_address",
+    "verify_merkle_proof",
 ]
