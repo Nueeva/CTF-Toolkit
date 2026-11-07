@@ -24,7 +24,6 @@ def binary_to_text(binary_str: str) -> str:
     clean = re.sub(r"[^01\s]", "", binary_str.strip())
     tokens = clean.split()
     if not tokens or len(tokens) == 1:
-        # continuous bitstream
         s = clean.replace(" ", "")
         tokens = [s[i : i + 8] for i in range(0, len(s), 8) if len(s[i : i + 8]) == 8]
     return "".join([chr(int(b, 2)) for b in tokens if len(b) >= 7])
@@ -34,6 +33,18 @@ def decimal_to_text(decimal_str: str) -> str:
     """Convert space/comma-separated decimal ASCII character codes into string."""
     numbers = [int(n) for n in re.findall(r"\b\d+\b", decimal_str)]
     return "".join([chr(n) for n in numbers if 0 <= n <= 1114111])
+
+
+def ascii85_decode(data: str | bytes) -> bytes:
+    """Decode Adobe Ascii85 encoded string or bytes."""
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    return base64.a85decode(raw.strip())
+
+
+def base85_decode(data: str | bytes) -> bytes:
+    """Decode RFC 1924 / IPv6 style Base85 encoded string or bytes."""
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    return base64.b85decode(raw.strip())
 
 
 def smart_decode(text: str) -> dict[str, str]:
@@ -77,6 +88,14 @@ def smart_decode(text: str) -> dict[str, str]:
         b32_bytes = base32_decode_autopad(clean)
         if any(32 <= b <= 126 for b in b32_bytes):
             results["base32"] = b32_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        pass
+
+    # Ascii85
+    try:
+        a85_bytes = ascii85_decode(clean)
+        if any(32 <= b <= 126 for b in a85_bytes):
+            results["ascii85"] = a85_bytes.decode("utf-8", errors="replace")
     except Exception:
         pass
 

@@ -1,5 +1,7 @@
 from ctf_toolkit.crypto.encoding import (
+    ascii85_decode,
     base32_decode_autopad,
+    base85_decode,
     binary_to_text,
     decimal_to_text,
     rot13,
@@ -30,3 +32,11 @@ def test_binary_to_text():
 def test_decimal_to_text():
     decimal_str = "65 66 67"
     assert decimal_to_text(decimal_str) == "ABC"
+
+
+def test_ascii85_decode():
+    assert ascii85_decode("87cURDZ") == b"Hello"
+
+
+def test_base85_decode():
+    assert base85_decode("NM&qnZv") == b"Hello"

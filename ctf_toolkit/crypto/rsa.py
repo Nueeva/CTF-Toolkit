@@ -13,6 +13,23 @@ def rsa_decrypt(c: int, n: int, d: int) -> int:
     return pow(c, d, n)
 
 
+def int_to_bytes(val: int) -> bytes:
+    """Convert a large non-negative integer to bytes."""
+    if val == 0:
+        return b"\x00"
+    length = (val.bit_length() + 7) // 8
+    return val.to_bytes(length, byteorder="big")
+
+
+def rsa_solve_pqec(p: int, q: int, e: int, c: int) -> bytes:
+    """Decrypt textbook RSA given prime factors p, q, public exponent e, and ciphertext c."""
+    n = p * q
+    phi = (p - 1) * (q - 1)
+    d = modinv(e, phi)
+    m = pow(c, d, n)
+    return int_to_bytes(m)
+
+
 def common_modulus_attack(c1: int, e1: int, c2: int, e2: int, n: int) -> int:
     g, a, b = egcd(e1, e2)
     if abs(g) != 1:
