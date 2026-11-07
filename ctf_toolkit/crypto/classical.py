@@ -620,3 +620,20 @@ def multiplicative_decrypt(text: str, a: int, modulus: int = 26) -> str:
             out.append(ch)
     return "".join(out)
 
+def rot18(text: str) -> str:
+    """
+    Apply ROT18 cipher (ROT13 on alphabetic characters + ROT5 on numeric digits 0-9).
+    This operation is an involution (applying it twice recovers the original plaintext).
+    """
+    out: list[str] = []
+    for ch in text:
+        if "a" <= ch <= "z":
+            out.append(chr((ord(ch) - ord("a") + 13) % 26 + ord("a")))
+        elif "A" <= ch <= "Z":
+            out.append(chr((ord(ch) - ord("A") + 13) % 26 + ord("A")))
+        elif "0" <= ch <= "9":
+            out.append(chr((ord(ch) - ord("0") + 5) % 10 + ord("0")))
+        else:
+            out.append(ch)
+    return "".join(out)
+

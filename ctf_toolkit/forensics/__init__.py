@@ -18,6 +18,7 @@ from ctf_toolkit.forensics.xlsx_tools import extract_xlsx_metadata
 __all__ = [
     "decode_qr_image",
     "extract_audio_pcm_lsb",
+    "extract_audio_tone_bytes",
     "extract_gif_scanline_bits",
     "decompile_pyc",
     "extract_channel_bytes",

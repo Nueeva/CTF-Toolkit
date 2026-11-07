@@ -44,3 +44,66 @@ def extract_audio_pcm_lsb(wav_source: str | bytes | io.BytesIO, msb_first: bool 
         byte_arr.append(byte_val)
 
     return bytes(byte_arr)
+
+def extract_audio_tone_bytes(
+    wav_source: str | bytes | io.BytesIO,
+    base_freq: float = 300.0,
+    step_hz: float = 10.0,
+    min_beep_dur: float = 0.02,
+) -> str:
+    """
+    Segment audio tone pulses using amplitude envelope convolution,
+    extract the dominant peak frequency of each pulse, and decode transmitted
+    ASCII bytes via linear frequency mapping: freq = base_freq + step_hz * ord(c).
+    """
+    if isinstance(wav_source, (bytes, bytearray)):
+        wf = wave.open(io.BytesIO(wav_source), "rb")
+    elif isinstance(wav_source, io.BytesIO):
+        wf = wave.open(wav_source, "rb")
+    else:
+        wf = wave.open(str(wav_source), "rb")
+
+    with wf:
+        rate = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+
+    samples = np.frombuffer(frames, dtype=np.int16)
+    abs_samples = np.abs(samples)
+
+    win = max(1, int(rate * 0.01))
+    envelope = np.convolve(abs_samples, np.ones(win) / win, mode="same")
+    threshold = float(np.max(envelope) * 0.25)
+    is_beep = envelope > threshold
+
+    beep_segments: list[tuple[int, int]] = []
+    in_beep = False
+    start_idx = 0
+
+    for i, b in enumerate(is_beep):
+        if b and not in_beep:
+            in_beep = True
+            start_idx = i
+        elif not b and in_beep:
+            in_beep = False
+            if (i - start_idx) / rate >= min_beep_dur:
+                beep_segments.append((start_idx, i))
+
+    if in_beep and (len(is_beep) - start_idx) / rate >= min_beep_dur:
+        beep_segments.append((start_idx, len(is_beep)))
+
+    recovered_chars: list[str] = []
+    for st, en in beep_segments:
+        seg = samples[st:en]
+        if len(seg) < 20:
+            continue
+        fft = np.abs(np.fft.rfft(seg))
+        freqs = np.fft.rfftfreq(len(seg), 1.0 / rate)
+        peak_idx = np.argmax(fft[1:]) + 1
+        peak_f = float(freqs[peak_idx])
+
+        code = round((peak_f - base_freq) / step_hz)
+        if 32 <= code <= 126:
+            recovered_chars.append(chr(code))
+
+    return "".join(recovered_chars)
+

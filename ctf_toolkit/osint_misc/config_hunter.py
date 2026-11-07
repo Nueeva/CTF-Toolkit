@@ -194,3 +194,27 @@ def extract_jsonl_secrets(content: str, pattern: str = r"GETSFLAG\{[^}]+\}") -> 
                 })
     return results
 
+def extract_html_table_secrets(html_content: str, pattern: str = r"GETSFLAG\{[^}]+\}") -> list[dict[str, str]]:
+    """
+    Parse HTML report tables and extract secrets/flags from table cell contents with row/column index metadata.
+    """
+    results: list[dict[str, str]] = []
+    regex = re.compile(pattern)
+
+    # Extract all rows from <tr> tags
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html_content, re.DOTALL | re.IGNORECASE)
+    for row_idx, row in enumerate(rows):
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.DOTALL | re.IGNORECASE)
+        for col_idx, cell in enumerate(cells):
+            # Clean cell text tags
+            cell_text = re.sub(r"<[^>]+>", "", cell).strip()
+            m = regex.search(cell_text)
+            if m:
+                results.append({
+                    "row": str(row_idx),
+                    "col": str(col_idx),
+                    "secret": m.group(0),
+                    "cell_text": cell_text,
+                })
+    return results
+

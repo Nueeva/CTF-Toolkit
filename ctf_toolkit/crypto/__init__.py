@@ -14,6 +14,7 @@ from ctf_toolkit.crypto.classical import (
     trithemius_decrypt,
     multiplicative_encrypt,
     multiplicative_decrypt,
+    rot18,
     trithemius_encrypt,
 )
 from ctf_toolkit.crypto.des import des_ecb_decrypt, des_ecb_encrypt
@@ -47,6 +48,7 @@ __all__ = [
     "trithemius_decrypt",
     "multiplicative_encrypt",
     "multiplicative_decrypt",
+    "rot18",
     "crack_numeric_hash",
     "des_ecb_decrypt",
     "des_ecb_encrypt",
