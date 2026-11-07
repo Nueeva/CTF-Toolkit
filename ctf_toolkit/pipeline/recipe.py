@@ -14,12 +14,16 @@ from ctf_toolkit.crypto.classical import (
     repeating_key_xor,
     beaufort_decrypt,
     autokey_decrypt,
+    porta_decrypt,
+    rail_fence_decrypt,
 )
 from ctf_toolkit.crypto.encoding import (
     decode_html_entities,
     rle_decode,
     normalize_fullwidth,
     rot47,
+    base91_decode,
+    base91_encode,
 )
 from ctf_toolkit.crypto.rc4 import rc4_crypt
 from ctf_toolkit.osint_misc.stego import decode_zero_width, decode_trailing_whitespace
@@ -151,6 +155,35 @@ def op_flag_scan(data: Any, pattern: str = r"(?:GETSFLAG|CT|FLAG)\{[^\}]+\}") ->
     if m:
         return "\n".join(m)
     return text
+
+
+
+
+@register_op("b91d")
+@register_op("base91_decode")
+def op_base91_decode(data: Any, *args: str) -> bytes:
+    raw_str = (data.decode(errors="ignore") if isinstance(data, bytes) else str(data)).strip()
+    return base91_decode(raw_str)
+
+
+@register_op("b91e")
+@register_op("base91_encode")
+def op_base91_encode(data: Any, *args: str) -> str:
+    raw_bytes = data if isinstance(data, bytes) else str(data).encode()
+    return base91_encode(raw_bytes)
+
+
+@register_op("porta")
+def op_porta(data: Any, key_arg: str = "KEY") -> str:
+    text = data.decode(errors="ignore") if isinstance(data, bytes) else str(data)
+    return porta_decrypt(text, key_arg)
+
+
+@register_op("rail_fence")
+def op_rail_fence(data: Any, rails_arg: str = "4") -> str:
+    text = data.decode(errors="ignore") if isinstance(data, bytes) else str(data)
+    r = int(rails_arg) if rails_arg.isdigit() else 4
+    return rail_fence_decrypt(text, r)
 
 
 class RecipePipeline:

@@ -777,3 +777,115 @@ def autokey_decrypt(ciphertext: str, primer: str) -> str:
         else:
             out.append(ch)
     return "".join(out)
+
+
+def porta_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt Porta polyalphabetic reciprocal cipher."""
+    key = key.upper()
+    pt: list[str] = []
+    k_idx = 0
+    for char in ciphertext:
+        if "A" <= char.upper() <= "Z":
+            is_lower = char.islower()
+            k = key[k_idx % len(key)]
+            k_idx += 1
+            shift = (ord(k) - ord("A")) // 2
+            c_val = ord(char.upper()) - ord("A")
+            if c_val < 13:
+                p_val = 13 + (c_val + shift) % 13
+            else:
+                p_val = (c_val - 13 - shift) % 13
+            dec_char = chr(ord("A") + p_val)
+            pt.append(dec_char.lower() if is_lower else dec_char)
+        else:
+            pt.append(char)
+    return "".join(pt)
+
+
+def columnar_transposition_decrypt(ciphertext: str, key: str, padding_char: str = "x") -> str:
+    """Decrypt keyed columnar transposition cipher."""
+    num_cols = len(key)
+    num_rows = len(ciphertext) // num_cols
+    order = sorted(range(num_cols), key=lambda i: key[i])
+    cols: dict[int, str] = {}
+    for idx, col_idx in enumerate(order):
+        cols[col_idx] = ciphertext[idx * num_rows : (idx + 1) * num_rows]
+    pt: list[str] = []
+    for r in range(num_rows):
+        for c in range(num_cols):
+            pt.append(cols[c][r])
+    return "".join(pt).rstrip(padding_char)
+
+
+def rail_fence_decrypt(ciphertext: str, rails: int = 4) -> str:
+    """Decrypt Rail Fence transposition cipher."""
+    from collections import Counter
+    length = len(ciphertext)
+    pattern: list[int] = []
+    rail = 0
+    direction = 1
+    for _ in range(length):
+        pattern.append(rail)
+        rail += direction
+        if rail == rails - 1:
+            direction = -1
+        elif rail == 0:
+            direction = 1
+    counts = Counter(pattern)
+    slices: dict[int, list[str]] = {}
+    curr = 0
+    for r in range(rails):
+        slices[r] = list(ciphertext[curr : curr + counts[r]])
+        curr += counts[r]
+    return "".join(slices[r].pop(0) for r in pattern)
+
+
+def qwerty_shift_decrypt(ciphertext: str, steps: int = -1) -> str:
+    """Decrypt keyboard layout shift cipher (QWERTY rows)."""
+    rows = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+    out: list[str] = []
+    for c in ciphertext:
+        is_lower = c.islower()
+        ch_low = c.lower()
+        shifted = c
+        for r in rows:
+            if ch_low in r:
+                idx = r.index(ch_low)
+                new_ch = r[(idx + steps) % len(r)]
+                shifted = new_ch if is_lower else new_ch.upper()
+                break
+        out.append(shifted)
+    return "".join(out)
+
+
+def book_cipher_decode(ciphertext: str, book_text: str) -> str:
+    """Decode book cipher with coordinate references '[word_idx].[letter_idx]'."""
+    book = book_text.split()
+    tokens = ciphertext.replace(",", " ").split()
+    out: list[str] = []
+    for tok in tokens:
+        if "." in tok:
+            w_idx, l_idx = tok.split(".", 1)
+            w = int(w_idx) - 1
+            l = int(l_idx) - 1
+            if 0 <= w < len(book) and 0 <= l < len(book[w]):
+                out.append(book[w][l])
+    return "".join(out)
+
+
+def variant_beaufort_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt Variant Beaufort cipher (C = P - K => P = C + K mod 26)."""
+    key = key.lower()
+    pt: list[str] = []
+    for i, c in enumerate(ciphertext):
+        if "a" <= c <= "z":
+            k_val = ord(key[i % len(key)]) - ord("a")
+            c_val = ord(c) - ord("a")
+            pt.append(chr(ord("a") + (c_val + k_val) % 26))
+        elif "A" <= c <= "Z":
+            k_val = ord(key[i % len(key)]) - ord("a")
+            c_val = ord(c) - ord("A")
+            pt.append(chr(ord("A") + (c_val + k_val) % 26))
+        else:
+            pt.append(c)
+    return "".join(pt)

@@ -290,3 +290,92 @@ def normalize_fullwidth(text: str) -> str:
     """Normalize fullwidth Unicode characters to standard ASCII."""
     import unicodedata
     return unicodedata.normalize("NFKC", text)
+
+
+BASE91_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~"'
+
+def base91_decode(encoded_str: str) -> bytes:
+    """Decode standard basE91 encoded string into bytes."""
+    d = {c: i for i, c in enumerate(BASE91_ALPHABET)}
+    v, b, n = -1, 0, 0
+    out = bytearray()
+    for c in encoded_str:
+        if c not in d:
+            continue
+        c_val = d[c]
+        if v < 0:
+            v = c_val
+        else:
+            v += c_val * 91
+            b |= v << n
+            n += 13 if (v & 8191) > 88 else 14
+            while True:
+                out.append(b & 255)
+                b >>= 8
+                n -= 8
+                if not (n > 7):
+                    break
+            v = -1
+    if v + 1:
+        out.append((b | v << n) & 255)
+    return bytes(out)
+
+
+def base91_encode(data: bytes) -> str:
+    """Encode bytes into standard basE91 string."""
+    b, n = 0, 0
+    out: list[str] = []
+    for byte in data:
+        b |= byte << n
+        n += 8
+        if n > 13:
+            v = b & 8191
+            if v > 88:
+                b >>= 13
+                n -= 13
+            else:
+                v = b & 16383
+                b >>= 14
+                n -= 14
+            out.append(BASE91_ALPHABET[v % 91] + BASE91_ALPHABET[v // 91])
+    if n:
+        out.append(BASE91_ALPHABET[b % 91])
+        if n > 7 or b > 90:
+            out.append(BASE91_ALPHABET[b // 91])
+    return "".join(out)
+
+
+BRAILLE_MAP: dict[str, str] = {
+    '⠁': 'a', '⠃': 'b', '⠉': 'c', '⠙': 'd', '⠑': 'e', '⠋': 'f', '⠛': 'g',
+    '⠓': 'h', '⠊': 'i', '⠚': 'j', '⠅': 'k', '⠇': 'l', '⠍': 'm', '⠝': 'n',
+    '⠕': 'o', '⠏': 'p', '⠟': 'q', '⠗': 'r', '⠎': 's', '⠞': 't', '⠥': 'u',
+    '⠧': 'v', '⠺': 'w', '⠭': 'x', '⠽': 'y', '⠵': 'z'
+}
+
+def braille_decode(text: str) -> str:
+    """Decode Unicode Braille characters (U+2800..U+28FF) into English text."""
+    return "".join(BRAILLE_MAP.get(c, c) for c in text)
+
+
+ITA2_LETTERS: dict[int, str] = {
+    1: 'E', 3: 'A', 5: 'S', 6: 'I', 7: 'U',
+    9: 'D', 10: 'R', 11: 'J', 12: 'N', 13: 'F', 14: 'C', 15: 'K',
+    16: 'T', 17: 'Z', 18: 'L', 19: 'W', 20: 'H', 21: 'Y', 22: 'P', 23: 'Q',
+    24: 'O', 25: 'B', 26: 'G', 28: 'M', 29: 'X', 30: 'V'
+}
+
+def baudot_ita2_decode(bits_seq: list[str] | str, lsb_first: bool = True) -> str:
+    """Decode 5-bit Baudot / CCITT ITA-2 letter stream."""
+    if isinstance(bits_seq, str):
+        tokens = bits_seq.replace(",", " ").split()
+    else:
+        tokens = bits_seq
+    out: list[str] = []
+    for tok in tokens:
+        clean = tok.strip()
+        if not clean:
+            continue
+        order = clean[::-1] if lsb_first else clean
+        val = int(order, 2)
+        out.append(ITA2_LETTERS.get(val, "?"))
+    return "".join(out)
