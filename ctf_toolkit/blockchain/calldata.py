@@ -35,3 +35,50 @@ def parse_calldata(raw_hex: str) -> dict[str, object]:
         "words": words,
         "ascii_strings": ascii_strings,
     }
+
+
+def decode_calldata_charcodes(raw_hex: str) -> str:
+    """Decode calldata consisting of uint256 array of ASCII character codes."""
+    parsed = parse_calldata(raw_hex)
+    words = parsed.get("words", [])
+    if len(words) < 2:
+        return ""
+    # Usually words[0] is offset (0x20), words[1] is count
+    try:
+        count = int(words[1], 16)
+        char_words = words[2 : 2 + count]
+    except Exception:
+        char_words = words[2:]
+
+    chars = []
+    for w in char_words:
+        val = int(w, 16)
+        if 0 < val <= 255:
+            chars.append(chr(val))
+    return "".join(chars)
+
+
+def reassemble_calldata_slices(raw_hex: str) -> str:
+    """Extract and concatenate string slices from ABI-encoded calldata."""
+    clean = raw_hex.strip()
+    if clean.startswith("0x") or clean.startswith("0X"):
+        clean = clean[2:]
+    raw_bytes = bytes.fromhex(clean)
+    body = raw_bytes[4:] if len(raw_bytes) >= 4 else raw_bytes
+
+    # Scan for 32-byte words that have length followed by ASCII
+    parts = []
+    i = 0
+    while i < len(body):
+        word = body[i : i + 32]
+        if len(word) == 32:
+            val = int.from_bytes(word, "big")
+            if 0 < val <= 32 and i + 32 < len(body):
+                data_word = body[i + 32 : i + 64]
+                ascii_slice = data_word[:val]
+                if all(0x20 <= b <= 0x7e for b in ascii_slice):
+                    parts.append(ascii_slice.decode("latin1"))
+                    i += 64
+                    continue
+        i += 32
+    return "".join(parts)
