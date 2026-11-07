@@ -261,3 +261,32 @@ def decode_html_entities(text: str) -> str:
     """
     return html.unescape(text)
 
+
+
+def rle_decode(text: str) -> str:
+    """Decode Run-Length Encoded (RLE) string like '1G1E1T1S...'."""
+    import re
+    matches = re.findall(r"(\d+)(.)", text)
+    return "".join(ch * int(count) for count, ch in matches)
+
+
+def rle_encode(text: str) -> str:
+    """Encode string to Run-Length Encoded (RLE) format."""
+    if not text:
+        return ""
+    out: list[str] = []
+    count = 1
+    for i in range(1, len(text)):
+        if text[i] == text[i - 1]:
+            count += 1
+        else:
+            out.append(f"{count}{text[i - 1]}")
+            count = 1
+    out.append(f"{count}{text[-1]}")
+    return "".join(out)
+
+
+def normalize_fullwidth(text: str) -> str:
+    """Normalize fullwidth Unicode characters to standard ASCII."""
+    import unicodedata
+    return unicodedata.normalize("NFKC", text)
