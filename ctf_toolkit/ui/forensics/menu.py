@@ -15,7 +15,8 @@ def menu() -> None:
         print("[7] ZIP Recover (corrupted header/trailing)")
         print("[8] JPEG Tools (extract/patch dimensi)")
         print("[9] Caesar Shifter Helper")
-        print("[10] PYC Decompiler (pycdc/uncompyle6)")
+        print("[10] PYC Decompiler (pycdc/uncompyle6)
+        print("[11] PDF Metadata Extractor")")
         print("[0] Kembali")
         choice = safe_input("Pilih opsi: ").strip()
         if choice == "0":
@@ -129,5 +130,20 @@ def menu() -> None:
                 page_text(output)
             except (ValueError, FileNotFoundError) as exc:
                 warn(f"Error: {exc}")
+        elif choice == "11":
+            from ctf_toolkit.forensics.pdf_tools import extract_pdf_metadata
+
+            pdf_p = safe_input("Path file PDF: ").strip()
+            pdf_bytes = read_bytes_file(pdf_p)
+            if not pdf_bytes:
+                warn("File PDF kosong / tidak ditemukan.")
+                continue
+            meta = extract_pdf_metadata(pdf_bytes)
+            if not meta:
+                warn("Tidak ditemukan metadata pada PDF.")
+            else:
+                print("[+] PDF Metadata:")
+                for k, v in meta.items():
+                    print(f"    - {k}: {v}")
         else:
             warn("Pilihan tidak valid.")

@@ -26,6 +26,8 @@ def get_menu_registry() -> list[MenuModule]:
         MenuModule("2", "BinEx", _lazy_loader("ctf_toolkit.ui.binex.menu")),
         MenuModule("3", "Web", _lazy_loader("ctf_toolkit.ui.web.menu")),
         MenuModule("4", "Forensics / RE", _lazy_loader("ctf_toolkit.ui.forensics.menu")),
-        MenuModule("5", "Utilities", _lazy_loader("ctf_toolkit.ui.utilities.menu")),
-        MenuModule("6", "Defensive / Blue Team", _lazy_loader("ctf_toolkit.ui.defensive.menu")),
+        MenuModule("5", "Blockchain / EVM", _lazy_loader("ctf_toolkit.ui.blockchain.menu")),
+        MenuModule("6", "OSINT & Misc", _lazy_loader("ctf_toolkit.ui.osint_misc.menu")),
+        MenuModule("7", "Utilities", _lazy_loader("ctf_toolkit.ui.utilities.menu")),
+        MenuModule("8", "Defensive / Blue Team", _lazy_loader("ctf_toolkit.ui.defensive.menu")),
     ]
