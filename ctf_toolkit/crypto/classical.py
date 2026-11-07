@@ -332,3 +332,33 @@ def base58_decode(s: str) -> bytes:
     res.reverse()
 
     return (b"\x00" * leading_ones) + bytes(res)
+
+
+def bacon_decode(cipher: str, a_char: str = "A", b_char: str = "B") -> str:
+    """Decode Bacon cipher where 5-bit binary tokens map to letters a-z."""
+    clean = [c for c in cipher.upper() if c in (a_char.upper(), b_char.upper())]
+    out = []
+    for i in range(0, len(clean), 5):
+        chunk = clean[i : i + 5]
+        if len(chunk) == 5:
+            val = 0
+            for ch in chunk:
+                val = (val << 1) | (1 if ch == b_char.upper() else 0)
+            if 0 <= val < 26:
+                out.append(chr(ord("a") + val))
+            else:
+                out.append("?")
+    return "".join(out)
+
+
+def bacon_encode(text: str, a_char: str = "A", b_char: str = "B") -> str:
+    """Encode text into Bacon cipher 5-bit binary tokens."""
+    out = []
+    for ch in text.lower():
+        if "a" <= ch <= "z":
+            val = ord(ch) - ord("a")
+            bits = []
+            for shift in range(4, -1, -1):
+                bits.append(b_char if (val >> shift) & 1 else a_char)
+            out.append("".join(bits))
+    return " ".join(out)
