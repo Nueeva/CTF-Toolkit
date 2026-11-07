@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import re
 from PIL import Image
+import numpy as np
 
 
 def extract_channel_bytes(img_data: bytes | io.BytesIO | str, channel: str = "R") -> bytes:
@@ -14,15 +15,83 @@ def extract_channel_bytes(img_data: bytes | io.BytesIO | str, channel: str = "R"
         im = Image.open(img_data)
 
     im_rgb = im.convert("RGBA" if channel.upper() == "A" else "RGB")
-    pixels = list(im_rgb.getdata())
-    return bytes([p[ch_idx] for p in pixels])
+    arr = np.array(im_rgb)
+    return arr[..., ch_idx].tobytes()
 
 
 def find_flags_in_channel(img_data: bytes | io.BytesIO | str, channel: str = "R") -> list[str]:
     """Find CTF flags directly embedded in an image color channel."""
     raw = extract_channel_bytes(img_data, channel)
-    matches = re.findall(rb"(?:GETSFLAG|CT)\{[^}]+\}", raw)
+    matches = re.findall(rb"(?:GETSFLAG|FLAG|CT)\{[^}]+\}", raw)
     return [m.decode("utf-8", errors="ignore") for m in matches]
+
+
+def extract_channel_lsb(
+    img_data: bytes | io.BytesIO | str,
+    channel: str = "R",
+    bit_pos: int = 0,
+    bit_order: str = "big",
+) -> bytes:
+    """
+    Extract least significant bit (or specific bit plane) from a given color channel (R, G, B, A).
+    Packs 8 bits per byte in 'big' (MSB-first) or 'little' (LSB-first) order.
+    """
+    ch_idx = {"R": 0, "G": 1, "B": 2, "A": 3}.get(channel.upper(), 0)
+    if isinstance(img_data, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(img_data))
+    else:
+        im = Image.open(img_data)
+
+    mode = "RGBA" if channel.upper() == "A" else "RGB"
+    arr = np.array(im.convert(mode))
+    bits = (arr[..., ch_idx] >> bit_pos) & 1
+    return np.packbits(bits.flatten(), bitorder=bit_order).tobytes()
+
+
+def extract_interleaved_lsb(
+    img_data: bytes | io.BytesIO | str,
+    bit_depth: int = 1,
+    bit_order: str = "big",
+    reverse: bool = False,
+) -> bytes:
+    """
+    Extract interleaved RGB least significant bits.
+    Supports 1-bit or 2-bit (quaternary) per channel.
+    """
+    if isinstance(img_data, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(img_data))
+    else:
+        im = Image.open(img_data)
+
+    arr = np.array(im.convert("RGB"))
+    if bit_depth == 1:
+        bits = (arr & 1).flatten()
+        if reverse:
+            bits = bits[::-1]
+        return np.packbits(bits, bitorder=bit_order).tobytes()
+    elif bit_depth == 2:
+        vals = (arr & 3).flatten()
+        if reverse:
+            vals = vals[::-1]
+        out = bytearray()
+        for i in range(0, len(vals) - 3, 4):
+            if bit_order == "big":
+                out.append((vals[i] << 6) | (vals[i + 1] << 4) | (vals[i + 2] << 2) | vals[i + 3])
+            else:
+                out.append(vals[i] | (vals[i + 1] << 2) | (vals[i + 2] << 4) | (vals[i + 3] << 6))
+        return bytes(out)
+    else:
+        raise ValueError(f"Unsupported bit depth: {bit_depth}")
+
+
+def extract_alpha_direct_bytes(img_data: bytes | io.BytesIO | str) -> bytes:
+    """Extract raw Alpha channel bytes directly from RGBA image."""
+    if isinstance(img_data, (bytes, bytearray)):
+        im = Image.open(io.BytesIO(img_data))
+    else:
+        im = Image.open(img_data)
+    arr = np.array(im.convert("RGBA"))
+    return arr[..., 3].tobytes()
 
 
 def extract_png_trailing_bytes(img_data: bytes | str) -> bytes:
@@ -58,13 +127,12 @@ def extract_sequential_rgb_bytes(img_data: bytes | io.BytesIO | str) -> bytes:
     im_rgb = im.convert("RGB")
     return im_rgb.tobytes()
 
+
 def decode_qr_image(img_data: bytes | io.BytesIO | str | Image.Image) -> list[str]:
     """
     Decode QR codes from an image, scanning multiple orientations (0, 90, 180, 270 degrees)
     and horizontal flips to recover rotated or mirrored barcodes.
     """
-    import numpy as np
-
     try:
         import cv2
     except ImportError:
@@ -100,6 +168,7 @@ def decode_qr_image(img_data: bytes | io.BytesIO | str | Image.Image) -> list[st
 
     return results
 
+
 def extract_gif_scanline_bits(gif_source: str | bytes | io.BytesIO) -> list[str]:
     """
     Extract embedded binary scanlines from animated GIF frames.
@@ -118,7 +187,6 @@ def extract_gif_scanline_bits(gif_source: str | bytes | io.BytesIO) -> list[str]
     for frame_idx, frame in enumerate(ImageSequence.Iterator(im)):
         rgb = frame.convert("RGB")
         w, h = rgb.size
-        # Overall frame background from bottom corner
         bg_color = rgb.getpixel((0, h - 1))
 
         bit_accum = ""
@@ -138,4 +206,3 @@ def extract_gif_scanline_bits(gif_source: str | bytes | io.BytesIO) -> list[str]
                     recovered.append(text)
 
     return recovered
-
