@@ -91,3 +91,34 @@ def extract_binary_strings(
         matches = [m for m in matches if pat_re.search(m)]
     return matches
 
+
+
+def invert_index_xor(data: bytes) -> bytes:
+    """Invert index-dependent XOR operation: out[i] = data[i] ^ i."""
+    return bytes([b ^ (i & 0xFF) for i, b in enumerate(data)])
+
+
+def invert_index_sub(data: bytes) -> bytes:
+    """Invert index-dependent subtraction: out[i] = (data[i] + i) mod 256."""
+    return bytes([(b + i) & 0xFF for i, b in enumerate(data)])
+
+
+def invert_bitwise_not(data: bytes) -> bytes:
+    """Invert bitwise NOT operation: out[i] = ~data[i] mod 256."""
+    return bytes([(~b) & 0xFF for b in data])
+
+
+def rotate_byte_right(data: bytes, shift: int = 3) -> bytes:
+    """Circular right rotation of each byte by shift bits."""
+    s = shift % 8
+    return bytes([((b >> s) | ((b << (8 - s)) & 0xFF)) for b in data])
+
+
+def invert_scaled_index_xor(data: bytes, scale: int = 7, xor_key: int = 0x5A) -> bytes:
+    """Invert scaled index XOR feedback: out[i] = data[i] ^ (scale * i) ^ xor_key."""
+    return bytes([b ^ ((scale * i) & 0xFF) ^ (xor_key & 0xFF) for i, b in enumerate(data)])
+
+
+def invert_scaled_linear_add(data: bytes, scale: int = 3) -> bytes:
+    """Invert scaled linear addition: out[i] = (data[i] - scale * i) mod 256."""
+    return bytes([(b - scale * i) & 0xFF for i, b in enumerate(data)])

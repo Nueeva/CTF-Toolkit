@@ -260,3 +260,93 @@ def render_network_report(result: NetworkArtifactResult) -> str:
     lines.append("Suspicious DNS Queries:")
     lines.extend(f"- {value}" for value in result.suspicious_dns_queries[:50])
     return "\n".join(lines) + "\n"
+
+
+def extract_dns_hex_subdomains(pcap_data: bytes, domain_suffix: str = "evil-dns.id") -> bytes:
+    """Extract concatenated hex-encoded subdomain labels from DNS queries in PCAP."""
+    import re
+
+    pattern = rf"([0-9a-fA-F]+)\.t\.{re.escape(domain_suffix)}"
+    matches = re.findall(pattern.encode("latin-1"), pcap_data)
+    hex_str = b"".join(matches).decode("latin-1")
+    return bytes.fromhex(hex_str)
+
+
+def assemble_icmp_echo_payloads(pcap_data: bytes) -> bytes:
+    """Extract sequential ICMP Echo Request payloads from raw PCAP bytes."""
+    import struct
+
+    endian = "<" if pcap_data[:4] == b"\xd4\xc3\xb2\xa1" else ">"
+    offset = 24
+    frags: list[bytes] = []
+
+    while offset + 16 <= len(pcap_data):
+        ts_sec, ts_usec, incl_len, orig_len = struct.unpack(endian + "IIII", pcap_data[offset : offset + 16])
+        offset += 16
+        pkt = pcap_data[offset : offset + incl_len]
+        offset += incl_len
+
+        if len(pkt) > 34 and pkt[12:14] == b"\x08\x00" and pkt[23] == 1:
+            ip_hdr_len = (pkt[14] & 0x0F) * 4
+            trans_off = 14 + ip_hdr_len
+            payload = pkt[trans_off + 8 :]
+            if payload.startswith(b"\x08"):
+                frags.append(payload[1:])
+
+    return b"".join(frags)
+
+
+def extract_dns_base32_subdomains(pcap_data: bytes, domain_suffix: str = "exfil-c2.net") -> bytes:
+    """Extract Base32 subdomain query fragments and decode to bytes."""
+    import base64
+    import re
+
+    pattern = rf"([a-z2-7A-Z2-7]{{10,}})\.dns\.{re.escape(domain_suffix)}"
+    matches = re.findall(pattern.encode("latin-1"), pcap_data)
+    b32_str = b"".join(matches).decode("latin-1").upper()
+    pad = (8 - len(b32_str) % 8) % 8
+    return base64.b32decode(b32_str + "=" * pad)
+
+
+def decode_dns_xor_b32_beacon(
+    pcap_data: bytes, domain_suffix: str = "telemetry-hub.io", xor_key: bytes = b"GF"
+) -> bytes:
+    """Extract indexed Base32 DNS queries, decode, and un-XOR with repeating key."""
+    import base64
+    import re
+
+    pattern = rf"(\d\d)([a-z2-70-9A-Z2-70-9]{{20,}})\.ns1\.{re.escape(domain_suffix)}"
+    queries = re.findall(pattern.encode("latin-1"), pcap_data)
+    queries.sort(key=lambda x: x[0])
+    b32_str = b"".join(q[1] for q in queries).decode("latin-1").upper()
+    pad = (8 - len(b32_str) % 8) % 8
+    dec = base64.b32decode(b32_str + "=" * pad)
+    return bytes(b ^ xor_key[i % len(xor_key)] for i, b in enumerate(dec))
+
+
+def reassemble_tcp_stream_seq(pcap_data: bytes, filter_port: int | None = None) -> bytes:
+    """Reassemble TCP payload segments ordered by TCP Sequence Number."""
+    import struct
+
+    endian = "<" if pcap_data[:4] == b"\xd4\xc3\xb2\xa1" else ">"
+    offset = 24
+    segments: list[tuple[int, bytes]] = []
+
+    while offset + 16 <= len(pcap_data):
+        ts_sec, ts_usec, incl_len, orig_len = struct.unpack(endian + "IIII", pcap_data[offset : offset + 16])
+        offset += 16
+        pkt = pcap_data[offset : offset + incl_len]
+        offset += incl_len
+
+        if len(pkt) > 34 and pkt[12:14] == b"\x08\x00" and pkt[23] == 6:
+            ip_hdr_len = (pkt[14] & 0x0F) * 4
+            trans_off = 14 + ip_hdr_len
+            src_port, dst_port, seq = struct.unpack(">HHI", pkt[trans_off : trans_off + 8])
+            if filter_port is None or src_port == filter_port or dst_port == filter_port:
+                tcp_hdr_len = ((pkt[trans_off + 12] >> 4) & 0x0F) * 4
+                payload = pkt[trans_off + tcp_hdr_len :]
+                if payload:
+                    segments.append((seq, payload))
+
+    segments.sort(key=lambda x: x[0])
+    return b"".join(s[1] for s in segments)
