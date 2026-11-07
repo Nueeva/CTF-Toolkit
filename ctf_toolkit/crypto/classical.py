@@ -398,3 +398,76 @@ def scytale_decrypt(ciphertext: str, diameter: int, strip_pad: bool = False, pad
         res = res.rstrip(pad)
     return res
 
+
+TAP_GRID: list[list[str]] = [
+    ["A", "B", "C", "D", "E"],
+    ["F", "G", "H", "I", "J"],
+    ["L", "M", "N", "O", "P"],
+    ["Q", "R", "S", "T", "U"],
+    ["V", "W", "X", "Y", "Z"],
+]
+
+
+def tap_code_encode(text: str, delimiter: str = " ") -> str:
+    """
+    Encode text using the Tap Code (Knock Code) 5x5 Polybius grid.
+    'K' is mapped to 'C' (1.3).
+    Returns coordinates formatted as 'row.col' separated by delimiter.
+    """
+    char_map: dict[str, tuple[int, int]] = {}
+    for r_idx, row in enumerate(TAP_GRID, start=1):
+        for c_idx, ch in enumerate(row, start=1):
+            char_map[ch] = (r_idx, c_idx)
+    char_map["K"] = (1, 3)
+
+    tokens: list[str] = []
+    for ch in text.upper():
+        if ch in char_map:
+            r, c = char_map[ch]
+            tokens.append(f"{r}.{c}")
+        elif ch.isspace():
+            continue
+    return delimiter.join(tokens)
+
+
+def tap_code_decode(cipher: str) -> str:
+    """
+    Decode Tap Code (Knock Code) into lowercase text.
+    Handles:
+      - Coordinate pairs: '4.4 1.1 3.5' or '44 11 35'
+      - Dot notation: '.... . / . . / ... .....'
+      - Space-separated digits: '4 4 1 1 3 5'
+    """
+    import re
+
+    clean = cipher.strip()
+    if not clean:
+        return ""
+
+    if re.fullmatch(r"[\.\s/|]+", clean) and not any(ch.isdigit() for ch in clean):
+        tokens = [t for t in re.split(r"\s+", clean) if t and t not in "/|"]
+        coords: list[tuple[int, int]] = []
+        i = 0
+        while i < len(tokens):
+            if i + 1 < len(tokens):
+                r = tokens[i].count(".")
+                c = tokens[i + 1].count(".")
+                coords.append((r, c))
+                i += 2
+            else:
+                break
+    else:
+        raw_digits = re.findall(r"[1-5]", clean)
+        coords = []
+        for i in range(0, len(raw_digits) - 1, 2):
+            coords.append((int(raw_digits[i]), int(raw_digits[i + 1])))
+
+    out: list[str] = []
+    for r, c in coords:
+        if 1 <= r <= 5 and 1 <= c <= 5:
+            out.append(TAP_GRID[r - 1][c - 1])
+        else:
+            out.append("?")
+    return "".join(out).lower()
+
+

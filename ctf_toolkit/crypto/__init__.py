@@ -7,6 +7,8 @@ from ctf_toolkit.crypto.classical import (
     polybius_encode,
     scytale_decrypt,
     scytale_encrypt,
+    tap_code_decode,
+    tap_code_encode,
 )
 from ctf_toolkit.crypto.encoding import (
     ascii85_decode,
@@ -25,6 +27,8 @@ __all__ = [
     "polybius_encode",
     "scytale_decrypt",
     "scytale_encrypt",
+    "tap_code_decode",
+    "tap_code_encode",
     "ascii85_decode",
     "base32_decode_autopad",
     "base85_decode",
