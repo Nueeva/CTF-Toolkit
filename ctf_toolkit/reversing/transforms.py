@@ -18,6 +18,24 @@ def endian_swap(data: bytes, word_size: int = 4) -> bytes:
     return bytes(result)
 
 
+def byte_shift(data: bytes, shift: int) -> bytes:
+    """Shift each byte value by a constant integer offset modulo 256."""
+    return bytes([(b + shift) & 0xFF for b in data])
+
+
+def byte_shift_bruteforce(data: bytes) -> list[tuple[int, float, bytes]]:
+    """Bruteforce byte shift offsets against printable ASCII heuristic."""
+    candidates: list[tuple[int, float, bytes]] = []
+    for s in range(256):
+        dec = byte_shift(data, s)
+        printable = sum(1 for b in dec if 32 <= b <= 126)
+        score = (printable / len(dec)) * 100.0 if dec else 0.0
+        if score > 50.0:
+            candidates.append((s, score, dec))
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    return candidates
+
+
 def xor_bytes(data: bytes, key: bytes | int) -> bytes:
     """XOR byte sequence with a single byte or repeating key."""
     if isinstance(key, int):
@@ -29,7 +47,6 @@ def xor_bytes(data: bytes, key: bytes | int) -> bytes:
 
 def xor_bruteforce_single(data: bytes) -> list[tuple[int, float, bytes]]:
     """Bruteforce single-byte XOR against English character frequency heuristic."""
-    # Standard English letter frequencies (percentage)
     freq = {
         ord(c): weight
         for c, weight in zip(

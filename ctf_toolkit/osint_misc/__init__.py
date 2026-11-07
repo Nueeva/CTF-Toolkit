@@ -1,5 +1,4 @@
-"""OSINT and Misc challenge utilities."""
+from ctf_toolkit.osint_misc.bencode import bdecode, parse_torrent
+from ctf_toolkit.osint_misc.esolang import brainfuck_eval, ook_eval, ook_to_brainfuck
 
-from ctf_toolkit.osint_misc.esolang import brainfuck_eval
-
-__all__ = ["brainfuck_eval"]
+__all__ = ["brainfuck_eval", "ook_eval", "ook_to_brainfuck", "bdecode", "parse_torrent"]

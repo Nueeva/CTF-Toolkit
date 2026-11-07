@@ -1,4 +1,6 @@
 from ctf_toolkit.reversing.transforms import (
+    byte_shift,
+    byte_shift_bruteforce,
     endian_swap,
     reverse_string,
     xor_bytes,
@@ -12,6 +14,24 @@ def test_reverse_string():
 
 def test_endian_swap():
     assert endian_swap(bytes.fromhex("11223344"), word_size=4) == bytes.fromhex("44332211")
+
+
+def test_byte_shift():
+    enc = byte_shift(b"hello", 3)
+    dec = byte_shift(enc, -3)
+    assert dec == b"hello"
+
+
+def test_byte_shift_bruteforce():
+    orig = b"FLAG{caesar_bytes}"
+    enc = byte_shift(orig, 10)
+    cands = byte_shift_bruteforce(enc)
+    found = False
+    for s, score, dec in cands:
+        if dec == orig:
+            found = True
+            break
+    assert found is True
 
 
 def test_xor_bytes():
