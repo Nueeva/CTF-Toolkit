@@ -122,3 +122,49 @@ def invert_scaled_index_xor(data: bytes, scale: int = 7, xor_key: int = 0x5A) ->
 def invert_scaled_linear_add(data: bytes, scale: int = 3) -> bytes:
     """Invert scaled linear addition: out[i] = (data[i] - scale * i) mod 256."""
     return bytes([(b - scale * i) & 0xFF for i, b in enumerate(data)])
+
+
+def invert_square_index_xor(data: bytes) -> bytes:
+    """Invert square index XOR: out[i] = data[i] ^ ((i * i) & 0xFF)."""
+    return bytes([b ^ ((i * i) & 0xFF) for i, b in enumerate(data)])
+
+
+def invert_add_xor(data: bytes, add_c: int = 5, xor_k: int = 0x33) -> bytes:
+    """Invert add then XOR: out[i] = ((data[i] ^ xor_k) - add_c) mod 256."""
+    return bytes([((b ^ xor_k) - add_c) & 0xFF for b in data])
+
+
+def invert_byte_negation(data: bytes) -> bytes:
+    """Invert byte negation: out[i] = (-data[i]) mod 256."""
+    return bytes([(-b) & 0xFF for b in data])
+
+
+def invert_index_key_xor(data: bytes, xor_k: int = 0x11) -> bytes:
+    """Invert indexed key XOR: out[i] = data[i] ^ (i & 0xFF) ^ xor_k."""
+    return bytes([b ^ (i & 0xFF) ^ (xor_k & 0xFF) for i, b in enumerate(data)])
+
+
+def invert_index_add_xor(data: bytes, xor_k: int = 0x77) -> bytes:
+    """Invert index add then XOR: out[i] = ((data[i] ^ xor_k) - i) mod 256."""
+    return bytes([((b ^ (xor_k & 0xFF)) - i) & 0xFF for i, b in enumerate(data)])
+
+
+def invert_index_add(data: bytes) -> bytes:
+    """Invert index addition: out[i] = (data[i] - i) mod 256."""
+    return bytes([(b - i) & 0xFF for i, b in enumerate(data)])
+
+
+def reverse_and_shift_bytes(data: bytes, shift: int = 3) -> bytes:
+    """Invert reversed and shifted bytes: out = (data - shift)[::-1]."""
+    return bytes([(b - shift) & 0xFF for b in data])[::-1]
+
+
+def rotate_and_xor_byte(data: bytes, rot_left: int = 3, xor_k: int = 0x3C) -> bytes:
+    """Invert left-rotate then XOR: out[i] = ROR(data[i] ^ xor_k, rot_left)."""
+    s = rot_left % 8
+    res = bytearray()
+    for b in data:
+        v = (b ^ xor_k) & 0xFF
+        res.append(((v >> s) | ((v << (8 - s)) & 0xFF)))
+    return bytes(res)
+

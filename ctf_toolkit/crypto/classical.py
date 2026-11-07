@@ -1230,3 +1230,48 @@ def adfgvx_decrypt(ciphertext: str, key: str) -> str:
         c = adfgvx_chars.index(c_ch)
         pt.append(grid_6x6[r][c].lower())
     return "".join(pt)
+
+
+def rc4_crypt(key: bytes, data: bytes) -> bytes:
+    """Encrypt or decrypt bytes using RC4 stream cipher."""
+    S = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + S[i] + key[i % len(key)]) % 256
+        S[i], S[j] = S[j], S[i]
+    i = j = 0
+    out = bytearray()
+    for b in data:
+        i = (i + 1) % 256
+        j = (j + S[i]) % 256
+        S[i], S[j] = S[j], S[i]
+        out.append(b ^ S[(S[i] + S[j]) % 256])
+    return bytes(out)
+
+
+def invert_substitution_map(data: bytes, table: bytes) -> bytes:
+    """Invert 256-byte substitution table lookup: out[i] = table.index(data[i])."""
+    inv = {b: i for i, b in enumerate(table)}
+    return bytes([inv[b] for b in data])
+
+
+def interleave_byte_arrays(a: bytes, b: bytes, total_len: int) -> bytes:
+    """Interleave two byte arrays alternating even and odd indices."""
+    res = bytearray()
+    for i in range(total_len):
+        if i % 2 == 0:
+            res.append(a[i // 2])
+        else:
+            res.append(b[i // 2])
+    return bytes(res)
+
+
+def xor_with_stream(data: bytes, key_stream: bytes) -> bytes:
+    """Bitwise XOR bytes with an arbitrary stream of key bytes."""
+    return bytes([d ^ k for d, k in zip(data, key_stream)])
+
+
+def invert_affine_byte(data: bytes, a: int = 17, b: int = 5, mod: int = 256) -> bytes:
+    """Invert affine byte cipher: out[i] = (pow(a, -1, mod) * (data[i] - b)) mod mod."""
+    a_inv = pow(a, -1, mod)
+    return bytes([(a_inv * ((val - b) % mod)) % mod for val in data])
