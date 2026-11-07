@@ -5,7 +5,6 @@ import io
 import lzma
 import struct
 import tarfile
-import unittest
 import zipfile
 import zlib
 import numpy as np
@@ -103,358 +102,348 @@ def _make_encrypted_zip(filename: str, data: bytes, pwd: bytes) -> bytes:
     return lh + cd + eocd
 
 
-class TestBatch39Twins(unittest.TestCase):
-    """
-    Synthetic twins for Batch 39 archetypes (Forensics #678 through #702).
-    Clean room implementations without real platform credentials or flags.
-    """
+def _make_dummy_png(width=10, height=10, mode="RGB", color=(100, 150, 200)) -> bytes:
+    im = Image.new(mode, (width, height), color)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return buf.getvalue()
 
-    def _make_dummy_png(self, width=10, height=10, mode="RGB", color=(100, 150, 200)) -> bytes:
-        im = Image.new(mode, (width, height), color)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-        return buf.getvalue()
 
-    def test_twin_678_polyglot_png_zip(self):
-        """Twin #678: PNG with appended ZIP archive."""
-        flag = b"FLAG{twin_polyglot_png_zip}"
-        png_data = self._make_dummy_png()
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            zf.writestr("pesan.txt", flag)
-        polyglot = png_data + zip_buf.getvalue()
+def test_twin_678_polyglot_png_zip():
+    flag = b"FLAG{twin_polyglot_png_zip}"
+    png_data = _make_dummy_png()
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("pesan.txt", flag)
+    polyglot = png_data + zip_buf.getvalue()
 
-        trailing = extract_png_trailing_payload(polyglot)
-        self.assertTrue(trailing.startswith(b"PK\x03\x04"))
-        with zipfile.ZipFile(io.BytesIO(trailing)) as zf:
-            recovered = zf.read("pesan.txt")
-        self.assertEqual(recovered, flag)
+    trailing = extract_png_trailing_payload(polyglot)
+    assert trailing.startswith(b"PK\x03\x04")
+    with zipfile.ZipFile(io.BytesIO(trailing)) as zf:
+        recovered = zf.read("pesan.txt")
+    assert recovered == flag
 
-    def test_twin_679_nested_png_zip_tar(self):
-        """Twin #679: PNG appended ZIP containing a tarball."""
-        flag = b"FLAG{twin_nested_png_zip_tar}"
-        tar_buf = io.BytesIO()
-        with tarfile.open(fileobj=tar_buf, mode="w") as tf:
-            ti = tarfile.TarInfo("secret.txt")
-            ti.size = len(flag)
-            tf.addfile(ti, io.BytesIO(flag))
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            zf.writestr("archive.tar", tar_buf.getvalue())
-        polyglot = self._make_dummy_png() + zip_buf.getvalue()
 
-        trailing = extract_png_trailing_bytes(polyglot)
-        unpacked = decompress_nested_stream(trailing)
-        self.assertEqual(unpacked, flag)
+def test_twin_679_nested_png_zip_tar():
+    flag = b"FLAG{twin_nested_png_zip_tar}"
+    tar_buf = io.BytesIO()
+    with tarfile.open(fileobj=tar_buf, mode="w") as tf:
+        ti = tarfile.TarInfo("secret.txt")
+        ti.size = len(flag)
+        tf.addfile(ti, io.BytesIO(flag))
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("archive.tar", tar_buf.getvalue())
+    polyglot = _make_dummy_png() + zip_buf.getvalue()
 
-    def test_twin_680_ztxt_compressed(self):
-        """Twin #680: PNG zTXt chunk with zlib compressed text."""
-        flag = b"FLAG{twin_ztxt_compressed}"
-        png = bytearray(self._make_dummy_png())
-        iend_pos = png.find(b"IEND") - 4
-        keyword = b"Comment\x00\x00"
-        compressed = zlib.compress(flag)
-        chunk_data = keyword + compressed
-        chunk_crc = zlib.crc32(b"zTXt" + chunk_data) & 0xFFFFFFFF
-        chunk = struct.pack(">I4s", len(chunk_data), b"zTXt") + chunk_data + struct.pack(">I", chunk_crc)
-        png_with_ztxt = bytes(png[:iend_pos] + chunk + png[iend_pos:])
+    trailing = extract_png_trailing_bytes(polyglot)
+    unpacked = decompress_nested_stream(trailing)
+    assert unpacked == flag
 
-        meta = extract_png_all_metadata(png_with_ztxt)
-        self.assertIn("Comment", meta)
-        self.assertEqual(meta["Comment"], flag)
 
-    def test_twin_681_truncated_png_text(self):
-        """Twin #681: Truncated PNG containing readable text comment."""
-        flag = b"FLAG{twin_truncated_recovery}"
-        png = bytearray(self._make_dummy_png())
-        iend_pos = png.find(b"IEND") - 4
-        chunk_data = b"Comment\x00" + flag
-        chunk_crc = zlib.crc32(b"tEXt" + chunk_data) & 0xFFFFFFFF
-        chunk = struct.pack(">I4s", len(chunk_data), b"tEXt") + chunk_data + struct.pack(">I", chunk_crc)
-        crafted = bytes(png[:iend_pos] + chunk)
+def test_twin_680_ztxt_compressed():
+    flag = b"FLAG{twin_ztxt_compressed}"
+    png = bytearray(_make_dummy_png())
+    iend_pos = png.find(b"IEND") - 4
+    keyword = b"Comment\x00\x00"
+    compressed = zlib.compress(flag)
+    chunk_data = keyword + compressed
+    chunk_crc = zlib.crc32(b"zTXt" + chunk_data) & 0xFFFFFFFF
+    chunk = struct.pack(">I4s", len(chunk_data), b"zTXt") + chunk_data + struct.pack(">I", chunk_crc)
+    png_with_ztxt = bytes(png[:iend_pos] + chunk + png[iend_pos:])
 
-        meta = extract_png_all_metadata(crafted)
-        self.assertEqual(meta.get("Comment"), flag)
+    meta = extract_png_all_metadata(png_with_ztxt)
+    assert "Comment" in meta
+    assert meta["Comment"] == flag
 
-    def test_twin_682_big_endian_binary(self):
-        """Twin #682: Big-endian binary record (UTF-16BE encoding)."""
-        flag_str = "FLAG{twin_big_endian_pack}"
-        encoded = flag_str.encode("utf-16-be")
-        decoded = encoded.decode("utf-16-be")
-        self.assertEqual(decoded, flag_str)
 
-    def test_twin_683_zipcrypto_wordlist(self):
-        """Twin #683: PKWARE ZipCrypto dictionary attack."""
-        flag = b"FLAG{twin_zipcrypto_wordlist}"
-        zip_bytes = _make_encrypted_zip("flag.txt", flag, b"secretkey")
+def test_twin_681_truncated_png_text():
+    flag = b"FLAG{twin_truncated_recovery}"
+    png = bytearray(_make_dummy_png())
+    iend_pos = png.find(b"IEND") - 4
+    chunk_data = b"Comment\x00" + flag
+    chunk_crc = zlib.crc32(b"tEXt" + chunk_data) & 0xFFFFFFFF
+    chunk = struct.pack(">I4s", len(chunk_data), b"tEXt") + chunk_data + struct.pack(">I", chunk_crc)
+    crafted = bytes(png[:iend_pos] + chunk)
 
-        res = fast_zip_crypto_crack(zip_bytes, [b"admin", b"123456", b"secretkey", b"guest"])
-        self.assertIsNotNone(res)
-        pwd, data = res
-        self.assertEqual(pwd, b"secretkey")
-        self.assertEqual(data, flag)
+    meta = extract_png_all_metadata(crafted)
+    assert meta.get("Comment") == flag
 
-    def test_twin_684_nested_zip_two_passwords(self):
-        """Twin #684: Multi-level ZIP with outer and inner passwords."""
-        flag = b"FLAG{twin_nested_zip_passwords}"
-        inner_zip = _make_encrypted_zip("flag.txt", flag, b"pass_inner")
-        outer_zip = _make_encrypted_zip("dalam.zip", inner_zip, b"pass_outer")
 
-        res1 = fast_zip_crypto_crack(outer_zip, [b"wrong", b"pass_outer"])
-        self.assertIsNotNone(res1)
-        _, inner_recovered = res1
-        res2 = fast_zip_crypto_crack(inner_recovered, [b"wrong", b"pass_inner"])
-        self.assertIsNotNone(res2)
-        _, recovered_flag = res2
-        self.assertEqual(recovered_flag, flag)
+def test_twin_682_big_endian_binary():
+    flag_str = "FLAG{twin_big_endian_pack}"
+    encoded = flag_str.encode("utf-16-be")
+    decoded = encoded.decode("utf-16-be")
+    assert decoded == flag_str
 
-    def test_twin_685_nested_zip_double_password(self):
-        """Twin #685: Two-layer ZIP with dictionary passwords."""
-        flag = b"FLAG{twin_double_pw_zip}"
-        inner_zip = _make_encrypted_zip("flag.txt", flag, b"penguin")
-        outer_zip = _make_encrypted_zip("inner.zip", inner_zip, b"winter")
 
-        r1 = fast_zip_crypto_crack(outer_zip, [b"winter", b"summer"])
-        self.assertIsNotNone(r1)
-        r2 = fast_zip_crypto_crack(r1[1], [b"penguin", b"polar"])
-        self.assertIsNotNone(r2)
-        self.assertEqual(r2[1], flag)
+def test_twin_683_zipcrypto_wordlist():
+    flag = b"FLAG{twin_zipcrypto_wordlist}"
+    zip_bytes = _make_encrypted_zip("flag.txt", flag, b"secretkey")
 
-    def test_twin_686_zip_in_zip_unencrypted(self):
-        """Twin #686: Multi-level unencrypted ZIP chain (Matryoshka)."""
-        flag = b"FLAG{twin_matryoshka_uncompressed}"
-        b3 = io.BytesIO()
-        with zipfile.ZipFile(b3, "w") as z:
-            z.writestr("flag.txt", flag)
-        b2 = io.BytesIO()
-        with zipfile.ZipFile(b2, "w") as z:
-            z.writestr("level3.zip", b3.getvalue())
-        b1 = io.BytesIO()
-        with zipfile.ZipFile(b1, "w") as z:
-            z.writestr("level2.zip", b2.getvalue())
+    res = fast_zip_crypto_crack(zip_bytes, [b"admin", b"123456", b"secretkey", b"guest"])
+    assert res is not None
+    pwd, data = res
+    assert pwd == b"secretkey"
+    assert data == flag
 
-        res = decompress_nested_stream(b1.getvalue())
-        self.assertEqual(res, flag)
 
-    def test_twin_687_multi_compress_chain(self):
-        """Twin #687: Multi-compression chain (tar -> xz -> bz2 -> gzip)."""
-        flag = b"FLAG{twin_gz_bz2_xz_tar}"
-        tar_buf = io.BytesIO()
-        with tarfile.open(fileobj=tar_buf, mode="w") as tf:
-            ti = tarfile.TarInfo("flag.txt")
-            ti.size = len(flag)
-            tf.addfile(ti, io.BytesIO(flag))
-        data = tar_buf.getvalue()
-        data = lzma.compress(data)
-        data = bz2.compress(data)
+def test_twin_684_nested_zip_two_passwords():
+    flag = b"FLAG{twin_nested_zip_passwords}"
+    inner_zip = _make_encrypted_zip("flag.txt", flag, b"pass_inner")
+    outer_zip = _make_encrypted_zip("dalam.zip", inner_zip, b"pass_outer")
+
+    res1 = fast_zip_crypto_crack(outer_zip, [b"wrong", b"pass_outer"])
+    assert res1 is not None
+    _, inner_recovered = res1
+    res2 = fast_zip_crypto_crack(inner_recovered, [b"wrong", b"pass_inner"])
+    assert res2 is not None
+    _, recovered_flag = res2
+    assert recovered_flag == flag
+
+
+def test_twin_685_nested_zip_double_password():
+    flag = b"FLAG{twin_double_pw_zip}"
+    inner_zip = _make_encrypted_zip("flag.txt", flag, b"penguin")
+    outer_zip = _make_encrypted_zip("inner.zip", inner_zip, b"winter")
+
+    r1 = fast_zip_crypto_crack(outer_zip, [b"winter", b"summer"])
+    assert r1 is not None
+    r2 = fast_zip_crypto_crack(r1[1], [b"penguin", b"polar"])
+    assert r2 is not None
+    assert r2[1] == flag
+
+
+def test_twin_686_zip_in_zip_unencrypted():
+    flag = b"FLAG{twin_matryoshka_uncompressed}"
+    b3 = io.BytesIO()
+    with zipfile.ZipFile(b3, "w") as z:
+        z.writestr("flag.txt", flag)
+    b2 = io.BytesIO()
+    with zipfile.ZipFile(b2, "w") as z:
+        z.writestr("level3.zip", b3.getvalue())
+    b1 = io.BytesIO()
+    with zipfile.ZipFile(b1, "w") as z:
+        z.writestr("level2.zip", b2.getvalue())
+
+    res = decompress_nested_stream(b1.getvalue())
+    assert res == flag
+
+
+def test_twin_687_multi_compress_chain():
+    flag = b"FLAG{twin_gz_bz2_xz_tar}"
+    tar_buf = io.BytesIO()
+    with tarfile.open(fileobj=tar_buf, mode="w") as tf:
+        ti = tarfile.TarInfo("flag.txt")
+        ti.size = len(flag)
+        tf.addfile(ti, io.BytesIO(flag))
+    data = tar_buf.getvalue()
+    data = lzma.compress(data)
+    data = bz2.compress(data)
+    data = gzip.compress(data)
+
+    recovered = decompress_nested_stream(data)
+    assert recovered == flag
+
+
+def test_twin_688_recursive_gzip():
+    flag = b"FLAG{twin_recursive_gzip}"
+    data = flag
+    for _ in range(5):
         data = gzip.compress(data)
-
-        recovered = decompress_nested_stream(data)
-        self.assertEqual(recovered, flag)
-
-    def test_twin_688_recursive_gzip(self):
-        """Twin #688: Repeated recursive gzip compression."""
-        flag = b"FLAG{twin_recursive_gzip}"
-        data = flag
-        for _ in range(5):
-            data = gzip.compress(data)
-        recovered = decompress_nested_stream(data)
-        self.assertEqual(recovered, flag)
-
-    def test_twin_689_zip_containing_targz(self):
-        """Twin #689: ZIP wrapping a tar.gz archive."""
-        flag = b"FLAG{twin_zip_of_targz}"
-        tar_buf = io.BytesIO()
-        with tarfile.open(fileobj=tar_buf, mode="w:gz") as tf:
-            ti = tarfile.TarInfo("flag.txt")
-            ti.size = len(flag)
-            tf.addfile(ti, io.BytesIO(flag))
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            zf.writestr("package.tar.gz", tar_buf.getvalue())
-
-        recovered = decompress_nested_stream(zip_buf.getvalue())
-        self.assertEqual(recovered, flag)
-
-    def test_twin_690_sharded_zip_assemble(self):
-        """Twin #690: 60 numeric parts merged sequentially."""
-        flag = b"FLAG{twin_zip_many_shards}"
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            for i in range(len(flag)):
-                zf.writestr(f"part_{i:03d}.dat", bytes([flag[i]]))
-
-        combined = assemble_sharded_zip(zip_buf.getvalue())
-        self.assertEqual(combined, flag)
-
-    def test_twin_691_zip_header_comment(self):
-        """Twin #691: Flag in ZIP end of central directory comment."""
-        flag = b"FLAG{twin_comment_beats_pw}"
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            zf.writestr("dummy.txt", b"nothing here")
-            zf.comment = b"flag: " + flag
-
-        zf_read = zipfile.ZipFile(io.BytesIO(zip_buf.getvalue()))
-        self.assertIn(flag, zf_read.comment)
-
-    def test_twin_692_image_channel_red_lsb(self):
-        """Twin #692: PNG Red channel LSB extraction."""
-        flag = b"FLAG{twin_img_red_lsb}"
-        bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
-        arr = np.zeros((10, len(bits) // 10 + 1, 3), dtype=np.uint8)
-        flat_r = arr[..., 0].flatten()
-        flat_r[: len(bits)] = bits
-        arr[..., 0] = flat_r.reshape(arr[..., 0].shape)
-        im = Image.fromarray(arr)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_channel_lsb(buf.getvalue(), channel="R", bit_pos=0)
-        self.assertTrue(extracted.startswith(flag))
-
-    def test_twin_693_image_channel_blue_lsb(self):
-        """Twin #693: PNG Blue channel LSB extraction."""
-        flag = b"FLAG{twin_img_blue_lsb}"
-        bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
-        arr = np.zeros((10, len(bits) // 10 + 1, 3), dtype=np.uint8)
-        flat_b = arr[..., 2].flatten()
-        flat_b[: len(bits)] = bits
-        arr[..., 2] = flat_b.reshape(arr[..., 2].shape)
-        im = Image.fromarray(arr)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_channel_lsb(buf.getvalue(), channel="B", bit_pos=0)
-        self.assertTrue(extracted.startswith(flag))
-
-    def test_twin_694_image_interleaved_2bit_lsb(self):
-        """Twin #694: PNG interleaved RGB 2-bit (quaternary) LSB."""
-        flag = b"FLAG{twin_img_two_bits}"
-        vals = []
-        for b in flag:
-            vals.extend([(b >> 6) & 3, (b >> 4) & 3, (b >> 2) & 3, b & 3])
-        arr = np.zeros((10, (len(vals) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
-        flat = arr.flatten()
-        flat[: len(vals)] = vals
-        arr = flat.reshape(arr.shape)
-        im = Image.fromarray(arr)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=2, bit_order="big")
-        self.assertTrue(extracted.startswith(flag))
-
-    def test_twin_695_image_interleaved_base64_lsb(self):
-        """Twin #695: PNG interleaved RGB 1-bit LSB base64."""
-        flag = b"FLAG{twin_img_base64_lsb}"
-        b64_payload = base64.b64encode(flag)
-        bits = np.unpackbits(np.frombuffer(b64_payload, dtype=np.uint8))
-        arr = np.zeros((10, (len(bits) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
-        flat = arr.flatten()
-        flat[: len(bits)] = bits
-        arr = flat.reshape(arr.shape)
-        im = Image.fromarray(arr)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=1, bit_order="big")
-        self.assertTrue(extracted.startswith(b64_payload))
-        self.assertEqual(base64.b64decode(extracted[: len(b64_payload)]), flag)
-
-    def test_twin_696_image_interleaved_reversed_lsb(self):
-        """Twin #696: PNG interleaved RGB LSB reversed order."""
-        flag = b"FLAG{twin_reversed_lsb}"
-        rev_flag = flag[::-1]
-        bits = np.unpackbits(np.frombuffer(rev_flag, dtype=np.uint8))
-        arr = np.zeros((10, (len(bits) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
-        flat = arr.flatten()
-        flat[: len(bits)] = bits
-        arr = flat.reshape(arr.shape)
-        im = Image.fromarray(arr)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=1, bit_order="big")
-        self.assertTrue(extracted.startswith(rev_flag))
-        self.assertEqual(extracted[: len(flag)][::-1], flag)
-
-    def test_twin_697_image_trailing_zip(self):
-        """Twin #697: PNG polyglot trailing ZIP archive."""
-        flag = b"FLAG{twin_png_trailing_zip}"
-        png_data = self._make_dummy_png()
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as zf:
-            zf.writestr("flag.txt", flag)
-        polyglot = png_data + zip_buf.getvalue()
-
-        trailing = extract_png_trailing_bytes(polyglot)
-        with zipfile.ZipFile(io.BytesIO(trailing)) as zf:
-            recovered = zf.read("flag.txt")
-        self.assertEqual(recovered, flag)
-
-    def test_twin_698_image_trailing_gzip(self):
-        """Twin #698: PNG trailing Gzip compressed stream."""
-        flag = b"FLAG{twin_png_trailing_gzip}"
-        gz = gzip.compress(flag)
-        polyglot = self._make_dummy_png() + gz
-
-        trailing = extract_png_trailing_bytes(polyglot)
-        self.assertEqual(gzip.decompress(trailing), flag)
-
-    def test_twin_699_image_ztxt_metadata(self):
-        """Twin #699: PNG zTXt chunk decompression."""
-        flag = b"FLAG{twin_ztxt_metadata}"
-        png = bytearray(self._make_dummy_png())
-        iend_pos = png.find(b"IEND") - 4
-        chunk_data = b"Comment\x00\x00" + zlib.compress(flag)
-        chunk_crc = zlib.crc32(b"zTXt" + chunk_data) & 0xFFFFFFFF
-        chunk = struct.pack(">I4s", len(chunk_data), b"zTXt") + chunk_data + struct.pack(">I", chunk_crc)
-        png_with_chunk = bytes(png[:iend_pos] + chunk + png[iend_pos:])
-
-        meta = extract_png_all_metadata(png_with_chunk)
-        self.assertEqual(meta.get("Comment"), flag)
-
-    def test_twin_700_image_itxt_metadata(self):
-        """Twin #700: PNG iTXt chunk compressed metadata."""
-        flag = b"FLAG{twin_itxt_metadata}"
-        png = bytearray(self._make_dummy_png())
-        iend_pos = png.find(b"IEND") - 4
-        chunk_data = b"Comment\x00\x01\x00\x00\x00" + zlib.compress(flag)
-        chunk_crc = zlib.crc32(b"iTXt" + chunk_data) & 0xFFFFFFFF
-        chunk = struct.pack(">I4s", len(chunk_data), b"iTXt") + chunk_data + struct.pack(">I", chunk_crc)
-        png_with_chunk = bytes(png[:iend_pos] + chunk + png[iend_pos:])
-
-        meta = extract_png_all_metadata(png_with_chunk)
-        self.assertEqual(meta.get("Comment"), flag)
-
-    def test_twin_701_image_alpha_channel_lsb(self):
-        """Twin #701: PNG Alpha channel bit 0 LSB."""
-        flag = b"FLAG{twin_alpha_lsb}"
-        bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
-        arr = np.zeros((10, len(bits) // 10 + 1, 4), dtype=np.uint8)
-        flat_a = arr[..., 3].flatten()
-        flat_a[: len(bits)] = bits
-        arr[..., 3] = flat_a.reshape(arr[..., 3].shape)
-        im = Image.fromarray(arr, mode="RGBA")
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        extracted = extract_channel_lsb(buf.getvalue(), channel="A", bit_pos=0)
-        self.assertTrue(extracted.startswith(flag))
-
-    def test_twin_702_image_alpha_direct_bytes(self):
-        """Twin #702: PNG Alpha channel top-row direct ASCII."""
-        flag = b"FLAG{twin_alpha_direct_bytes}"
-        arr = np.zeros((10, 50, 4), dtype=np.uint8)
-        arr[0, : len(flag), 3] = list(flag)
-        im = Image.fromarray(arr, mode="RGBA")
-        buf = io.BytesIO()
-        im.save(buf, format="PNG")
-
-        raw_alpha = extract_alpha_direct_bytes(buf.getvalue())
-        self.assertIn(flag, raw_alpha)
+    recovered = decompress_nested_stream(data)
+    assert recovered == flag
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_twin_689_zip_containing_targz():
+    flag = b"FLAG{twin_zip_of_targz}"
+    tar_buf = io.BytesIO()
+    with tarfile.open(fileobj=tar_buf, mode="w:gz") as tf:
+        ti = tarfile.TarInfo("flag.txt")
+        ti.size = len(flag)
+        tf.addfile(ti, io.BytesIO(flag))
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("package.tar.gz", tar_buf.getvalue())
+
+    recovered = decompress_nested_stream(zip_buf.getvalue())
+    assert recovered == flag
+
+
+def test_twin_690_sharded_zip_assemble():
+    flag = b"FLAG{twin_zip_many_shards}"
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        for i in range(len(flag)):
+            zf.writestr(f"part_{i:03d}.dat", bytes([flag[i]]))
+
+    combined = assemble_sharded_zip(zip_buf.getvalue())
+    assert combined == flag
+
+
+def test_twin_691_zip_header_comment():
+    flag = b"FLAG{twin_comment_beats_pw}"
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("dummy.txt", b"nothing here")
+        zf.comment = b"flag: " + flag
+
+    zf_read = zipfile.ZipFile(io.BytesIO(zip_buf.getvalue()))
+    assert flag in zf_read.comment
+
+
+def test_twin_692_image_channel_red_lsb():
+    flag = b"FLAG{twin_img_red_lsb}"
+    bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
+    arr = np.zeros((10, len(bits) // 10 + 1, 3), dtype=np.uint8)
+    flat_r = arr[..., 0].flatten()
+    flat_r[: len(bits)] = bits
+    arr[..., 0] = flat_r.reshape(arr[..., 0].shape)
+    im = Image.fromarray(arr)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_channel_lsb(buf.getvalue(), channel="R", bit_pos=0)
+    assert extracted.startswith(flag)
+
+
+def test_twin_693_image_channel_blue_lsb():
+    flag = b"FLAG{twin_img_blue_lsb}"
+    bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
+    arr = np.zeros((10, len(bits) // 10 + 1, 3), dtype=np.uint8)
+    flat_b = arr[..., 2].flatten()
+    flat_b[: len(bits)] = bits
+    arr[..., 2] = flat_b.reshape(arr[..., 2].shape)
+    im = Image.fromarray(arr)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_channel_lsb(buf.getvalue(), channel="B", bit_pos=0)
+    assert extracted.startswith(flag)
+
+
+def test_twin_694_image_interleaved_2bit_lsb():
+    flag = b"FLAG{twin_img_two_bits}"
+    vals = []
+    for b in flag:
+        vals.extend([(b >> 6) & 3, (b >> 4) & 3, (b >> 2) & 3, b & 3])
+    arr = np.zeros((10, (len(vals) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
+    flat = arr.flatten()
+    flat[: len(vals)] = vals
+    arr = flat.reshape(arr.shape)
+    im = Image.fromarray(arr)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=2, bit_order="big")
+    assert extracted.startswith(flag)
+
+
+def test_twin_695_image_interleaved_base64_lsb():
+    flag = b"FLAG{twin_img_base64_lsb}"
+    b64_payload = base64.b64encode(flag)
+    bits = np.unpackbits(np.frombuffer(b64_payload, dtype=np.uint8))
+    arr = np.zeros((10, (len(bits) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
+    flat = arr.flatten()
+    flat[: len(bits)] = bits
+    arr = flat.reshape(arr.shape)
+    im = Image.fromarray(arr)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=1, bit_order="big")
+    assert extracted.startswith(b64_payload)
+    assert base64.b64decode(extracted[: len(b64_payload)]) == flag
+
+
+def test_twin_696_image_interleaved_reversed_lsb():
+    flag = b"FLAG{twin_reversed_lsb}"
+    rev_flag = flag[::-1]
+    bits = np.unpackbits(np.frombuffer(rev_flag, dtype=np.uint8))
+    arr = np.zeros((10, (len(bits) + 2) // 3 // 10 + 2, 3), dtype=np.uint8)
+    flat = arr.flatten()
+    flat[: len(bits)] = bits
+    arr = flat.reshape(arr.shape)
+    im = Image.fromarray(arr)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_interleaved_lsb(buf.getvalue(), bit_depth=1, bit_order="big")
+    assert extracted.startswith(rev_flag)
+    assert extracted[: len(flag)][::-1] == flag
+
+
+def test_twin_697_image_trailing_zip():
+    flag = b"FLAG{twin_png_trailing_zip}"
+    png_data = _make_dummy_png()
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("flag.txt", flag)
+    polyglot = png_data + zip_buf.getvalue()
+
+    trailing = extract_png_trailing_bytes(polyglot)
+    with zipfile.ZipFile(io.BytesIO(trailing)) as zf:
+        recovered = zf.read("flag.txt")
+    assert recovered == flag
+
+
+def test_twin_698_image_trailing_gzip():
+    flag = b"FLAG{twin_png_trailing_gzip}"
+    gz = gzip.compress(flag)
+    polyglot = _make_dummy_png() + gz
+
+    trailing = extract_png_trailing_bytes(polyglot)
+    assert gzip.decompress(trailing) == flag
+
+
+def test_twin_699_image_ztxt_metadata():
+    flag = b"FLAG{twin_ztxt_metadata}"
+    png = bytearray(_make_dummy_png())
+    iend_pos = png.find(b"IEND") - 4
+    chunk_data = b"Comment\x00\x00" + zlib.compress(flag)
+    chunk_crc = zlib.crc32(b"zTXt" + chunk_data) & 0xFFFFFFFF
+    chunk = struct.pack(">I4s", len(chunk_data), b"zTXt") + chunk_data + struct.pack(">I", chunk_crc)
+    png_with_chunk = bytes(png[:iend_pos] + chunk + png[iend_pos:])
+
+    meta = extract_png_all_metadata(png_with_chunk)
+    assert meta.get("Comment") == flag
+
+
+def test_twin_700_image_itxt_metadata():
+    flag = b"FLAG{twin_itxt_metadata}"
+    png = bytearray(_make_dummy_png())
+    iend_pos = png.find(b"IEND") - 4
+    chunk_data = b"Comment\x00\x01\x00\x00\x00" + zlib.compress(flag)
+    chunk_crc = zlib.crc32(b"iTXt" + chunk_data) & 0xFFFFFFFF
+    chunk = struct.pack(">I4s", len(chunk_data), b"iTXt") + chunk_data + struct.pack(">I", chunk_crc)
+    png_with_chunk = bytes(png[:iend_pos] + chunk + png[iend_pos:])
+
+    meta = extract_png_all_metadata(png_with_chunk)
+    assert meta.get("Comment") == flag
+
+
+def test_twin_701_image_alpha_channel_lsb():
+    flag = b"FLAG{twin_alpha_lsb}"
+    bits = np.unpackbits(np.frombuffer(flag, dtype=np.uint8))
+    arr = np.zeros((10, len(bits) // 10 + 1, 4), dtype=np.uint8)
+    flat_a = arr[..., 3].flatten()
+    flat_a[: len(bits)] = bits
+    arr[..., 3] = flat_a.reshape(arr[..., 3].shape)
+    im = Image.fromarray(arr, mode="RGBA")
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    extracted = extract_channel_lsb(buf.getvalue(), channel="A", bit_pos=0)
+    assert extracted.startswith(flag)
+
+
+def test_twin_702_image_alpha_direct_bytes():
+    flag = b"FLAG{twin_alpha_direct_bytes}"
+    arr = np.zeros((10, 50, 4), dtype=np.uint8)
+    arr[0, : len(flag), 3] = list(flag)
+    im = Image.fromarray(arr, mode="RGBA")
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+
+    raw_alpha = extract_alpha_direct_bytes(buf.getvalue())
+    assert flag in raw_alpha

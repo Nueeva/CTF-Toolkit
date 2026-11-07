@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import re
 from dataclasses import dataclass
 from pathlib import Path
+import urllib.parse
 
 ACCESS_LOG_RE = re.compile(
     r'^(?P<ip>\S+)\s+\S+\s+\S+\s+\[(?P<time>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<url>[^\s"]+)(?:\s+HTTP/[0-9.]+)?"\s+(?P<status>\d{3})(?:\s+\S+){0,2}$'
@@ -29,98 +31,75 @@ def _valid_ipv4(ip: str) -> bool:
     parts = ip.split(".")
     if len(parts) != 4:
         return False
-    return all(part.isdigit() and 0 <= int(part) <= 255 for part in parts)
+    for item in parts:
+        if not item.isdigit() or not 0 <= int(item) <= 255:
+            return False
+    return True
 
 
-def _extract_syslog_parts(line: str) -> tuple[str, str, str]:
-    match = SYSLOG_RE.match(line)
+def parse_access_log_line(line: str) -> dict[str, str] | None:
+    match = ACCESS_LOG_RE.match(line.strip())
     if not match:
-        return "-", "-", line.strip()[:160]
-    event_time = match.group("time")
-    body = match.group("body")
-    ip_match = IP_RE.search(body)
-    source_ip = ip_match.group(0) if ip_match else "-"
-    return event_time, source_ip, body.strip()[:160]
+        return None
+    data = match.groupdict()
+    if not _valid_ipv4(data["ip"]):
+        return None
+    return data
 
 
-def _parse_file_sync(path: Path, brute_threshold: int) -> list[Incident]:
+def detect_line_incident(line: str) -> Incident | None:
+    parsed = parse_access_log_line(line)
+    if not parsed:
+        return None
+
+    url = parsed["url"]
+    if PATH_TRAVERSAL_RE.search(url):
+        return Incident(
+            time=parsed["time"],
+            source_ip=parsed["ip"],
+            attack_type="Path Traversal",
+            target=url,
+        )
+    if SQLI_RE.search(url):
+        return Incident(
+            time=parsed["time"],
+            source_ip=parsed["ip"],
+            attack_type="SQL Injection",
+            target=url,
+        )
+    return None
+
+
+async def hunt_file(path: Path) -> list[Incident]:
+    if not path.is_file():
+        return []
+
     incidents: list[Incident] = []
-    brute_counter: dict[str, int] = {}
-    brute_alerted: set[str] = set()
-
-    with path.open("r", encoding="utf-8", errors="ignore") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line:
-                continue
-
-            access_match = ACCESS_LOG_RE.match(line)
-            if access_match:
-                source_ip = access_match.group("ip")
-                if not _valid_ipv4(source_ip):
-                    continue
-                event_time = access_match.group("time")
-                url = access_match.group("url")
-                status = int(access_match.group("status"))
-
-                if PATH_TRAVERSAL_RE.search(url):
-                    incidents.append(Incident(event_time, source_ip, "Path Traversal", url[:180]))
-                if SQLI_RE.search(url):
-                    incidents.append(Incident(event_time, source_ip, "SQL Injection", url[:180]))
-
-                if status in (401, 403):
-                    brute_counter[source_ip] = brute_counter.get(source_ip, 0) + 1
-                    if brute_counter[source_ip] >= brute_threshold and source_ip not in brute_alerted:
-                        incidents.append(
-                            Incident(
-                                event_time,
-                                source_ip,
-                                "Bruteforce Suspected",
-                                f"status={status}, attempts={brute_counter[source_ip]}",
-                            )
-                        )
-                        brute_alerted.add(source_ip)
-                continue
-
-            lowered = line.lower()
-            if "failed password" in lowered or "authentication failure" in lowered:
-                event_time, source_ip, target = _extract_syslog_parts(line)
-                incidents.append(Incident(event_time, source_ip, "Auth Failure", target))
-
-            if PATH_TRAVERSAL_RE.search(line):
-                event_time, source_ip, target = _extract_syslog_parts(line)
-                incidents.append(Incident(event_time, source_ip, "Path Traversal", target))
-
-            if SQLI_RE.search(line):
-                event_time, source_ip, target = _extract_syslog_parts(line)
-                incidents.append(Incident(event_time, source_ip, "SQL Injection", target))
-
-    unique: list[Incident] = []
-    seen: set[tuple[str, str, str, str]] = set()
-    for incident in incidents:
-        key = (incident.time, incident.source_ip, incident.attack_type, incident.target)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(incident)
-    return unique
-
-
-async def hunt_log_patterns(paths: list[str], brute_threshold: int = 5) -> list[Incident]:
-    existing_paths: list[Path] = []
-    for path in paths:
-        path_obj = Path(path)
-        if path_obj.exists() and path_obj.is_file():
-            existing_paths.append(path_obj)
-
-    if not existing_paths:
-        raise FileNotFoundError("tidak ada file log valid yang ditemukan")
-
-    tasks = [asyncio.to_thread(_parse_file_sync, path_obj, brute_threshold) for path_obj in existing_paths]
-    grouped = await asyncio.gather(*tasks)
-    incidents = [incident for group in grouped for incident in group]
-    incidents.sort(key=lambda item: (item.time, item.source_ip, item.attack_type))
+    loop = asyncio.get_running_loop()
+    lines = await loop.run_in_executor(None, path.read_text, "utf-8", "ignore")
+    for raw_line in lines.splitlines():
+        item = detect_line_incident(raw_line)
+        if item:
+            incidents.append(item)
     return incidents
+
+
+async def hunt_directory(root: str | Path, recursive: bool = True) -> list[Incident]:
+    target = Path(root)
+    if not target.exists():
+        return []
+
+    iterator = target.rglob("*") if recursive else target.glob("*")
+    files = [item for item in iterator if item.is_file() and item.suffix in {".log", ".txt", ""}]
+    if not files:
+        return []
+
+    tasks = [hunt_file(file) for file in files]
+    results = await asyncio.gather(*tasks)
+    merged: list[Incident] = []
+    for batch in results:
+        merged.extend(batch)
+    return merged
 
 
 def incident_rows(incidents: list[Incident]) -> list[list[str]]:
@@ -147,3 +126,97 @@ def render_incident_report(incidents: list[Incident]) -> str:
         lines.append(" | ".join(cell.ljust(widths[idx]) for idx, cell in enumerate(row)))
     lines.append(f"Total incidents: {len(rows)}")
     return "\n".join(lines) + "\n"
+
+
+def extract_dns_subdomain_exfiltration(log_text: str, target_domain: str) -> bytes:
+    """
+    Extracts ordered DNS query subdomain chunks for a specific apex domain,
+    strips sequence numbering prefixes (e.g. q00-, q01-), and decodes hex.
+    """
+    pattern = rf"query\[[A-Za-z]+\]\s+([^\s]*{re.escape(target_domain)})"
+    queries = re.findall(pattern, log_text)
+    unique_sorted = sorted(set(queries))
+    hex_chunks = []
+    for q in unique_sorted:
+        label = q.split(".")[0]
+        if "-" in label:
+            hex_chunks.append(label.split("-", 1)[1])
+        else:
+            hex_chunks.append(label)
+
+    full_hex = "".join(hex_chunks)
+    try:
+        return bytes.fromhex(full_hex)
+    except Exception:
+        return full_hex.encode()
+
+
+def assemble_suricata_alert_fragments(log_text: str) -> bytes:
+    """
+    Extracts segmented base64 covert fragments from Suricata ET EXFIL alerts,
+    orders them by frag=X/Y index, concatenates and decodes.
+    """
+    pattern = r"frag=(\d+)/(\d+)\s+data=([^\s\]]+)"
+    matches = re.findall(pattern, log_text)
+    if not matches:
+        return b""
+    frags: dict[int, str] = {}
+    for idx_str, total_str, data_str in matches:
+        frags[int(idx_str)] = data_str
+
+    ordered_b64 = "".join(frags[i] for i in sorted(frags.keys()))
+    try:
+        return base64.b64decode(ordered_b64)
+    except Exception:
+        return ordered_b64.encode()
+
+
+def extract_b64_url_parameters(log_text: str, param_names: list[str] | None = None) -> list[bytes]:
+    """
+    Scans access log query strings for base64 encoded parameter values.
+    """
+    if param_names is None:
+        param_names = ["data", "v", "payload", "msg", "q", "token", "sync"]
+
+    names_pat = "|".join(re.escape(p) for p in param_names)
+    pattern = rf"(?:{names_pat})=([A-Za-z0-9%+/=]+)"
+    results: list[bytes] = []
+    for cand in re.findall(pattern, log_text):
+        cand_unquoted = urllib.parse.unquote(cand)
+        try:
+            dec = base64.b64decode(cand_unquoted)
+            if dec:
+                results.append(dec)
+        except Exception:
+            pass
+    return results
+
+
+def extract_usb_serial_hex(log_text: str) -> list[bytes]:
+    """
+    Finds USB SerialNumber hex-encoded descriptors in kernel dmesg / kern.log.
+    """
+    pattern = r"SerialNumber:\s+([0-9a-fA-F]{16,})"
+    results: list[bytes] = []
+    for match in re.findall(pattern, log_text):
+        try:
+            dec = bytes.fromhex(match)
+            results.append(dec)
+        except Exception:
+            pass
+    return results
+
+
+def extract_mime_encoded_words(log_text: str) -> list[str]:
+    """
+    Decodes MIME encoded-word syntax (=?charset?B?payload?=) in email subjects.
+    """
+    pattern = r"=\?[^?]+\?[Bb]\?([^?]+)\?="
+    results: list[str] = []
+    for cand in re.findall(pattern, log_text):
+        try:
+            dec = base64.b64decode(cand).decode("utf-8", errors="ignore")
+            results.append(dec)
+        except Exception:
+            pass
+    return results

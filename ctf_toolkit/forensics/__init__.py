@@ -19,7 +19,19 @@ from ctf_toolkit.forensics.image_channels import (
     extract_sequential_rgb_bytes,
     find_flags_in_channel,
 )
-from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_comments, repair_jpeg_header
+from ctf_toolkit.forensics.jpeg_tools import (
+    concatenate_jpeg_comments,
+    extract_all_jpeg_comments_bytes,
+    extract_jpeg_comments,
+    repair_jpeg_header,
+)
+from ctf_toolkit.forensics.log_hunter import (
+    assemble_suricata_alert_fragments,
+    extract_b64_url_parameters,
+    extract_dns_subdomain_exfiltration,
+    extract_mime_encoded_words,
+    extract_usb_serial_hex,
+)
 from ctf_toolkit.forensics.pdf_tools import extract_pdf_metadata
 from ctf_toolkit.forensics.png_tools import (
     extract_png_all_metadata,
@@ -39,21 +51,27 @@ from ctf_toolkit.forensics.zip_recover import (
 
 __all__ = [
     "assemble_sharded_zip",
+    "assemble_suricata_alert_fragments",
+    "concatenate_jpeg_comments",
     "decompile_pyc",
     "decompress_nested_stream",
     "decode_qr_image",
     "demodulate_audio_fsk",
     "dtmf_digits_to_ascii",
+    "extract_all_jpeg_comments_bytes",
     "extract_alpha_direct_bytes",
     "extract_audio_pcm_lsb",
     "extract_audio_tone_bytes",
+    "extract_b64_url_parameters",
     "extract_channel_bytes",
     "extract_channel_lsb",
+    "extract_dns_subdomain_exfiltration",
     "extract_docx_metadata",
     "extract_gif_scanline_bits",
     "extract_gzip_metadata",
     "extract_interleaved_lsb",
     "extract_jpeg_comments",
+    "extract_mime_encoded_words",
     "extract_pdf_metadata",
     "extract_png_all_metadata",
     "extract_png_text_chunks",
@@ -61,6 +79,7 @@ __all__ = [
     "extract_png_trailing_payload",
     "extract_pyc_constants_raw",
     "extract_sequential_rgb_bytes",
+    "extract_usb_serial_hex",
     "extract_xlsx_metadata",
     "fast_zip_crypto_crack",
     "find_flags_in_channel",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 JPEG_SOI = b"\xff\xd8\xff"
@@ -32,84 +33,59 @@ def extract_jpeg_fragments(path: str, output_dir: str = "output/jpeg_fragments")
         parts.append(out_path)
         counter += 1
         idx = eoi + 2
+
     return parts
 
 
-def _find_sof_segment(data: bytes) -> tuple[int, int]:
-    i = 0
-    length = len(data)
-    while i + 4 < length:
-        if data[i] != 0xFF:
-            i += 1
-            continue
-        marker = data[i + 1]
-        if marker == 0xD8 or marker == 0xD9:
-            i += 2
-            continue
-        if marker == 0xDA:
-            break
-        seg_len = int.from_bytes(data[i + 2 : i + 4], "big")
-        if seg_len < 2 or i + 2 + seg_len > length:
-            break
-        if marker in SOF_MARKERS and seg_len >= 7:
-            return i, seg_len
-        i += 2 + seg_len
-    raise ValueError("SOF segment JPEG tidak ditemukan")
-
-
-def get_jpeg_dimensions(path: str) -> tuple[int, int]:
-    data = Path(path).read_bytes()
-    if not data.startswith(JPEG_SOI):
-        raise ValueError("bukan JPEG (SOI tidak ditemukan)")
-    sof_idx, _ = _find_sof_segment(data)
-    height = int.from_bytes(data[sof_idx + 5 : sof_idx + 7], "big")
-    width = int.from_bytes(data[sof_idx + 7 : sof_idx + 9], "big")
-    return width, height
-
-
-def patch_jpeg_dimensions(path: str, width: int, height: int, output_path: str | None = None) -> Path:
-    if width <= 0 or height <= 0 or width > 65535 or height > 65535:
-        raise ValueError("width/height harus 1..65535")
-    source = Path(path)
-    data = bytearray(source.read_bytes())
-    if not data.startswith(JPEG_SOI):
-        raise ValueError("bukan JPEG (SOI tidak ditemukan)")
-
-    sof_idx, _ = _find_sof_segment(data)
-    data[sof_idx + 5 : sof_idx + 7] = height.to_bytes(2, "big")
-    data[sof_idx + 7 : sof_idx + 9] = width.to_bytes(2, "big")
-
-    out = Path(output_path) if output_path else source.with_name(f"{source.stem}_patched.jpg")
-    out.write_bytes(bytes(data))
-    return out
-
 def repair_jpeg_header(data: bytes | bytearray) -> bytes:
-    """
-    Restore standard JPEG Start-Of-Image (SOI) marker (\xff\xd8) if zeroed out or corrupted.
-    """
+    """Restores standard FF D8 SOI marker if corrupted or truncated."""
     arr = bytearray(data)
     if len(arr) < 2:
-        raise ValueError("Data too short to be a JPEG image")
-    arr[0] = 0xFF
-    arr[1] = 0xD8
+        raise ValueError("Data too short to be a valid JPEG")
+    arr[:2] = b"\xff\xd8"
     return bytes(arr)
 
 
-def extract_jpeg_comments(data: bytes) -> list[str]:
-    """
-    Extract all COM (Comment, marker 0xFF 0xFE) segments from JPEG stream.
-    """
+def extract_jpeg_comments(jpeg_data: bytes) -> list[str]:
+    """Parse COM (0xFF 0xFE) segments from JPEG stream."""
     comments: list[str] = []
-    idx = 0
-    length = len(data)
-    while idx + 4 < length:
-        if data[idx] == 0xFF and data[idx + 1] == 0xFE:
-            seg_len = int.from_bytes(data[idx + 2 : idx + 4], "big")
-            if seg_len >= 2 and idx + 2 + seg_len <= length:
-                comment_bytes = data[idx + 4 : idx + 2 + seg_len]
-                comments.append(comment_bytes.decode("utf-8", errors="ignore"))
-                idx += 2 + seg_len
+    idx = 2
+    while idx + 4 <= len(jpeg_data):
+        if jpeg_data[idx] == 0xFF:
+            marker = jpeg_data[idx + 1]
+            if marker in (0xD8, 0xD9):  # SOI, EOI
+                idx += 2
                 continue
-        idx += 1
+            length = int.from_bytes(jpeg_data[idx + 2 : idx + 4], "big")
+            if marker == 0xFE:  # COM marker
+                comment_payload = jpeg_data[idx + 4 : idx + 2 + length]
+                comments.append(comment_payload.decode("latin-1", errors="ignore"))
+            idx += 2 + length
+        else:
+            idx += 1
     return comments
 
+
+def extract_all_jpeg_comments_bytes(jpeg_data: bytes) -> list[bytes]:
+    """Extract raw byte payloads of all JPEG COM segments."""
+    comments: list[bytes] = []
+    idx = 2
+    while idx + 4 <= len(jpeg_data):
+        if jpeg_data[idx] == 0xFF:
+            marker = jpeg_data[idx + 1]
+            if marker in (0xD8, 0xD9):
+                idx += 2
+                continue
+            length = int.from_bytes(jpeg_data[idx + 2 : idx + 4], "big")
+            if marker == 0xFE:
+                comment_payload = jpeg_data[idx + 4 : idx + 2 + length]
+                comments.append(comment_payload)
+            idx += 2 + length
+        else:
+            idx += 1
+    return comments
+
+
+def concatenate_jpeg_comments(jpeg_data: bytes) -> bytes:
+    """Concatenate split COM segments into a continuous byte sequence."""
+    return b"".join(extract_all_jpeg_comments_bytes(jpeg_data))
