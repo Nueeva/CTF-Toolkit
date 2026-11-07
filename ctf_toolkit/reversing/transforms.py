@@ -76,3 +76,18 @@ def xor_bruteforce_single(data: bytes) -> list[tuple[int, float, bytes]]:
 
     candidates.sort(key=lambda x: x[1], reverse=True)
     return candidates
+
+
+def extract_binary_strings(
+    data: bytes, min_length: int = 4, pattern: str | None = None
+) -> list[str]:
+    """Extract printable strings from raw binary data with optional regex matching."""
+    import re
+
+    regex = re.compile(rb"[ -~]{" + str(min_length).encode() + rb",}")
+    matches = [m.decode("latin1") for m in regex.findall(data)]
+    if pattern:
+        pat_re = re.compile(pattern, re.IGNORECASE)
+        matches = [m for m in matches if pat_re.search(m)]
+    return matches
+
