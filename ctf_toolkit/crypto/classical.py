@@ -582,3 +582,41 @@ def trithemius_decrypt(text: str, step: int = 1) -> str:
             out.append(ch)
     return "".join(out)
 
+def multiplicative_encrypt(text: str, a: int, modulus: int = 26) -> str:
+    """
+    Encrypt text using a modular multiplicative cipher: E(x) = (a * x) mod m.
+    Requires gcd(a, m) == 1.
+    """
+    if gcd(a, modulus) != 1:
+        raise ValueError(f"Multiplier a ({a}) must be coprime with modulus ({modulus})")
+
+    out: list[str] = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord("A") if ch.isupper() else ord("a")
+            x = ord(ch) - base
+            out.append(chr((a * x) % modulus + base))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def multiplicative_decrypt(text: str, a: int, modulus: int = 26) -> str:
+    """
+    Decrypt text using a modular multiplicative cipher: D(y) = (a^-1 * y) mod m.
+    Requires gcd(a, m) == 1.
+    """
+    if gcd(a, modulus) != 1:
+        raise ValueError(f"Multiplier a ({a}) must be coprime with modulus ({modulus})")
+    a_inv = modinv(a, modulus)
+
+    out: list[str] = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord("A") if ch.isupper() else ord("a")
+            y = ord(ch) - base
+            out.append(chr((a_inv * y) % modulus + base))
+        else:
+            out.append(ch)
+    return "".join(out)
+

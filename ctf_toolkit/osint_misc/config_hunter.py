@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from typing import Any
@@ -132,4 +134,33 @@ def extract_csv_secrets(csv_data: str | bytes) -> list[tuple[str, str]]:
                 findings.append((curr_path, cell))
 
     return findings
+
+def extract_tsv_secrets(content: str, pattern: str = r"GETSFLAG\{[^}]+\}") -> list[dict[str, str]]:
+    """
+    Scan a TSV (tab-separated values) document for secrets, flags, or suspicious fields.
+    Returns a list of dicts with row, column, header, and matched value.
+    """
+    results: list[dict[str, str]] = []
+    regex = re.compile(pattern)
+
+    reader = csv.reader(io.StringIO(content), delimiter="\t")
+    rows = list(reader)
+    if not rows:
+        return results
+
+    headers = rows[0] if rows else []
+
+    for row_idx, row in enumerate(rows):
+        for col_idx, cell in enumerate(row):
+            m = regex.search(cell)
+            if m:
+                header_name = headers[col_idx] if col_idx < len(headers) else f"col_{col_idx}"
+                results.append({
+                    "row": str(row_idx),
+                    "col": str(col_idx),
+                    "header": header_name,
+                    "secret": m.group(0),
+                    "raw_cell": cell,
+                })
+    return results
 
