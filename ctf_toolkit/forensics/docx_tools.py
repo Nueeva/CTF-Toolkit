@@ -25,7 +25,6 @@ def extract_docx_metadata(docx_data: bytes | io.BytesIO | str) -> dict[str, str]
             try:
                 xml_content = zf.read("docProps/core.xml")
                 root = ET.fromstring(xml_content)
-                # Strip namespaces for simple tag lookups
                 for elem in root.iter():
                     tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
                     if elem.text and elem.text.strip():
@@ -46,7 +45,22 @@ def extract_docx_metadata(docx_data: bytes | io.BytesIO | str) -> dict[str, str]
             except Exception:
                 pass
 
-        # 3. Check for comments (word/comments.xml)
+        # 3. Parse custom properties (docProps/custom.xml)
+        if "docProps/custom.xml" in namelist:
+            try:
+                xml_content = zf.read("docProps/custom.xml")
+                root = ET.fromstring(xml_content)
+                for prop in root.iter():
+                    tag = prop.tag.split("}")[-1] if "}" in prop.tag else prop.tag
+                    if tag == "property":
+                        pname = prop.attrib.get("name", "")
+                        pval = "".join(prop.itertext()).strip()
+                        if pname and pval:
+                            result[f"custom_{pname}"] = pval
+            except Exception:
+                pass
+
+        # 4. Check for comments (word/comments.xml)
         if "word/comments.xml" in namelist:
             try:
                 xml_content = zf.read("word/comments.xml").decode("utf-8", errors="ignore")
@@ -56,8 +70,8 @@ def extract_docx_metadata(docx_data: bytes | io.BytesIO | str) -> dict[str, str]
             except Exception:
                 pass
 
-        # 4. Search for flag pattern across all internal XML files
-        flags = []
+        # 5. Search for flag pattern across all internal XML files
+        flags: list[str] = []
         for name in namelist:
             try:
                 raw = zf.read(name)
