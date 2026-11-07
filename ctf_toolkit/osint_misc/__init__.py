@@ -1,4 +1,5 @@
 from ctf_toolkit.osint_misc.bencode import bdecode, find_bencode_strings, parse_torrent
+from ctf_toolkit.osint_misc.config_hunter import extract_json_secrets, extract_yaml_secrets, find_nested_secrets
 from ctf_toolkit.osint_misc.compression import decompress_blob
 from ctf_toolkit.osint_misc.esolang import brainfuck_eval, ook_eval, ook_to_brainfuck
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
@@ -16,4 +17,7 @@ __all__ = [
     "encode_netstring",
     "decode_uu",
     "encode_uu",
+    "extract_json_secrets",
+    "extract_yaml_secrets",
+    "find_nested_secrets",
 ]

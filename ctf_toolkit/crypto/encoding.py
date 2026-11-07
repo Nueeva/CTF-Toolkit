@@ -103,6 +103,17 @@ def base32_decode_autopad(text: str) -> bytes:
     return base64.b32decode(padded.encode("ascii"), casefold=True)
 
 
+def quoted_printable_decode(data: str | bytes) -> bytes:
+    """
+    Decode Quoted-Printable (RFC 2045) encoded data.
+    Commonly encountered in MIME emails, vCards, and legacy transfer formats.
+    """
+    import quopri
+
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    return quopri.decodestring(raw)
+
+
 def rot13(text: str) -> str:
     """Perform ROT-13 symmetric substitution."""
     return codecs.decode(text, "rot_13")
@@ -229,5 +240,13 @@ def smart_decode(text: str) -> dict[str, str]:
     r47 = rot47(clean)
     if r47 != clean and ("GETSFLAG" in r47 or "FLAG" in r47 or any(c.isalpha() for c in r47)):
         results["rot47"] = r47
+
+    # Quoted-Printable
+    if "=3D" in clean or re.search(r"=[0-9A-Fa-f]{2}", clean):
+        try:
+            qp_bytes = quoted_printable_decode(clean)
+            results["quoted_printable"] = qp_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
 
     return results
