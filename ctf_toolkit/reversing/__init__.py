@@ -7,6 +7,8 @@ from ctf_toolkit.reversing.transforms import (
     reverse_string,
     xor_bytes,
     xor_bruteforce_single,
+    affine_transform_bytes,
+    affine_invert_bytes,
 )
 
 __all__ = [
@@ -19,4 +21,6 @@ __all__ = [
     "xor_bruteforce_single",
     "decode_charcodes",
     "encode_charcodes",
+    "affine_transform_bytes",
+    "affine_invert_bytes",
 ]

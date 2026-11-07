@@ -53,3 +53,44 @@ def shannon_entropy(data: bytes) -> float:
         p = count / total
         entropy -= p * math.log2(p)
     return entropy
+
+
+BASE45_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+
+
+def base45_decode(s: str) -> bytes:
+    """Decode a Base45 (RFC 9285) encoded string into bytes."""
+    res = bytearray()
+    for i in range(0, len(s), 3):
+        chunk = s[i : i + 3]
+        if len(chunk) == 3:
+            c0, c1, c2 = [BASE45_CHARSET.index(c) for c in chunk]
+            val = c0 + c1 * 45 + c2 * 45 * 45
+            res.append(val // 256)
+            res.append(val % 256)
+        elif len(chunk) == 2:
+            c0, c1 = [BASE45_CHARSET.index(c) for c in chunk]
+            val = c0 + c1 * 45
+            res.append(val)
+        else:
+            raise ValueError(f"Invalid Base45 chunk length at index {i}")
+    return bytes(res)
+
+
+def base45_encode(data: bytes) -> str:
+    """Encode bytes into a Base45 (RFC 9285) string."""
+    res: list[str] = []
+    for i in range(0, len(data), 2):
+        chunk = data[i : i + 2]
+        if len(chunk) == 2:
+            val = chunk[0] * 256 + chunk[1]
+            c0 = val % 45
+            c1 = (val // 45) % 45
+            c2 = val // (45 * 45)
+            res.extend([BASE45_CHARSET[c0], BASE45_CHARSET[c1], BASE45_CHARSET[c2]])
+        else:
+            val = chunk[0]
+            c0 = val % 45
+            c1 = val // 45
+            res.extend([BASE45_CHARSET[c0], BASE45_CHARSET[c1]])
+    return "".join(res)

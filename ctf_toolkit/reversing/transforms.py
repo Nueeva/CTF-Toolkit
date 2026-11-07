@@ -343,3 +343,15 @@ def deinterleave_sequence(seq: bytes | str) -> tuple[bytes | str, bytes | str]:
     return "".join(even), "".join(odd)
 
 
+def affine_transform_bytes(data: bytes, a: int, b: int, mod: int = 256) -> bytes:
+    """Apply affine byte transformation: out[i] = (data[i] * a + b) % mod."""
+    return bytes([((x * a + b) % mod) for x in data])
+
+
+def affine_invert_bytes(data: bytes, a: int, b: int, mod: int = 256) -> bytes:
+    """Invert affine byte transformation: out[i] = ((data[i] - b) * pow(a, -1, mod)) % mod."""
+    inv_a = pow(a, -1, mod)
+    return bytes([(((x - b) * inv_a) % mod) for x in data])
+
+
+

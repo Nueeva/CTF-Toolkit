@@ -90,3 +90,102 @@ def ook_eval(source: str, input_str: str = "", max_steps: int = 5_000_000) -> st
     """Interpret and execute Ook! source code directly."""
     bf_code = ook_to_brainfuck(source)
     return brainfuck_eval(bf_code, input_str=input_str, max_steps=max_steps)
+
+
+def deadfish_eval(source: str) -> str:
+    """Interpret and execute Deadfish esolang source code (i: +1, d: -1, s: ^2, o: out)."""
+    val = 0
+    out = []
+    for c in source:
+        if c == "i":
+            val += 1
+        elif c == "d":
+            val -= 1
+        elif c == "s":
+            val = val * val
+        elif c == "o":
+            out.append(chr(val) if val < 256 else str(val))
+        if val == -1 or val == 256:
+            val = 0
+    return "".join(out)
+
+
+def spoon_eval(source: str) -> str:
+    """Interpret Spoon esolang bitstream (1: +, 000: -, 001010: output ASCII)."""
+    val = 0
+    out = []
+    i = 0
+    while i < len(source):
+        if source[i] == "1":
+            val = (val + 1) & 0xFF
+            i += 1
+        elif source[i : i + 6] == "001010":
+            out.append(chr(val))
+            i += 6
+        elif source[i : i + 3] == "000":
+            val = (val - 1) & 0xFF
+            i += 3
+        else:
+            i += 1
+    return "".join(out)
+
+
+def whitespace_eval(source: str | bytes) -> str:
+    """Interpret Whitespace esolang character stream that pushes and outputs characters."""
+    if isinstance(source, bytes):
+        text = source.decode("latin1", errors="ignore")
+    else:
+        text = source
+
+    rep = text.replace(" ", "S").replace("\t", "T").replace("\n", "L")
+    tokens = rep
+    idx = 0
+    output_chars: list[str] = []
+    while idx < len(tokens):
+        if tokens[idx : idx + 2] == "SS":
+            idx += 2
+            l_pos = tokens.find("L", idx)
+            if l_pos != -1:
+                num_str = tokens[idx:l_pos]
+                idx = l_pos + 1
+                if num_str:
+                    sign = 1 if num_str[0] == "S" else -1
+                    bits = num_str[1:].replace("S", "0").replace("T", "1")
+                    val = int(bits, 2) if bits else 0
+                    val = sign * val
+                    if tokens[idx : idx + 4] == "TLSS":
+                        output_chars.append(chr(val))
+                        idx += 4
+                    else:
+                        output_chars.append(chr(val))
+            else:
+                break
+        else:
+            idx += 1
+    return "".join(output_chars)
+
+
+def piet_nibbles_decode(codels: list[tuple[int, int, int]]) -> str:
+    """Decode Piet color palette codels (Hue * 3 + Lightness) to 4-bit nibbles and ASCII string."""
+    piet_palette: dict[tuple[int, int, int], int] = {
+        (255, 192, 192): 0,
+        (255, 0, 0): 1,
+        (192, 0, 0): 2,
+        (255, 255, 192): 3,
+        (255, 255, 0): 4,
+        (192, 192, 0): 5,
+        (192, 255, 192): 6,
+        (0, 255, 0): 7,
+        (0, 192, 0): 8,
+        (192, 255, 255): 9,
+        (0, 255, 255): 10,
+        (0, 192, 192): 11,
+        (192, 192, 255): 12,
+        (0, 0, 255): 13,
+        (0, 0, 192): 14,
+        (255, 255, 255): 15,
+    }
+    nibbles = [piet_palette[c] for c in codels if c in piet_palette]
+    chars = [chr((nibbles[i] << 4) | nibbles[i + 1]) for i in range(0, len(nibbles) - 1, 2)]
+    return "".join(chars)
+
