@@ -128,3 +128,36 @@ def rsa_multiprime_decrypt(factors: list[int], e: int, c: int) -> int:
         phi *= (p - 1)
     d = pow(e, -1, phi)
     return pow(c, d, n)
+
+
+def pollard_p_minus_1(n: int, B: int = 1000) -> int | None:
+    """Factor n using Pollard's p - 1 algorithm if p - 1 is B-smooth."""
+    import math
+    a = 2
+    for j in range(2, B + 1):
+        a = pow(a, j, n)
+        d = math.gcd(a - 1, n)
+        if 1 < d < n:
+            return d
+    return None
+
+
+def rsa_crt_reconstruct(c: int, p: int, q: int, dp: int, dq: int, qinv: int) -> int:
+    """Reconstruct RSA plaintext using Garner's algorithm for CRT."""
+    m1 = pow(c, dp, p)
+    m2 = pow(c, dq, q)
+    h = (qinv * (m1 - m2)) % p
+    return m2 + h * q
+
+
+def shamir_reconstruct_secret(shares: list[tuple[int, int]], p: int) -> int:
+    """Reconstruct secret from Shamir's Secret Sharing shares at x=0."""
+    secret = 0
+    for j, (xj, yj) in enumerate(shares):
+        num, den = 1, 1
+        for m, (xm, _) in enumerate(shares):
+            if m != j:
+                num = (num * -xm) % p
+                den = (den * (xj - xm)) % p
+        secret = (secret + yj * num * pow(den, -1, p)) % p
+    return secret

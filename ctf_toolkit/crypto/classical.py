@@ -925,3 +925,166 @@ def base58_ripple_decode(encoded_str: str) -> bytes:
 def nibble_swap(data: bytes) -> bytes:
     """Swap high and low 4-bit nibbles of each byte."""
     return bytes(((b & 0x0F) << 4) | ((b & 0xF0) >> 4) for b in data)
+
+
+def _make_playfair_grid(key: str) -> list[list[str]]:
+    alpha = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+    seen = set()
+    res = []
+    for c in key.upper().replace("J", "I"):
+        if c in alpha and c not in seen:
+            seen.add(c)
+            res.append(c)
+    for c in alpha:
+        if c not in seen:
+            seen.add(c)
+            res.append(c)
+    return [res[i : i + 5] for i in range(0, 25, 5)]
+
+
+def four_square_decrypt(ciphertext: str, key_tr: str, key_bl: str) -> str:
+    """Decrypt Four-Square cipher (5x5 grids with I=J)."""
+    alpha = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+    tl_plain = [list(alpha[i : i + 5]) for i in range(0, 25, 5)]
+    br_plain = [list(alpha[i : i + 5]) for i in range(0, 25, 5)]
+    tr_key = _make_playfair_grid(key_tr)
+    bl_key = _make_playfair_grid(key_bl)
+
+    tr_pos = {tr_key[r][c]: (r, c) for r in range(5) for c in range(5)}
+    bl_pos = {bl_key[r][c]: (r, c) for r in range(5) for c in range(5)}
+
+    clean_ct = [c.upper().replace("J", "I") for c in ciphertext if c.isalpha()]
+    pt: list[str] = []
+    for i in range(0, len(clean_ct) - 1, 2):
+        c1, c2 = clean_ct[i], clean_ct[i + 1]
+        r1, col1 = tr_pos[c1]
+        r2, col2 = bl_pos[c2]
+        pt.append(tl_plain[r1][col2].lower())
+        pt.append(br_plain[r2][col1].lower())
+    return "".join(pt)
+
+
+def two_square_decrypt(ciphertext: str, key_top: str, key_bot: str) -> str:
+    """Decrypt Two-Square horizontal reciprocal cipher (5x5 grids with I=J)."""
+    top_box = _make_playfair_grid(key_top)
+    bot_box = _make_playfair_grid(key_bot)
+    top_pos = {top_box[r][c]: (r, c) for r in range(5) for c in range(5)}
+    bot_pos = {bot_box[r][c]: (r, c) for r in range(5) for c in range(5)}
+
+    clean_ct = [c.upper().replace("J", "I") for c in ciphertext if c.isalpha()]
+    pt: list[str] = []
+    for i in range(0, len(clean_ct) - 1, 2):
+        c1, c2 = clean_ct[i], clean_ct[i + 1]
+        r1, col1 = top_pos[c1]
+        r2, col2 = bot_pos[c2]
+        pt.append(top_box[r1][col2].lower())
+        pt.append(bot_box[r2][col1].lower())
+    return "".join(pt)
+
+
+def straddling_checkerboard_decode(
+    digits_str: str,
+    alphabet_order: str = "etaoinshrdlcumwfgypbvkjxqz",
+    prefixes: list[int] | None = None,
+) -> str:
+    """Decode Straddling Checkerboard digits into lowercase text."""
+    if prefixes is None:
+        prefixes = [2, 6]
+    p1, p2 = str(prefixes[0]), str(prefixes[1])
+    # 8 non-prefixed digits
+    non_prefixed = [str(d) for d in range(10) if str(d) not in (p1, p2)]
+    mapping: dict[str, str] = {}
+    for d, ch in zip(non_prefixed, alphabet_order[:8]):
+        mapping[d] = ch
+    for d, ch in zip(range(10), alphabet_order[8:18]):
+        mapping[p1 + str(d)] = ch
+    for d, ch in zip(range(10), alphabet_order[18:]):
+        mapping[p2 + str(d)] = ch
+
+    clean_digits = "".join(c for c in digits_str if c.isdigit())
+    idx = 0
+    pt: list[str] = []
+    while idx < len(clean_digits):
+        if clean_digits[idx] in (p1, p2):
+            tok = clean_digits[idx : idx + 2]
+            pt.append(mapping.get(tok, "?"))
+            idx += 2
+        else:
+            tok = clean_digits[idx]
+            pt.append(mapping.get(tok, "?"))
+            idx += 1
+    return "".join(pt)
+
+
+def hill_2x2_decrypt(ciphertext: str, key_matrix: list[list[int]]) -> str:
+    """Decrypt 2x2 Hill cipher modulo 26."""
+    from ctf_toolkit.utils.math import modinv
+    a, b = key_matrix[0]
+    c, d = key_matrix[1]
+    det = (a * d - b * c) % 26
+    det_inv = modinv(det, 26)
+    k_inv = [
+        [(d * det_inv) % 26, (-b * det_inv) % 26],
+        [(-c * det_inv) % 26, (a * det_inv) % 26],
+    ]
+    clean_ct = [ord(ch.lower()) - ord("a") for ch in ciphertext if ch.isalpha()]
+    pt: list[str] = []
+    for i in range(0, len(clean_ct) - 1, 2):
+        c1, c2 = clean_ct[i], clean_ct[i + 1]
+        p1 = (k_inv[0][0] * c1 + k_inv[0][1] * c2) % 26
+        p2 = (k_inv[1][0] * c1 + k_inv[1][1] * c2) % 26
+        pt.extend([chr(p1 + ord("a")), chr(p2 + ord("a"))])
+    return "".join(pt)
+
+
+def myszkowski_decrypt(ciphertext: str, key: str) -> str:
+    """Decrypt Myszkowski transposition cipher."""
+    num_cols = len(key)
+    num_rows = len(ciphertext) // num_cols
+    key_upper = key.upper()
+    unique_sorted = sorted(set(key_upper))
+
+    grid = [[""] * num_cols for _ in range(num_rows)]
+    idx = 0
+    for char in unique_sorted:
+        col_indices = [i for i, k in enumerate(key_upper) if k == char]
+        if len(col_indices) == 1:
+            col = col_indices[0]
+            for r in range(num_rows):
+                if idx < len(ciphertext):
+                    grid[r][col] = ciphertext[idx]
+                    idx += 1
+        else:
+            for r in range(num_rows):
+                for col in col_indices:
+                    if idx < len(ciphertext):
+                        grid[r][col] = ciphertext[idx]
+                        idx += 1
+    return "".join("".join(row) for row in grid)
+
+
+def spiral_route_decrypt(ciphertext: str, rows: int, cols: int) -> str:
+    """Decrypt clockwise spiral route transposition (written spiral, read row-wise)."""
+    top, bottom, left, right = 0, rows - 1, 0, cols - 1
+    coords = []
+    while top <= bottom and left <= right:
+        for c in range(left, right + 1):
+            coords.append((top, c))
+        top += 1
+        for r in range(top, bottom + 1):
+            coords.append((r, right))
+        right -= 1
+        if top <= bottom:
+            for c in range(right, left - 1, -1):
+                coords.append((bottom, c))
+            bottom -= 1
+        if left <= right:
+            for r in range(bottom, top - 1, -1):
+                coords.append((r, left))
+            left += 1
+
+    grid = [[""] * cols for _ in range(rows)]
+    for i, (r, c) in enumerate(coords):
+        if i < len(ciphertext):
+            grid[r][c] = ciphertext[i]
+    return "".join("".join(row) for row in grid)

@@ -418,3 +418,40 @@ def xxdecode(encoded_str: str) -> bytes:
     clean = encoded_str.strip().translate(trans)
     clean += "=" * ((4 - len(clean) % 4) % 4)
     return base64.b64decode(clean)
+
+
+Z85_CHARS = (
+    "0123456789"
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    ".-:+=^!/*?&<>()[]{}@%$#"
+)
+_Z85_MAP = {c: i for i, c in enumerate(Z85_CHARS)}
+
+def z85_decode(text: str) -> bytes:
+    """Decode ZeroMQ Z85 text into bytes."""
+    clean = text.strip()
+    if len(clean) % 5 != 0:
+        raise ValueError("Z85 text length must be a multiple of 5")
+    out = bytearray()
+    for i in range(0, len(clean), 5):
+        val = 0
+        for c in clean[i : i + 5]:
+            val = val * 85 + _Z85_MAP[c]
+        out.extend(val.to_bytes(4, "big"))
+    return bytes(out)
+
+
+def custom_base64_decode(text: str, custom_alphabet: str) -> bytes:
+    """Decode Base64 string encoded with a custom 64-character permutation alphabet."""
+    import base64
+    std_alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    trans = str.maketrans(custom_alphabet, std_alpha)
+    clean = text.strip().translate(trans)
+    pad = (4 - len(clean) % 4) % 4
+    return base64.b64decode(clean + "=" * pad)
+
+
+def ebcdic_decode(data: bytes, encoding: str = "cp037") -> str:
+    """Decode EBCDIC bytes to string using specified code page."""
+    return data.decode(encoding)
