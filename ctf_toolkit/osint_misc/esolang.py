@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 
 def brainfuck_eval(source: str, input_str: str = "", max_steps: int = 5_000_000) -> str:
     """Execute Brainfuck code in a bounded, safe virtual machine."""
@@ -57,3 +59,34 @@ def brainfuck_eval(source: str, input_str: str = "", max_steps: int = 5_000_000)
         pc += 1
 
     return "".join(output)
+
+
+def ook_to_brainfuck(source: str) -> str:
+    """Translate Ook! source code into equivalent Brainfuck syntax."""
+    tokens = re.findall(r"Ook[\.\?\!]", source)
+    if len(tokens) % 2 != 0:
+        raise ValueError("Ook! source must contain an even number of tokens")
+
+    ook_map = {
+        "Ook. Ook?": ">",
+        "Ook? Ook.": "<",
+        "Ook. Ook.": "+",
+        "Ook! Ook!": "-",
+        "Ook! Ook.": ".",
+        "Ook. Ook!": ",",
+        "Ook! Ook?": "[",
+        "Ook? Ook!": "]",
+    }
+
+    bf: list[str] = []
+    for i in range(0, len(tokens), 2):
+        pair = f"{tokens[i]} {tokens[i+1]}"
+        if pair in ook_map:
+            bf.append(ook_map[pair])
+    return "".join(bf)
+
+
+def ook_eval(source: str, input_str: str = "", max_steps: int = 5_000_000) -> str:
+    """Interpret and execute Ook! source code directly."""
+    bf_code = ook_to_brainfuck(source)
+    return brainfuck_eval(bf_code, input_str=input_str, max_steps=max_steps)

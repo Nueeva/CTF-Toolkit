@@ -1,15 +1,20 @@
-from ctf_toolkit.osint_misc.esolang import brainfuck_eval
+from ctf_toolkit.osint_misc.esolang import brainfuck_eval, ook_eval, ook_to_brainfuck
 
 
 def test_brainfuck_eval():
-    # Simple hello world / add test
-    # Prints 'A' (65)
     src = "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++."
     assert brainfuck_eval(src) == "A"
 
 
 def test_brainfuck_brackets():
-    # Loop multiplying 5 * 6 = 30
     src = "+++++[>++++++<-]>."
     out = brainfuck_eval(src)
     assert out == chr(30)
+
+
+def test_ook_eval():
+    # Ook code printing 'A' (65 pluses + dot)
+    # Ook. Ook. is +
+    # Ook! Ook. is .
+    src = "Ook. Ook. " * 65 + "Ook! Ook."
+    assert ook_eval(src) == "A"
