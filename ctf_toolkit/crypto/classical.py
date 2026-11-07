@@ -127,3 +127,19 @@ def apply_substitution(text: str, mapping: dict[str, str]) -> str:
 def frequency_analysis(text: str) -> list[tuple[str, int]]:
     letters = [c.upper() for c in text if c.isalpha()]
     return Counter(letters).most_common()
+
+def a1z26_decode(cipher: str) -> str:
+    """Decode A1Z26 positional cipher (e.g. 1-2-3 -> abc or 1 2 3 -> abc)."""
+    import re
+
+    nums = [int(n) for n in re.findall(r"\b\d+\b", cipher)]
+    return "".join([chr(ord("a") + n - 1) if 1 <= n <= 26 else str(n) for n in nums])
+
+
+def a1z26_encode(text: str, separator: str = "-") -> str:
+    """Encode text to A1Z26 positional numbers (a=1, b=2, ..., z=26)."""
+    nums = []
+    for ch in text.lower():
+        if "a" <= ch <= "z":
+            nums.append(str(ord(ch) - ord("a") + 1))
+    return separator.join(nums)

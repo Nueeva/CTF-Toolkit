@@ -66,6 +66,14 @@ def smart_decode(text: str) -> dict[str, str]:
         except Exception:
             pass
 
+    # A1Z26 Positional numbers
+    if re.fullmatch(r"(\d{1,2}[-\s,]+)+\d{1,2}", clean) and not re.search(r"[a-zA-Z]", clean):
+        try:
+            from ctf_toolkit.crypto.classical import a1z26_decode
+            results["a1z26"] = a1z26_decode(clean)
+        except Exception:
+            pass
+
     # Hex
     try:
         hex_cand = clean[2:] if clean.startswith("0x") else clean
