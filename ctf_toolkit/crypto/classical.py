@@ -362,3 +362,39 @@ def bacon_encode(text: str, a_char: str = "A", b_char: str = "B") -> str:
                 bits.append(b_char if (val >> shift) & 1 else a_char)
             out.append("".join(bits))
     return " ".join(out)
+
+
+def scytale_encrypt(plaintext: str, diameter: int, pad: str = "x") -> str:
+    """Encrypt a message using Scytale transposition cipher with given cylinder diameter (circumference)."""
+    if diameter <= 0:
+        raise ValueError("Diameter must be positive")
+    n = len(plaintext)
+    if n == 0:
+        return ""
+    cols = (n + diameter - 1) // diameter
+    padded = plaintext.ljust(diameter * cols, pad)
+    grid = [[""] * cols for _ in range(diameter)]
+    for c in range(cols):
+        for r in range(diameter):
+            grid[r][c] = padded[c * diameter + r]
+    return "".join("".join(row) for row in grid)
+
+
+def scytale_decrypt(ciphertext: str, diameter: int, strip_pad: bool = False, pad: str = "x") -> str:
+    """Decrypt a Scytale transposition cipher given cylinder diameter (number of rows)."""
+    if diameter <= 0:
+        raise ValueError("Diameter must be positive")
+    n = len(ciphertext)
+    if n == 0:
+        return ""
+    cols = (n + diameter - 1) // diameter
+    padded = ciphertext.ljust(diameter * cols, pad)
+    out: list[str] = []
+    for c in range(cols):
+        for r in range(diameter):
+            out.append(padded[r * cols + c])
+    res = "".join(out)[:n]
+    if strip_pad:
+        res = res.rstrip(pad)
+    return res
+

@@ -2,6 +2,7 @@ from ctf_toolkit.osint_misc.bencode import bdecode, find_bencode_strings, parse_
 from ctf_toolkit.osint_misc.compression import decompress_blob
 from ctf_toolkit.osint_misc.esolang import brainfuck_eval, ook_eval, ook_to_brainfuck
 from ctf_toolkit.osint_misc.netstrings import encode_netstring, parse_netstrings
+from ctf_toolkit.osint_misc.uudecode import decode_uu, encode_uu
 
 __all__ = [
     "brainfuck_eval",
@@ -13,4 +14,6 @@ __all__ = [
     "decompress_blob",
     "parse_netstrings",
     "encode_netstring",
+    "decode_uu",
+    "encode_uu",
 ]
