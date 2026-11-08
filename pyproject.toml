@@ -4,20 +4,46 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ctf-toolkit"
-version = "1.0.0"
-description = "CTF Toolkit (crypto/binex/web/forensics helpers) optimized for low-resource environments."
+version = "3.0.0"
+description = "CTF Toolkit v3.0 Apex - Multi-domain exploitation workbench, A* Magic Solver, CyberChef pipeline studio, and 106+ CTF solver abstractions."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Nueeva" }]
+keywords = ["ctf", "cybersecurity", "cryptography", "pwn", "forensics", "web-security", "reverse-engineering", "tui"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+  "Topic :: Security :: Cryptography",
+]
 dependencies = [
   "requests>=2.0",
   "pycryptodome>=3.0",
   "dpkt>=1.9.8",
+  "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
 ]
 
 [project.scripts]
 ctf-toolkit = "ctf_toolkit.main_cli:main"
+ctft = "ctf_toolkit.main_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "."}

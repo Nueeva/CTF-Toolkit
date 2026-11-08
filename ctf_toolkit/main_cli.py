@@ -5,6 +5,7 @@ import json
 import os
 import sys
 
+from ctf_toolkit import __version__
 from ctf_toolkit.pipeline import run_recipe
 from ctf_toolkit.registry import get_menu_registry
 from ctf_toolkit.triage import triage_data, triage_file
@@ -30,6 +31,18 @@ from ctf_toolkit.ui.session import (
 )
 from ctf_toolkit.ui.workbench.menu import recipe_studio_interactive
 from ctf_toolkit.utils.io import safe_input, success, warn
+
+
+def configure_utf8_console() -> None:
+    """Ensure stdout and stderr use UTF-8 encoding across Windows/Linux/macOS consoles."""
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
 
 
 def show_main_menu() -> None:
@@ -166,7 +179,8 @@ def handle_magic(args: argparse.Namespace) -> int:
         data = resolve_smart_input(args.string, as_bytes=True)
     elif target:
         if os.path.exists(target):
-            data = open(target, "rb").read()
+            with open(target, "rb") as f:
+                data = f.read()
         else:
             data = resolve_smart_input(target, as_bytes=True)
     else:
@@ -189,7 +203,13 @@ def handle_magic(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ctf-toolkit",
-        description="CTF Toolkit v3 Apex - Headless Workbench & Multi-Domain Exploitation Suite",
+        description="CTF Toolkit v3.0 Apex - Headless Workbench & Multi-Domain Exploitation Suite",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"ctf-toolkit {__version__}",
     )
     subparsers = parser.add_subparsers(dest="subcommand", help="Mode operasi")
 
@@ -221,6 +241,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    configure_utf8_console()
+
     if len(sys.argv) <= 1:
         interactive_menu()
         return
