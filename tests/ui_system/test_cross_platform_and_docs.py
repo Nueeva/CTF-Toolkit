@@ -17,7 +17,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def test_version_and_utf8_console():
-    assert __version__ == "4.0.2"
+    assert __version__ == "4.1.0"
     configure_utf8_console()
     assert os.environ.get("PYTHONIOENCODING", "").lower() == "utf-8"
 
@@ -36,7 +36,7 @@ def _verify_portable_pyz(built: Path) -> None:
         timeout=120,
     )
     assert proc_ver.returncode == 0
-    assert "4.0.2" in proc_ver.stdout
+    assert __version__ in proc_ver.stdout
 
     # 2. Test headless recipe execution inside the portable .pyz archive
     proc_rec = subprocess.run(
