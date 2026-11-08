@@ -2,6 +2,11 @@ requests>=2.31,<3
 pycryptodome>=3.20,<4
 dpkt>=1.9,<2
 rich>=13.0,<15
-
-# dev
-# pytest>=8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+sympy>=1.12
+PyYAML>=6.0.0
+cryptography>=41.0.0
+pyperclip>=1.8.2
+tomli>=2.0.0; python_version < "3.11"

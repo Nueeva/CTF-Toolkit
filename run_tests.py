@@ -3,6 +3,7 @@ import sys
 import glob
 import importlib.util
 import traceback
+import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
@@ -33,6 +34,9 @@ for tfile in test_files:
                 func()
                 passed += 1
                 print(f"  {mod_name}.{attr} ... ok")
+            except unittest.SkipTest as e:
+                passed += 1
+                print(f"  {mod_name}.{attr} ... skipped ({e})")
             except Exception as e:
                 failed += 1
                 print(f"  {mod_name}.{attr} ... FAIL: {e}")

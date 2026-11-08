@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
 from typing import Any
 
@@ -403,11 +404,50 @@ def extract_sqlite_secrets(db_path_or_bytes: str | bytes | Any, keywords: list[s
     return results
 
 
-def parse_toml_secrets(toml_text: str) -> dict[str, Any]:
-    """Parse TOML configuration text using standard library tomllib and extract nested secrets."""
-    import tomllib
+def _fallback_parse_toml(toml_text: str) -> dict[str, Any]:
+    root: dict[str, Any] = {}
+    curr: dict[str, Any] = root
+    for raw_line in toml_text.splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            sec_path = line[1:-1].strip().split(".")
+            curr = root
+            for part in sec_path:
+                part = part.strip().strip('"').strip("'")
+                curr = curr.setdefault(part, {})
+            continue
+        if "=" in line:
+            k, v = line.split("=", 1)
+            key = k.strip().strip('"').strip("'")
+            val_str = v.strip()
+            if (val_str.startswith('"') and val_str.endswith('"')) or (
+                val_str.startswith("'") and val_str.endswith("'")
+            ):
+                val: Any = val_str[1:-1]
+            elif val_str.lower() in ("true", "false"):
+                val = val_str.lower() == "true"
+            else:
+                try:
+                    val = int(val_str)
+                except ValueError:
+                    val = val_str
+            curr[key] = val
+    return root
 
-    data = tomllib.loads(toml_text)
+
+def parse_toml_secrets(toml_text: str) -> dict[str, Any]:
+    """Parse TOML configuration text using tomllib / tomli / fallback and extract nested secrets."""
+    try:
+        import tomllib
+        data = tomllib.loads(toml_text)
+    except ImportError:
+        try:
+            import tomli as tomllib
+            data = tomllib.loads(toml_text)
+        except ImportError:
+            data = _fallback_parse_toml(toml_text)
     return {"parsed": data, "secrets": find_nested_secrets(data)}
 
 
