@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ctf-toolkit"
-version = "4.0.0"
+version = "4.0.1"
 description = "CTF Toolkit v4.0 Apex - Multi-domain exploitation workbench, A* Magic Solver, CyberChef pipeline studio, and 560+ callable CTF solver functions."
 readme = "README.md"
 requires-python = ">=3.10"

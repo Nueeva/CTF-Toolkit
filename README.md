@@ -3,7 +3,7 @@
 > **Multi-Domain CTF Exploitation Workbench, Autonomous A\* Magic Solver, CyberChef Pipeline Studio, and 560+ Callable Solver Functions.**  
 > Engineered for rapid exploitation and analysis across **Windows (PowerShell/CMD)**, **Linux (Kali/Ubuntu/WSL2)**, **macOS**, **Docker**, and **Single-File `.pyz` Jumpboxes**.
 
-![Version](https://img.shields.io/badge/Version-4.0.0%20Apex-0ea5e9)
+![Version](https://img.shields.io/badge/Version-4.0.1%20Apex-0ea5e9)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white)
 ![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-22c55e)
 ![Tests](https://img.shields.io/badge/Tests-1%2C238%2B%20Passing-brightgreen)
@@ -225,7 +225,7 @@ artifacts = carve_embedded_files(open("firmware.bin", "rb").read())
 
 ```text
 ctf_toolkit/
-  __init__.py          # Package version (__version__ = "4.0.0") & exports
+  __init__.py          # Package version (__version__ = "4.0.1") & exports
   __main__.py          # Module execution entrypoint (python -m ctf_toolkit)
   main_cli.py          # CLI router (triage / recipe / magic / call / interactive) & UTF-8 setup
   registry.py          # 9-Domain lazy-loaded menu registry
