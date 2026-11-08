@@ -159,21 +159,98 @@ CANDIDATE_OPS = [
     "reverse",
 ]
 
+FLAG_PATTERN = rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{([^}\r\n]{3,100})\}"
+
+COMMON_ENGLISH_WORDS = {
+    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he",
+    "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or",
+    "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about",
+    "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no", "just", "him", "know",
+    "take", "people", "into", "year", "your", "good", "some", "could", "them", "see", "other", "than", "then",
+    "now", "look", "only", "come", "its", "over", "think", "also", "back", "after", "use", "two", "how",
+    "our", "work", "first", "well", "way", "even", "new", "want", "because", "any", "these", "give", "day",
+    "most", "us", "test", "flag", "cross", "crossing", "rubicon", "secret", "hidden", "key", "crypto", "pass",
+    "password", "admin", "user", "cyber", "apex", "found", "congrat", "congratulations", "easy", "simple",
+    "crack", "solve", "solution", "hack", "hacker", "challenge", "super", "nice", "cool", "here"
+}
+
+
+def evaluate_english_readability(text: str) -> float:
+    """Evaluate linguistic plausibility of decrypted text (word tokens, n-grams, vowels)."""
+    text_lower = text.lower()
+    score = 0.0
+    tokens = re.split(r"[^a-z]+", text_lower)
+    for tok in tokens:
+        if len(tok) >= 2 and tok in COMMON_ENGLISH_WORDS:
+            score += 15.0 * len(tok)
+    for w in ("the", "and", "that", "with", "flag", "test", "cross", "rubicon", "secret"):
+        if w in text_lower:
+            score += 10.0
+    letters = [c for c in text_lower if c.isalpha()]
+    if letters:
+        vowel_cnt = sum(1 for c in letters if c in "aeiou")
+        v_ratio = vowel_cnt / len(letters)
+        if 0.25 <= v_ratio <= 0.55:
+            score += 20.0
+        elif v_ratio < 0.10 or v_ratio > 0.70:
+            score -= 30.0
+    return score
+
+
+def refine_flag_inner(data: bytes) -> tuple[bytes, list[str]]:
+    """If data matches flag wrapper, test classic shift transformations on the inner content."""
+    flag_m = re.search(FLAG_PATTERN, data, re.IGNORECASE)
+    if not flag_m:
+        return data, []
+    prefix = flag_m.group(0).split(b"{")[0].decode("latin-1")
+    inner = flag_m.group(1).decode("latin-1", errors="ignore")
+
+    base_score = evaluate_english_readability(inner)
+    best_inner = inner
+    best_shift = 0
+    best_score = base_score
+
+    for shift in range(1, 26):
+        shifted = rot_n(inner, shift)
+        s = evaluate_english_readability(shifted)
+        if s > best_score:
+            best_score = s
+            best_inner = shifted
+            best_shift = shift
+
+    shifted_atbash = atbash(inner)
+    s_atbash = evaluate_english_readability(shifted_atbash)
+    if s_atbash > best_score and s_atbash > base_score + 15.0:
+        return f"{prefix}{{{shifted_atbash}}}".encode("utf-8"), ["atbash_inner"]
+
+    if best_shift != 0 and best_score > base_score + 15.0:
+        return f"{prefix}{{{best_inner}}}".encode("utf-8"), [f"rot_inner:{best_shift}"]
+
+    return data, []
+
 
 def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple[bytes, list[str], float, list[dict]]:
     """A* Heuristic Tree Search to automatically crack layered encodings/ciphers:
     Returns (best_data, best_path, best_score, tree_history).
     """
+    # 0. Whole-string Caesar/ROT probe before tree search (e.g. qjdpDUG{...} -> picoCTF{...})
+    try:
+        text_cand = data.decode("latin-1")
+        for shift in range(1, 26):
+            cand_rot = rot_n(text_cand, shift)
+            if re.search(FLAG_PATTERN, cand_rot.encode("latin-1"), re.IGNORECASE):
+                cand_bytes = cand_rot.encode("utf-8")
+                refined, inner_path = refine_flag_inner(cand_bytes)
+                path = [f"caesar:{shift}"] + inner_path
+                return refined, path, 10000.0 + len(refined), []
+    except Exception:
+        pass
+
     initial_score = score_plaintext(data)
     if initial_score >= 10000.0:
-        flag_m = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{([^}\r\n]{3,100})\}", data, re.IGNORECASE)
-        if flag_m:
-            inner = flag_m.group(1).decode("latin-1", errors="ignore")
-            for shift in range(1, 26):
-                shifted = rot_n(inner, shift)
-                if any(term in shifted.lower() for term in (" the ", "the", "and", "that", "cross", "rubicon", "flag", "congrat", "welcome", "secret", "easy", "key", "hidden", "apex", "cyber")):
-                    prefix = flag_m.group(0).split(b"{")[0].decode("latin-1")
-                    return f"{prefix}{{{shifted}}}".encode("utf-8"), [f"rot_inner:{shift}"], initial_score + 100.0, []
+        refined_data, inner_path = refine_flag_inner(data)
+        if inner_path:
+            return refined_data, inner_path, initial_score + 100.0, []
         return data, ["(direct)"], initial_score, []
 
     # Priority Queue stores (-score, depth, path, data)
@@ -200,16 +277,11 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
 
         # Found flag! Check if inner content is Caesar/ROT-shifted before short-circuiting
         if current_score >= 10000.0:
-            flag_m = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{([^}\r\n]{3,100})\}", current, re.IGNORECASE)
-            if flag_m:
-                inner = flag_m.group(1).decode("latin-1", errors="ignore")
-                for shift in range(1, 26):
-                    shifted = rot_n(inner, shift)
-                    if any(term in shifted.lower() for term in ("flag", "congrat", "welcome", "secret", "easy", "key", "hidden", "apex", "cyber")):
-                        prefix = flag_m.group(0).split(b"{")[0].decode("latin-1")
-                        best_data = f"{prefix}{{{shifted}}}".encode("utf-8")
-                        best_path = path + [f"rot_inner:{shift}"]
-                        break
+            refined_data, inner_path = refine_flag_inner(current)
+            if inner_path:
+                best_data = refined_data
+                best_path = path + inner_path
+                best_score = current_score + 100.0
             break
 
         if depth >= max_depth:

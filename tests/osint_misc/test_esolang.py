@@ -13,8 +13,9 @@ def test_brainfuck_brackets():
 
 
 def test_ook_eval():
-    # Ook code printing 'A' (65 pluses + dot)
-    # Ook. Ook. is +
-    # Ook! Ook. is .
-    src = "Ook. Ook. " * 65 + "Ook! Ook."
+    # Standard Ook! code printing 'A' (65 increments + output)
+    # Ook! Ook. is +
+    # Ook? Ook. is .
+    src = "Ook! Ook. " * 65 + "Ook? Ook."
+    assert ook_to_brainfuck(src) == "+" * 65 + "."
     assert ook_eval(src) == "A"

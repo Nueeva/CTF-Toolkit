@@ -210,10 +210,25 @@ def handle_call(args: argparse.Namespace) -> int:
     """Invoke any indexed solver function directly from the CLI."""
     catalog = build_tool_catalog()
     if getattr(args, "list", False) or not (args.function_name or "").strip():
-        for tool in catalog:
+        filter_query = (args.function_name or "").strip().lower()
+        if filter_query:
+            matched = [
+                t for t in catalog
+                if filter_query in t["name"].lower()
+                or filter_query in t.get("category", "").lower()
+                or (t.get("doc") and filter_query in t["doc"].lower())
+            ]
+        else:
+            matched = catalog
+
+        for tool in matched:
             doc_first = (tool.get("doc") or "").strip().splitlines()[0] if tool.get("doc") else ""
             print(f"{tool['name']:<35} [{tool['category']}] {doc_first}")
-        print(f"\nTotal: {len(catalog)} functions indexed.")
+
+        if filter_query:
+            print(f"\nTotal: {len(matched)} matching functions found (filter: '{filter_query}').")
+        else:
+            print(f"\nTotal: {len(catalog)} functions indexed.")
         return 0
     func_name = args.function_name.strip()
     exact = next((t for t in catalog if t["name"] == func_name), None)
