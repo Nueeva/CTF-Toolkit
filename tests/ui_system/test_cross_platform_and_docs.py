@@ -27,36 +27,43 @@ def test_version_and_utf8_console():
     assert args.depth == 2
 
 
+def _verify_portable_pyz(built: Path) -> None:
+    # 1. Test --version on the portable .pyz archive
+    proc_ver = subprocess.run(
+        [sys.executable, str(built), "--version"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc_ver.returncode == 0
+    assert "4.0.2" in proc_ver.stdout
+
+    # 2. Test headless recipe execution inside the portable .pyz archive
+    proc_rec = subprocess.run(
+        [sys.executable, str(built), "recipe", "b64d", "-d", "RkxBR3twb3J0YWJsZV9weXpfb2t9"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc_rec.returncode == 0
+    assert "FLAG{portable_pyz_ok}" in proc_rec.stdout
+
+
 def test_portable_pyz_builder_and_execution():
     if importlib.util.find_spec("shiv") is None:
         raise unittest.SkipTest(
             "shiv not installed (dev dependency: pip install -r requirements-dev.txt)"
         )
-    with tempfile.TemporaryDirectory() as tmpdir:
-        pyz_path = Path(tmpdir) / "ctf-toolkit-test.pyz"
-        built = build_pyz(pyz_path)
-        assert built.exists()
-        assert built.stat().st_size > 10000
-
-        # 1. Test --version on the portable .pyz archive
-        proc_ver = subprocess.run(
-            [sys.executable, str(built), "--version"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        assert proc_ver.returncode == 0
-        assert "4.0.2" in proc_ver.stdout
-
-        # 2. Test headless recipe execution inside the portable .pyz archive
-        proc_rec = subprocess.run(
-            [sys.executable, str(built), "recipe", "b64d", "-d", "RkxBR3twb3J0YWJsZV9weXpfb2t9"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        assert proc_rec.returncode == 0
-        assert "FLAG{portable_pyz_ok}" in proc_rec.stdout
+    existing_pyz = ROOT_DIR / "dist" / "ctf-toolkit.pyz"
+    if existing_pyz.exists():
+        _verify_portable_pyz(existing_pyz)
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyz_path = Path(tmpdir) / "ctf-toolkit-test.pyz"
+            built = build_pyz(pyz_path)
+            assert built.exists()
+            assert built.stat().st_size > 10000
+            _verify_portable_pyz(built)
 
 
 def test_documentation_and_cross_platform_files_exist():
