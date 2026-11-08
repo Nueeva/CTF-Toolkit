@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import unittest
 from pathlib import Path
 
 from ctf_toolkit import __version__
@@ -26,6 +28,10 @@ def test_version_and_utf8_console():
 
 
 def test_portable_pyz_builder_and_execution():
+    if importlib.util.find_spec("shiv") is None:
+        raise unittest.SkipTest(
+            "shiv not installed (dev dependency: pip install -r requirements-dev.txt)"
+        )
     with tempfile.TemporaryDirectory() as tmpdir:
         pyz_path = Path(tmpdir) / "ctf-toolkit-test.pyz"
         built = build_pyz(pyz_path)

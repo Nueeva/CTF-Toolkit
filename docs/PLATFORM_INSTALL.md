@@ -129,3 +129,5 @@ The repository includes a zero-dependency test runner (`run_tests.py`) that disc
 ```bash
 python run_tests.py
 ```
+
+Install the development dependencies first (`pip install -r requirements-dev.txt`, or `pip install -e ".[dev]"`). One test — the portable-bundle builder — needs `shiv`; without it that single test is reported as skipped and the rest of the suite still runs to completion.

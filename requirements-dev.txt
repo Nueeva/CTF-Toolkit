@@ -1,0 +1,6 @@
+# Development dependencies: runtime requirements plus the tools the
+# test suite and the portable build need (shiv builds ctf-toolkit.pyz;
+# without it the portable-builder test is skipped, everything else runs).
+-r requirements.txt
+shiv>=1.0
+pytest>=8.0
