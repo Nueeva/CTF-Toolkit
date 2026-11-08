@@ -355,3 +355,63 @@ def affine_invert_bytes(data: bytes, a: int, b: int, mod: int = 256) -> bytes:
 
 
 
+
+def solve_crackme_byte_transform(
+    data: bytes,
+    flag_prefix: bytes = b"GETSFLAG{",
+) -> list[tuple[str, bytes]]:
+    """
+    Universal crackme byte-transform inverter for C/C++/Go/Java/Perl/Tcl binaries.
+    Tests single-byte XOR, byte shift, affine mod 256, odd multiplication mod 256,
+    Gray code, ROL/ROR + XOR, NOT + XOR, index linear transforms, and 2-key parity XOR.
+    """
+    results: list[tuple[str, bytes]] = []
+
+    def _check(label: str, cand: bytes) -> None:
+        if flag_prefix in cand or b"FLAG{" in cand or b"CT{" in cand or b"CTF{" in cand:
+            results.append((label, cand))
+
+    # 1. Single-byte XOR & constant byte shift
+    for k in range(256):
+        _check(f"xor_0x{k:02x}", bytes(b ^ k for b in data))
+        _check(f"sub_{k}", bytes((b - k) & 0xFF for b in data))
+        _check(f"not_xor_0x{k:02x}", bytes((~b ^ k) & 0xFF for b in data))
+
+    # 2. Gray code & bitwise rotations
+    _check("gray_decode", gray_decode(data))
+    for r in range(1, 8):
+        _check(f"ror_{r}", rotate_byte_right(data, r))
+        _check(f"rol_{r}", rotate_byte_right(data, 8 - r))
+        for k in (0x2D, 0x3C, 0x5A, 0x1F):
+            _check(f"ror_{r}_xor_0x{k:02x}", rotate_and_xor_byte(data, r, k))
+
+    # 3. Odd multiplicative & affine mod 256
+    for a in range(3, 256, 2):
+        inv_a = pow(a, -1, 256)
+        _check(f"mul_{a}", bytes((b * inv_a) & 0xFF for b in data))
+        for b_off in (5, 8, 13, 17):
+            _check(f"affine_{a}x+{b_off}", bytes(((x - b_off) * inv_a) & 0xFF for x in data))
+
+    # 4. Index-based transforms
+    _check("index_xor", invert_index_xor(data))
+    _check("index_add", invert_index_add(data))
+    _check("index_sub", invert_index_sub(data))
+    _check("not_index_xor", bytes((~(b ^ i)) & 0xFF for i, b in enumerate(data)))
+    for scale in range(1, 9):
+        for off in range(0, 6):
+            _check(f"idx_add_{scale}i+{off}", invert_compound_index_add(data, scale, off))
+            _check(
+                f"idx_xor_{scale}i+{off}",
+                bytes(b ^ ((scale * i + off) & 0xFF) for i, b in enumerate(data)),
+            )
+
+    # 5. If prefix known and len(data) >= 2, derive 2-key parity XOR directly
+    if len(data) >= 2 and len(flag_prefix) >= 2:
+        k_even = data[0] ^ flag_prefix[0]
+        k_odd = data[1] ^ flag_prefix[1]
+        _check(
+            f"parity_xor_0x{k_even:02x}_0x{k_odd:02x}",
+            invert_alternating_xor(data, k_even, k_odd),
+        )
+
+    return results

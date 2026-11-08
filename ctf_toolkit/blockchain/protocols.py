@@ -92,3 +92,53 @@ def verify_merkle_proof(
             current = _keccak256(sibling + current)
 
     return current == target_root
+
+
+
+def compute_merkle_root(leaves: list[bytes | str], sort_pairs: bool = True) -> str:
+    """Compute Ethereum Keccak-256 Merkle root from a list of leaf hashes."""
+    def _to_b(x: bytes | str) -> bytes:
+        if isinstance(x, str):
+            clean = x.lower().replace("0x", "")
+            if len(clean) == 64 and all(c in "0123456789abcdef" for c in clean):
+                return bytes.fromhex(clean)
+            return _keccak256(x.encode("utf-8"))
+        return x if len(x) == 32 else _keccak256(x)
+
+    if not leaves:
+        return "0x" + ("00" * 32)
+    layer = [_to_b(leaf) for leaf in leaves]
+    while len(layer) > 1:
+        next_layer: list[bytes] = []
+        for i in range(0, len(layer), 2):
+            if i + 1 < len(layer):
+                left, right = layer[i], layer[i + 1]
+                if sort_pairs and left > right:
+                    left, right = right, left
+                next_layer.append(_keccak256(left + right))
+            else:
+                next_layer.append(layer[i])
+        layer = next_layer
+    return "0x" + layer[0].hex()
+
+
+def resolve_4byte_selector(target_selector: str, candidates: list[str]) -> str | None:
+    """Find the Solidity function signature whose 4-byte Keccak-256 selector matches `target_selector`."""
+    target = target_selector.lower().replace("0x", "")[:8]
+    for sig in candidates:
+        h = _keccak256(sig.strip().encode("utf-8")).hex()[:8]
+        if h == target:
+            return sig.strip()
+    return None
+
+
+def crack_keccak256_wordlist(target_hash: str, candidates: list[str], salt: bytes = b"") -> str | None:
+    """Find pre-image in candidate list whose Keccak-256 hash (optionally salted) matches `target_hash`."""
+    target = target_hash.lower().replace("0x", "")
+    for word in candidates:
+        w_bytes = word.encode("utf-8")
+        if _keccak256(w_bytes + salt).hex() == target:
+            return word
+        if salt and _keccak256(salt + w_bytes).hex() == target:
+            return word
+    return None

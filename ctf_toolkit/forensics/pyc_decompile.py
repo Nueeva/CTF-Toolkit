@@ -86,3 +86,66 @@ def extract_pyc_constants_raw(data_or_path: bytes | str | Path) -> list[str]:
 
     return extracted
 
+
+
+def solve_pyc_byte_transform(
+    pyc_bytes: bytes,
+    mode: str = "auto",
+    key: int = 0,
+    key2: int = 0,
+) -> list[str]:
+    """
+    Extract byte/integer sequences from Python `.pyc` marshal streams and invert common
+    byte transformations (`add`, `sub`, `xor`, `index_sub`, `index_add`, `parity_2const`).
+    """
+    import re
+
+    candidates: list[str] = list(extract_pyc_constants_raw(pyc_bytes))
+    # Extract small integer sequences packed with marshal TYPE_INT ('i' = 0x69 + 4-byte LE int)
+    int_seqs: list[list[int]] = []
+    cur_seq: list[int] = []
+    i = 0
+    while i < len(pyc_bytes) - 5:
+        if pyc_bytes[i] == 0x69:
+            val = int.from_bytes(pyc_bytes[i + 1 : i + 5], "little", signed=True)
+            if 0 <= val <= 255:
+                cur_seq.append(val)
+                i += 5
+                continue
+        if len(cur_seq) >= 6:
+            int_seqs.append(cur_seq)
+        cur_seq = []
+        i += 1
+    if len(cur_seq) >= 6:
+        int_seqs.append(cur_seq)
+
+    for seq in int_seqs:
+        raw = bytes(seq)
+        # Try direct, add, sub, xor, index transforms
+        transforms: list[bytes] = [
+            raw,
+            bytes((b + i) & 0xFF for i, b in enumerate(raw)),
+            bytes((b - i) & 0xFF for i, b in enumerate(raw)),
+            bytes(b ^ (i & 0xFF) for i, b in enumerate(raw)),
+        ]
+        if key:
+            transforms.extend([
+                bytes((b + key) & 0xFF for b in raw),
+                bytes((b - key) & 0xFF for b in raw),
+                bytes(b ^ (key & 0xFF) for b in raw),
+            ])
+            if key2:
+                transforms.append(
+                    bytes(b ^ ((key2 if (idx & 1) else key) & 0xFF) for idx, b in enumerate(raw))
+                )
+        else:
+            for k in range(1, 256):
+                transforms.append(bytes((b - k) & 0xFF for b in raw))
+                transforms.append(bytes(b ^ k for b in raw))
+
+        for t in transforms:
+            text = t.decode("latin-1", errors="ignore")
+            if re.search(r"(?:GETSFLAG|CTF|FLAG|CT)\{[ -~]+\}", text, re.IGNORECASE):
+                if text not in candidates:
+                    candidates.insert(0, text)
+    return candidates

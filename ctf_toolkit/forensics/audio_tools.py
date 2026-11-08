@@ -302,3 +302,73 @@ def decode_dual_band_fsk(
         out.append((high_nibble << 4) | low_nibble)
     return bytes(out)
 
+
+
+def decode_audio_cw_morse(
+    wav_source: str | bytes | io.BytesIO,
+    carrier_hz: float = 700.0,
+    threshold_ratio: float = 0.3,
+) -> str:
+    """
+    Demodulate a Continuous Wave (CW) Morse code audio WAV file into decoded plaintext.
+    Measures envelope on/off durations to classify dits (.), dahs (-), letter spaces, and word spaces.
+    """
+    from ctf_toolkit.crypto.morse import morse_decode
+
+    if isinstance(wav_source, (bytes, bytearray)):
+        wf = wave.open(io.BytesIO(wav_source), "rb")
+    elif isinstance(wav_source, io.BytesIO):
+        wf = wave.open(wav_source, "rb")
+    else:
+        wf = wave.open(str(wav_source), "rb")
+
+    with wf:
+        rate = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+
+    samples = np.frombuffer(frames, dtype=np.int16).astype(np.float64)
+    win = max(1, int(rate * 0.005))
+    envelope = np.convolve(np.abs(samples), np.ones(win) / win, mode="same")
+    thresh = float(np.max(envelope) * threshold_ratio)
+    active = envelope > thresh
+
+    runs: list[tuple[bool, int]] = []
+    if len(active) == 0:
+        return ""
+    curr_state = bool(active[0])
+    start = 0
+    for i, val in enumerate(active):
+        if bool(val) != curr_state:
+            runs.append((curr_state, i - start))
+            curr_state = bool(val)
+            start = i
+    runs.append((curr_state, len(active) - start))
+
+    on_lengths = [dur for state, dur in runs if state and dur > win]
+    if not on_lengths:
+        return ""
+    dit_len = float(min(on_lengths))
+    dah_thresh = dit_len * 2.0
+
+    morse_tokens: list[str] = []
+    curr_char: list[str] = []
+    for state, dur in runs:
+        if state:
+            if dur < win:
+                continue
+            curr_char.append("-" if dur >= dah_thresh else ".")
+        else:
+            if dur >= dit_len * 5.0:
+                if curr_char:
+                    morse_tokens.append("".join(curr_char))
+                    curr_char = []
+                morse_tokens.append("/")
+            elif dur >= dit_len * 2.0:
+                if curr_char:
+                    morse_tokens.append("".join(curr_char))
+                    curr_char = []
+    if curr_char:
+        morse_tokens.append("".join(curr_char))
+
+    morse_str = " ".join(morse_tokens)
+    return morse_decode(morse_str)

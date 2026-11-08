@@ -198,3 +198,51 @@ def wiener_attack(e: int, n: int) -> int | None:
                 if p * q_val == n:
                     return k
     return None
+
+
+def rsa_factor_small(
+    n: int,
+    e: int = 65537,
+    c: int | None = None,
+    limit: int = 1_000_000,
+) -> tuple[int, int] | bytes | None:
+    """
+    Factor RSA modulus n with a small prime factor p <= limit.
+    If ciphertext c is given, returns decrypted plaintext bytes; otherwise returns (p, q).
+    """
+    if n % 2 == 0:
+        p, q = 2, n // 2
+        return rsa_solve_pqec(p, q, e, c) if c is not None else (p, q)
+    d = 3
+    bound = min(limit, isqrt(n))
+    while d <= bound:
+        if n % d == 0:
+            p, q = d, n // d
+            return rsa_solve_pqec(p, q, e, c) if c is not None else (p, q)
+        d += 2
+    return None
+
+
+def rsa_fermat(n: int, e: int = 65537, c: int | None = None, max_iter: int = 1_000_000) -> tuple[int, int] | bytes | None:
+    """Factor RSA modulus n via Fermat factorization; decrypts c if provided."""
+    factors = fermat_factor(n, max_iter=max_iter)
+    if factors is None:
+        return None
+    p, q = factors
+    return rsa_solve_pqec(p, q, e, c) if c is not None else (p, q)
+
+
+def rsa_wiener(e: int, n: int, c: int | None = None) -> int | bytes | None:
+    """Recover private exponent d via Wiener continued-fraction attack; decrypts c if provided."""
+    d = wiener_attack(e, n)
+    if d is None:
+        return None
+    if c is not None:
+        return int_to_bytes(pow(c, d, n))
+    return d
+
+
+def hastad_unpadded(ciphertext: int, e: int = 3) -> bytes:
+    """Recover plaintext bytes from unpadded small-e RSA when m^e < n."""
+    m = integer_nth_root(ciphertext, e)
+    return int_to_bytes(m)

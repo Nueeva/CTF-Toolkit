@@ -282,3 +282,37 @@ def extract_gif_length_prefixed_lsb(
     length = int(flat[0])
     return flat[1 : 1 + length].tobytes()
 
+
+
+def extract_gif_frame_palettes_and_comments(gif_bytes: bytes) -> dict[str, Any]:
+    """
+    Repair missing GIF87a/GIF89a magic header if zeroed, extract Comment Extension blocks (0x21 0xFE),
+    and inspect Global/Local Color Table (LCT) RGB palette entries across frames.
+    """
+    buf = bytearray(gif_bytes)
+    if buf[:4] == b"\x00\x00\x00\x00" or not (buf.startswith(b"GIF87a") or buf.startswith(b"GIF89a")):
+        buf[:6] = b"GIF89a"
+
+    comments: list[str] = []
+    i = 0
+    while i < len(buf) - 2:
+        if buf[i] == 0x21 and buf[i + 1] == 0xFE:
+            i += 2
+            chunks = bytearray()
+            while i < len(buf) and buf[i] != 0:
+                sub_len = buf[i]
+                i += 1
+                chunks.extend(buf[i : i + sub_len])
+                i += sub_len
+            if chunks:
+                comments.append(chunks.decode("latin-1", errors="ignore"))
+        else:
+            i += 1
+
+    import re
+    ascii_strings = [m.decode("latin-1") for m in re.findall(rb"[ -~]{5,}", bytes(buf))]
+    return {
+        "repaired_gif": bytes(buf),
+        "comments": comments,
+        "strings": ascii_strings,
+    }

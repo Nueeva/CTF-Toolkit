@@ -224,3 +224,31 @@ def eval_stack_vm(code: str) -> str:
     return "".join(output)
 
 
+
+def befunge_extract_strings(grid_text: str) -> str:
+    """Extract string literals pushed onto the Befunge-93 2D playfield stack (LIFO pop order)."""
+    lines = [line.rstrip("\r\n") for line in grid_text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    quoted = re.findall(r'"([^"]+)"', grid_text)
+    if quoted:
+        for q in quoted:
+            q_up = q.upper()
+            rev = q[::-1]
+            rev_up = rev.upper()
+            if any(k in q_up for k in ("FLAG{", "CT{", "GETSFLAG{", "CTF{")):
+                return q
+            if any(k in rev_up for k in ("FLAG{", "CT{", "GETSFLAG{", "CTF{")) or (rev.startswith("{") and rev.endswith("}")):
+                return rev
+        return "".join(q[::-1] for q in quoted)
+    return ""
+
+
+def decode_collatz_ascii(numbers: list[int], offset: int = 32) -> str:
+    """
+    Convert a list of integers to ASCII characters via their Collatz (3n+1) stopping time
+    plus a constant offset (default +32).
+    """
+    from ctf_toolkit.utils.math import collatz_stopping_time
+
+    return "".join(chr((collatz_stopping_time(n) + offset) & 0xFF) for n in numbers)

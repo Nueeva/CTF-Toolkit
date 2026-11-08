@@ -84,3 +84,19 @@ def repair_pdf_broken_header(pdf_bytes: bytes) -> bytes:
     out = out.replace(b"startzref", b"startxref")
     return bytes(out)
 
+
+
+def scan_pdf_raw_objects(data: bytes) -> list[str]:
+    """Scan raw PDF objects and decompressed content streams for printable strings and tokens."""
+    results: list[str] = []
+    results.extend(extract_pdf_all_text_tokens(data))
+    for stream in extract_pdf_decompressed_streams(data):
+        text = stream.decode("latin-1", errors="ignore")
+        for m in re.findall(r"[ -~]{4,}", text):
+            if m not in results:
+                results.append(m)
+    raw_text = data.decode("latin-1", errors="ignore")
+    for m in re.findall(r"\(([^()]{4,})\)", raw_text):
+        if m not in results:
+            results.append(m)
+    return results

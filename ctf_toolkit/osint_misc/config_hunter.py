@@ -401,3 +401,100 @@ def extract_sqlite_secrets(db_path_or_bytes: str | bytes | Any, keywords: list[s
                 pass
 
     return results
+
+
+def parse_toml_secrets(toml_text: str) -> dict[str, Any]:
+    """Parse TOML configuration text using standard library tomllib and extract nested secrets."""
+    import tomllib
+
+    data = tomllib.loads(toml_text)
+    return {"parsed": data, "secrets": find_nested_secrets(data)}
+
+
+def parse_jsonc(jsonc_text: str) -> Any:
+    """Strip `//` and `/* ... */` comments and trailing commas from JSONC text and parse as JSON."""
+    import json
+    import re
+
+    no_block = re.sub(r"/\*.*?\*/", "", jsonc_text, flags=re.DOTALL)
+    lines = []
+    for line in no_block.splitlines():
+        in_str = False
+        escaped = False
+        cut_idx = len(line)
+        for i, ch in enumerate(line):
+            if escaped:
+                escaped = False
+                continue
+            if ch == "\\":
+                escaped = True
+                continue
+            if ch == '"':
+                in_str = not in_str
+            elif not in_str and line[i : i + 2] == "//":
+                cut_idx = i
+                break
+        lines.append(line[:cut_idx])
+    cleaned = "\n".join(lines)
+    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
+    return json.loads(cleaned)
+
+
+def resolve_json_pointer(doc: Any, pointer: str) -> Any:
+    """Resolve an RFC 6901 JSON Pointer (e.g. `/a/b/0`) against a parsed JSON document."""
+    if not pointer or pointer == "/":
+        return doc
+    parts = pointer.lstrip("/").split("/")
+    curr = doc
+    for raw_part in parts:
+        part = raw_part.replace("~1", "/").replace("~0", "~")
+        if isinstance(curr, list):
+            curr = curr[int(part)]
+        elif isinstance(curr, dict):
+            curr = curr[part]
+        else:
+            raise KeyError(f"Cannot traverse {part} on non-container")
+    return curr
+
+
+def parse_mime_email_parts(eml_source: str | bytes) -> dict[str, Any]:
+    """Parse RFC 822 / MIME `.eml` message headers, decoded body parts, and attachment payloads."""
+    from email import policy
+    from email.parser import BytesParser
+
+    raw = eml_source.encode("utf-8") if isinstance(eml_source, str) else eml_source
+    msg = BytesParser(policy=policy.default).parsebytes(raw)
+    headers = {k: str(v) for k, v in msg.items()}
+    bodies: list[str] = []
+    attachments: list[dict[str, Any]] = []
+
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.is_multipart():
+                continue
+            fn = part.get_filename()
+            payload = part.get_payload(decode=True) or b""
+            if fn:
+                attachments.append({"filename": fn, "data": payload})
+            else:
+                bodies.append(payload.decode("utf-8", errors="replace"))
+    else:
+        payload = msg.get_payload(decode=True) or b""
+        bodies.append(payload.decode("utf-8", errors="replace"))
+
+    return {"headers": headers, "bodies": bodies, "attachments": attachments}
+
+
+def extract_xml_namespaced_values(xml_text: str) -> list[str]:
+    """Extract all element text values and attribute values from XML (including namespaced tags)."""
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(xml_text)
+    values: list[str] = []
+    for elem in root.iter():
+        if elem.text and elem.text.strip():
+            values.append(elem.text.strip())
+        for attr_val in elem.attrib.values():
+            if attr_val and attr_val.strip():
+                values.append(attr_val.strip())
+    return values
