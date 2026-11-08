@@ -22,7 +22,7 @@ def extract_channel_bytes(img_data: bytes | io.BytesIO | str, channel: str = "R"
 def find_flags_in_channel(img_data: bytes | io.BytesIO | str, channel: str = "R") -> list[str]:
     """Find CTF flags directly embedded in an image color channel."""
     raw = extract_channel_bytes(img_data, channel)
-    matches = re.findall(rb"(?:GETSFLAG|FLAG|CT)\{[^}]+\}", raw)
+    matches = re.findall(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", raw)
     return [m.decode("utf-8", errors="ignore") for m in matches]
 
 

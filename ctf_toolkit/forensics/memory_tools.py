@@ -23,7 +23,7 @@ def assemble_memory_frag_headers(data: bytes, header: bytes = b"FRAGHDR\x00") ->
     return part1 + part2
 
 
-def extract_memory_dump_xor(data: bytes, key: int = 0x3C, pattern: bytes = rb"(?:GETSFLAG|FLAG)\{[^}]+\}") -> list[str]:
+def extract_memory_dump_xor(data: bytes, key: int = 0x3C, pattern: bytes = rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}") -> list[str]:
     """
     Decrypt single-byte XOR obfuscated memory heap dump and extract matching flags.
     """

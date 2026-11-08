@@ -149,9 +149,9 @@ def op_rle_decode(data: Any, *args: str) -> str:
 
 @register_op("flag_scan")
 @register_op("grep_flag")
-def op_flag_scan(data: Any, pattern: str = r"(?:GETSFLAG|CT|FLAG)\{[^\}]+\}") -> str:
+def op_flag_scan(data: Any, pattern: str = r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\}]+\}") -> str:
     text = data.decode("latin-1", errors="ignore") if isinstance(data, bytes) else str(data)
-    m = re.findall(pattern, text)
+    m = re.findall(pattern, text, re.IGNORECASE)
     if m:
         return "\n".join(m)
     return text

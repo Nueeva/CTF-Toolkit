@@ -19,7 +19,7 @@ def mine_profile_handles(data: str | bytes | dict[str, Any]) -> dict[str, Any]:
     handles = sorted(set(re.findall(r"(?<![A-Za-z0-9._%+-])@[A-Za-z0-9_.-]{3,32}", text)))
     emails = sorted(set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)))
     urls = sorted(set(re.findall(r"https?://[^\s\"'<>]+", text)))
-    flags = sorted(set(re.findall(r"(?:GETSFLAG|CTF|FLAG|CT)\{[^}\s]+\}", text, re.IGNORECASE)))
+    flags = sorted(set(re.findall(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}\s]+\}", text, re.IGNORECASE)))
 
     return {
         "handles": handles,

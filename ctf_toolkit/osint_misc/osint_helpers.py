@@ -91,7 +91,7 @@ def classify_login_ip(ip: str) -> str:
 
 def extract_git_commit_secrets(gitlog_text: str) -> list[str]:
     """Extract flags or tokens mentioned in git commit history messages."""
-    return re.findall(r"(?:FLAG\{[^}]+\}|GETSFLAG\{[^}]+\})", gitlog_text)
+    return re.findall(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", gitlog_text)
 
 
 def extract_tls_subject_cn(cert_text: str) -> str | None:

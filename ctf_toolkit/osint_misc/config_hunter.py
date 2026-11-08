@@ -49,7 +49,7 @@ def find_nested_secrets(
             findings.extend(find_nested_secrets(item, target_keywords, curr_path))
     elif isinstance(obj, str):
         # Check if value matches flag format or secret keyword
-        if re.search(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", obj):
+        if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", obj):
             findings.append((path, obj))
 
     return findings
@@ -64,7 +64,7 @@ def extract_yaml_secrets(yaml_data: str | bytes) -> list[tuple[str, str]]:
     except ImportError:
         # Fallback regex extraction if PyYAML is unavailable
         raw = yaml_data.decode("utf-8") if isinstance(yaml_data, bytes) else yaml_data
-        matches = re.findall(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", raw)
+        matches = re.findall(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", raw)
         return [("raw_regex", m) for m in matches]
 
     raw = yaml_data.decode("utf-8") if isinstance(yaml_data, bytes) else yaml_data
@@ -104,7 +104,7 @@ def extract_ini_secrets(ini_data: str | bytes) -> list[tuple[str, str]]:
             k_lower = k.lower()
             if any(kw in k_lower for kw in keywords):
                 findings.append((curr_path, v))
-            elif re.search(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", v):
+            elif re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", v):
                 findings.append((curr_path, v))
 
     return findings
@@ -129,7 +129,7 @@ def extract_csv_secrets(csv_data: str | bytes) -> list[tuple[str, str]]:
         for col_idx, cell in enumerate(row):
             col_name = header[col_idx] if header and col_idx < len(header) else f"col_{col_idx}"
             curr_path = f"row_{row_idx}.{col_name}"
-            if re.search(r"(?:GETSFLAG|FLAG|CTF)\{[^}]+\}", cell):
+            if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", cell):
                 findings.append((curr_path, cell))
             elif any(kw in cell.lower() for kw in ["secret", "token", "password"]):
                 findings.append((curr_path, cell))

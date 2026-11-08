@@ -120,7 +120,7 @@ def triage_data(raw_data: bytes, target_label: str = "buffer") -> TriageReport:
 
     # 2. Check for embedded plaintext flags
     text_view = raw_data.decode("latin-1", errors="ignore")
-    flags = re.findall(r"(?:GETSFLAG|CT|FLAG)\{[^\}\s]{3,}\}", text_view)
+    flags = re.findall(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\}\s]{3,}\}", text_view, re.IGNORECASE)
     if flags:
         report.flags_found.extend(flags)
 

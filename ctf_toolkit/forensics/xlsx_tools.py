@@ -74,7 +74,7 @@ def extract_xlsx_metadata(xlsx_data: bytes | io.BytesIO | str) -> dict[str, str]
         for name in namelist:
             try:
                 raw = zf.read(name)
-                found = re.findall(rb"(?:GETSFLAG|CT)\{[^}]+\}", raw)
+                found = re.findall(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", raw)
                 for f in found:
                     flag_str = f.decode("utf-8", errors="ignore")
                     if flag_str not in flags:

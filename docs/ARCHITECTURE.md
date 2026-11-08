@@ -46,7 +46,7 @@ flowchart TB
 The Magic Solver models multi-layer decoding as a best-first graph search problem:
 - **State Representation:** Each node in the priority queue is `(-score, depth, path, data_bytes)`.
 - **Heuristic Fitness Function (`score_plaintext`):**
-  - **Immediate Goal Detection (`+10,000`):** Matches standard CTF flag formats (`FLAG{...}`, `CTF{...}`, `GETSFLAG{...}`, `LKS{...}`, `picoCTF{...}`).
+  - **Immediate Goal Detection (`+10,000`):** Matches standard CTF flag formats (`FLAG{...}`, `CTF{...}`, `GETSFLAG{...}`, `LKS{...}`, `picoCTF{...}`, `HTB{...}`, `THM{...}`, `dice{...}`, `ASIS{...}`, `SEKAI{...}`) plus Indonesian edition families whose prefix is a brand stem with an optional edition number (`COMPFEST<n>{...}`, `GEMASTIK<n>{...}`, `WRECKIT<n>{...}`, `HOLOGY<n>{...}`, `slashroot<n>{...}`, `ARKAV{...}`).
   - **Printable ASCII Density (`0..100`):** Rewards candidates where $\ge 70\%$ of bytes are printable ASCII (`0x20..0x7E` or whitespace).
   - **Index of Coincidence (`+50`):** Rewards letter distributions near natural language ($0.050 \le \text{IC} \le 0.085$).
   - **Entropy Window (`+30`):** Rewards Shannon entropy in the natural text band ($3.5 \le H \le 5.5\text{ bits/byte}$).

@@ -145,7 +145,7 @@ def solve_pyc_byte_transform(
 
         for t in transforms:
             text = t.decode("latin-1", errors="ignore")
-            if re.search(r"(?:GETSFLAG|CTF|FLAG|CT)\{[ -~]+\}", text, re.IGNORECASE):
+            if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[ -~]+\}", text, re.IGNORECASE):
                 if text not in candidates:
                     candidates.insert(0, text)
     return candidates

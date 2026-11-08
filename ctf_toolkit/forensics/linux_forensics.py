@@ -7,7 +7,7 @@ def decrypt_marker_bounded_xor(
     data: bytes,
     marker: bytes = b"XK",
     key: int = 0x5A,
-    pattern: bytes = rb"(?:GETSFLAG|FLAG)\{[^}]+\}",
+    pattern: bytes = rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}",
 ) -> list[str]:
     """
     Locate segments enclosed by markers (or entire payload if marker absent),

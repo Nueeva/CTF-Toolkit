@@ -46,7 +46,7 @@ def generate_traversal_payloads(target_file: str = "flag.txt", depth: int = 5) -
 
 def check_lfi_disclosure(content: str) -> dict[str, object]:
     """Analyze HTTP response text for indicators of local file inclusion."""
-    flag_match = re.search(r"(?:GETSFLAG|CT|FLAG)\{[^}]+\}", content, re.IGNORECASE)
+    flag_match = re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", content, re.IGNORECASE)
     has_passwd = bool(re.search(r"root:[x*]:0:0:", content))
     has_win_ini = bool(re.search(r"\[(?:fonts|extensions|files)\]", content, re.IGNORECASE))
 

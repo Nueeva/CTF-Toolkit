@@ -17,7 +17,7 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
         text = curr.decode("utf-8", errors="ignore").strip()
         if not text:
             break
-        if re.search(r"(?:GETSFLAG|CTF|FLAG|CT)\{[^}]+\}", text, re.IGNORECASE):
+        if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", text, re.IGNORECASE):
             return curr
 
         next_val: bytes | None = None

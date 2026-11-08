@@ -52,7 +52,7 @@ def score_plaintext(data: bytes) -> float:
         return -100.0
 
     # 1. CTF Flag check (Instant high score)
-    flag_match = re.search(rb"(?:FLAG|CTF|GETSFLAG|LKS|picoCTF)\{[^\n\r\}]{3,100}\}", data, re.IGNORECASE)
+    flag_match = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\n\r\}]{3,100}\}", data, re.IGNORECASE)
     if flag_match:
         return 10000.0 + len(data)
 
@@ -205,7 +205,7 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
             scored_keys = []
             for k in range(1, 256):
                 dec = xor_bytes(current, k)
-                if re.search(rb"(?:FLAG|CTF|GETSFLAG|LKS)\{[^\n\r\}]{3,100}\}", dec, re.IGNORECASE):
+                if re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\n\r\}]{3,100}\}", dec, re.IGNORECASE):
                     ops_to_try.append(f"xor:0x{k:02x}")
                     break
                 b64_cnt = sum(1 for b in dec if (65 <= b <= 90) or (97 <= b <= 122) or (48 <= b <= 57) or b in (43, 47, 61))

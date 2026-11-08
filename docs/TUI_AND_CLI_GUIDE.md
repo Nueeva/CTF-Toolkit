@@ -13,7 +13,7 @@ When running in interactive mode (`python main.py` or `ctf-toolkit`), you can en
 | `/<query>` | **Global Command Palette**: Fuzzy-search across all 560+ solver abstractions and run any function via an auto-generated parameter prompt. | `/wiener`, `/rop`, `/sqli`, `/docx`, `/whois`, `/revert` |
 | `:m` or `:magic` | **Autonomous Magic Solver**: Launch the A\* heuristic multi-hop decoder/decryptor tree on any ciphertext or file. | `:m` |
 | `:s` or `:studio` | **Interactive Recipe Studio**: Open the step-by-step CyberChef pipeline builder with live intermediate trace tables. | `:s` |
-| `:f` or `:flags` | **Session Flag Vault**: Display all flags automatically captured during the active session (`FLAG{...}`, `GETSFLAG{...}`, `LKS{...}`, etc.). | `:f` |
+| `:f` or `:flags` | **Session Flag Vault**: Display all flags automatically captured during the active session (`FLAG{...}`, `GETSFLAG{...}`, `LKS{...}`, `HTB{...}`, `picoCTF{...}`, `dice{...}`, Indonesian edition formats such as `COMPFEST17{...}`/`GEMASTIK19{...}`, etc.). | `:f` |
 | `:b` or `:buf` | **Buffer Register History**: Inspect all stored session registers (`$last`, `$1`, `$2`, ...) along with data type, byte size, and preview. | `:b` |
 | `:c` or `:copy` | **Copy to Clipboard**: Copy the current `$last` register contents directly to the OS clipboard (`clip.exe` / `pbcopy` / `xclip`). | `:c` |
 | `:case <name>` | **Switch Challenge Case**: Set the active challenge workspace name used for tracking history and exporting writeups. | `:case crypto_rsa_01` |
