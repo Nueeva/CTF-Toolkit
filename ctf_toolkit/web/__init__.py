@@ -4,7 +4,10 @@ from ctf_toolkit.web.helpers import (
     b64url_decode,
     b64url_encode,
     build_basic_auth,
+    build_cors_null_origin_headers,
     build_graphql_query,
+    build_http_parameter_pollution_query,
+    build_jsonp_callback_url,
     build_nosql_query_payload,
     build_ssti_probes,
     format_cookies,
@@ -13,6 +16,7 @@ from ctf_toolkit.web.helpers import (
     jwt_forge_hs256,
     merge_mass_assignment,
     parse_cookies,
+    parse_swagger_spec,
     url_decode,
     url_encode,
 )
@@ -37,4 +41,8 @@ __all__ = [
     "build_graphql_query",
     "build_ssti_probes",
     "merge_mass_assignment",
+    "build_http_parameter_pollution_query",
+    "parse_swagger_spec",
+    "build_jsonp_callback_url",
+    "build_cors_null_origin_headers",
 ]

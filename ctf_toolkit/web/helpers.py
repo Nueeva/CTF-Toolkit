@@ -141,3 +141,28 @@ def merge_mass_assignment(
             result[k] = v
     return result
 
+
+def build_http_parameter_pollution_query(params: list[tuple[str, str]]) -> str:
+    """Build an HTTP Parameter Pollution query string preserving duplicate keys."""
+    return "&".join(f"{quote_plus(k)}={quote_plus(v)}" for k, v in params)
+
+
+def parse_swagger_spec(spec: dict[str, object]) -> list[str]:
+    """Extract route paths defined in an OpenAPI / Swagger document."""
+    paths = spec.get("paths", {})
+    if isinstance(paths, dict):
+        return list(paths.keys())
+    return []
+
+
+def build_jsonp_callback_url(base_url: str, callback: str = "handleResponse") -> str:
+    """Construct a JSONP endpoint URL appending callback parameter."""
+    sep = "&" if "?" in base_url else "?"
+    return f"{base_url}{sep}callback={quote_plus(callback)}"
+
+
+def build_cors_null_origin_headers() -> dict[str, str]:
+    """Return request headers testing null-origin CORS trust misconfiguration."""
+    return {"Origin": "null"}
+
+
