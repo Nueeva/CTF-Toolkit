@@ -68,7 +68,7 @@ def render_header(module_name: str = "Main Hub") -> None:
         )
         table.add_row(
             f"[dim]Buffer $last:[/dim] [bright_blue]{last_str}[/bright_blue]",
-            "[dim][/] Search Tools  [:m] Magic  [:s] Studio  [:f] Flags  [:c] Copy  [0] Back[/dim]",
+            "[dim]\\[/] Search Tools  \\[:m] Magic  \\[:s] Studio  \\[:f] Flags  \\[:c] Copy  \\[0] Back[/dim]",
         )
         _CONSOLE.print(Panel(table, border_style="cyan", padding=(0, 1)))
     else:
