@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
 from urllib.parse import quote_plus, unquote_plus
 
@@ -50,3 +52,48 @@ def jwt_decode_no_verify(token: str) -> dict[str, object]:
         "payload": payload,
         "signature_b64url": signature,
     }
+
+
+def jwt_forge_hs256(payload: dict[str, object], secret: str, header: dict[str, object] | None = None) -> str:
+    """Forge an HMAC-SHA256 JWT using a known or recovered secret key."""
+    if header is None:
+        header = {"alg": "HS256", "typ": "JWT"}
+    h_b64 = b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    p_b64 = b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{h_b64}.{p_b64}".encode("utf-8")
+    sig = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    s_b64 = b64url_encode(sig)
+    return f"{h_b64}.{p_b64}.{s_b64}"
+
+
+def build_basic_auth(username: str, password: str) -> str:
+    """Construct a standard HTTP Basic Authorization header value."""
+    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("utf-8")
+    return f"Basic {token}"
+
+
+def parse_cookies(cookie_header: str) -> dict[str, str]:
+    """Parse a Cookie header string into a dictionary."""
+    cookies: dict[str, str] = {}
+    if not cookie_header:
+        return cookies
+    for pair in cookie_header.split(";"):
+        pair = pair.strip()
+        if not pair:
+            continue
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            cookies[k.strip()] = v.strip()
+        else:
+            cookies[pair] = ""
+    return cookies
+
+
+def format_cookies(cookies: dict[str, str]) -> str:
+    """Format a dictionary of cookie key-values into a Cookie header string."""
+    return "; ".join(f"{k}={v}" for k, v in cookies.items())
+
+
+def build_nosql_query_payload(field: str, operator: str = "$ne", value: object = "") -> dict[str, object]:
+    """Build a MongoDB/NoSQL operator injection payload dictionary."""
+    return {field: {operator: value}}
