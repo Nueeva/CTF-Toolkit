@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import binascii
 import json
+import struct
 
 from ctf_toolkit.ui.common import print_memory_wrapper, show_text_hex
 from ctf_toolkit.utils.io import safe_input, warn
@@ -51,6 +52,12 @@ def menu() -> None:
     from ctf_toolkit.binex.gadgets import scan_gadgets
     from ctf_toolkit.binex.pack import p32, p64, u32, u64
     from ctf_toolkit.binex.pwncalc import cyclic_create, cyclic_find
+    from ctf_toolkit.binex.pwn_tools import (
+        build_format_string_probe,
+        build_ret2win_payload,
+        build_rop_chain,
+        build_variable_overwrite,
+    )
 
     def cyclic_create_action() -> None:
         try:
@@ -100,6 +107,42 @@ def menu() -> None:
     def pwn_calc_action() -> None:
         pwn_calc_menu()
 
+    def ret2win_action() -> None:
+        try:
+            pad = int(safe_input("Offset / Padding length (e.g. 40): "))
+            addr_raw = safe_input("Target win() address (hex, e.g. 0x401186): ").strip()
+            win_addr = int(addr_raw, 16) if addr_raw.startswith("0x") else int(addr_raw)
+            arch = safe_input("Architecture [x64/x32, default x64]: ").strip().lower() or "x64"
+            payload = build_ret2win_payload(padding_len=pad, win_addr=win_addr, arch=arch)
+            print(f"\n[+] Ret2win payload generated ({len(payload)} bytes):")
+            print(f"    Raw bytes : {repr(payload)}")
+            print(f"    Hex string: {payload.hex()}")
+        except Exception as exc:
+            warn(f"Error: {exc}")
+
+    def rop_action() -> None:
+        try:
+            pad = int(safe_input("Offset / Padding length (e.g. 40): "))
+            gadgets_raw = safe_input("Gadget addresses separated by comma (hex, e.g. 0x4011d3, 0xdeadc0de, 0x401196): ")
+            gadgets = [int(g.strip(), 16) if g.strip().startswith("0x") else int(g.strip()) for g in gadgets_raw.split(",") if g.strip()]
+            arch = safe_input("Architecture [x64/x32, default x64]: ").strip().lower() or "x64"
+            payload = build_rop_chain(padding_len=pad, gadgets=gadgets, arch=arch)
+            print(f"\n[+] ROP chain payload generated ({len(payload)} bytes):")
+            print(f"    Raw bytes : {repr(payload)}")
+            print(f"    Hex string: {payload.hex()}")
+        except Exception as exc:
+            warn(f"Error: {exc}")
+
+    def fmt_action() -> None:
+        try:
+            num = int(safe_input("Number of positional words to probe [default 10]: ").strip() or "10")
+            start = int(safe_input("Offset start [default 1]: ").strip() or "1")
+            probe = build_format_string_probe(num_words=num, offset_start=start)
+            print(f"\n[+] Format string probe string:")
+            print(f"    {probe}")
+        except Exception as exc:
+            warn(f"Error: {exc}")
+
     run_menu(
         "BinEx",
         {
@@ -109,5 +152,8 @@ def menu() -> None:
             "4": ("ELF Triage / Checksec-lite", elf_triage_action),
             "5": ("Gadget Scan (ret, pop rdi; ret)", gadget_scan_action),
             "6": ("Pwn & Memory Boundary Analyzer", pwn_calc_action),
+            "7": ("Ret2win Payload Crafter", ret2win_action),
+            "8": ("ROP Chain Crafter", rop_action),
+            "9": ("Format String Probe Generator", fmt_action),
         },
     )

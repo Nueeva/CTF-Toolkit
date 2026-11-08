@@ -101,6 +101,10 @@ def menu() -> None:
         REQUEST_TEMPLATES,
         b64url_decode,
         b64url_encode,
+        build_command_injection_payload,
+        build_lfi_traversal_path,
+        build_sqli_auth_bypass,
+        build_ssrf_metadata_url,
         jwt_decode_no_verify,
         url_decode,
         url_encode,
@@ -161,6 +165,27 @@ def menu() -> None:
         for p in payloads:
             print(p)
 
+    def sqli_action() -> None:
+        user = safe_input("Target username [default admin]: ").strip() or "admin"
+        print("\n=== SQLi Auth Bypass Payloads ===")
+        for tech in ["or_true", "or_1_equals_1", "or_true_hash", "admin_closed", "union_admin"]:
+            payload = build_sqli_auth_bypass(username=user, technique=tech)
+            print(f"  [{tech:<15}] : {payload}")
+
+    def cmdi_action() -> None:
+        base = safe_input("Base IP/Host [default 127.0.0.1]: ").strip() or "127.0.0.1"
+        cmd = safe_input("Command to execute [default cat /flag.txt]: ").strip() or "cat /flag.txt"
+        print("\n=== Command Injection Delimiter Payloads ===")
+        for sep in [";", "|", "&&", "||", "subshell", "newline"]:
+            payload = build_command_injection_payload(base_arg=base, separator=sep, command=cmd)
+            print(f"  [{sep:<10}] : {repr(payload)}")
+
+    def ssrf_action() -> None:
+        print("\n=== Cloud SSRF Metadata Probe Endpoints ===")
+        for provider in ["aws", "gcp", "digitalocean", "docker_internal", "localhost"]:
+            url = build_ssrf_metadata_url(provider)
+            print(f"  [{provider:<15}] : {url}")
+
     run_menu(
         "Web",
         {
@@ -172,5 +197,8 @@ def menu() -> None:
             "6": ("Request Templates Generator", request_templates_action),
             "7": ("Attacks / Logic Helpers", attacks_action),
             "8": ("LFI / Path Traversal Crafter", lfi_action),
+            "9": ("SQLi Auth Bypass Crafter", sqli_action),
+            "10": ("Command Injection Crafter", cmdi_action),
+            "11": ("Cloud SSRF Prober Endpoints", ssrf_action),
         },
     )
