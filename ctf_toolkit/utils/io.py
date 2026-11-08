@@ -58,3 +58,13 @@ def read_bytes_file(path: str) -> bytes:
     except OSError as exc:
         warn(f"Gagal membaca file: {exc}")
         return b""
+
+
+def read_text_file(path: str) -> str:
+    if not path:
+        return ""
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="ignore")
+    except OSError as exc:
+        warn(f"Gagal membaca file: {exc}")
+        return ""
