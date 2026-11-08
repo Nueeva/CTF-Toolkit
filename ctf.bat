@@ -1,5 +1,5 @@
 @echo off
-REM CTF-Toolkit v3.0 Apex - Windows Command Prompt Launcher
+REM CTF-Toolkit v4.0 Apex - Windows Command Prompt Launcher
 chcp 65001 >nul 2>&1
 set PYTHONIOENCODING=utf-8
 set SCRIPT_DIR=%~dp0

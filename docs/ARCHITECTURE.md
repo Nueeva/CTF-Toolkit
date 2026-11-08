@@ -1,6 +1,6 @@
-# CTF-Toolkit v3.0 Apex — Architecture & Extension Guide
+# CTF-Toolkit v4.0 Apex — Architecture & Extension Guide
 
-This document describes the internal architecture of `CTF-Toolkit`, how the **Headless Engine Layer** separates from the **TUI v3 Presentation Layer**, and how to add new solver primitives or recipe operations.
+This document describes the internal architecture of `CTF-Toolkit`, how the **Headless Engine Layer** separates from the **TUI v4 Presentation Layer**, and how to add new solver primitives or recipe operations.
 
 ---
 
@@ -14,7 +14,7 @@ flowchart TB
         Launchers["ctf.ps1 | ctf.bat | ctf.sh | Dockerfile"]
     end
 
-    subgraph Presentation["2. TUI v3 Apex Presentation Layer (ctf_toolkit/ui/)"]
+    subgraph Presentation["2. TUI v4 Apex Presentation Layer (ctf_toolkit/ui/)"]
         Console["console.py\nRich Renderer + ANSI Fallback + Telemetry Header"]
         Inspector["inspector.py\nCanonical Hexdump + Entropy Sparkline + Binary Anatomy Dissector"]
         Session["session.py\nStateful Registers ($last, $1..$n) + Flag Vault + Writeup Exporter"]
@@ -23,7 +23,7 @@ flowchart TB
         Menus["9 Domain Menus\n(crypto, binex, web, forensics, blockchain, osint_misc, utilities, defensive, workbench)"]
     end
 
-    subgraph Engine["3. Pure Python Solver Engine Layer (106+ Abstractions)"]
+    subgraph Engine["3. Pure Python Solver Engine Layer (560+ Functions)"]
         Triage["triage/\nMagic Signatures, Shannon Entropy, IC, Encoding Heuristics"]
         Pipeline["pipeline/\nRECIPE_REGISTRY & Chained Transformation Executor"]
         Domains["Domain Engines\ncrypto/ | pwn/ | binex/ | web/ | forensics/ | reversing/ | blockchain/ | osint_misc/ | defensive/"]

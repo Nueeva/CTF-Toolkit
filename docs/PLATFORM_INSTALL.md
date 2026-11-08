@@ -1,6 +1,6 @@
 # Cross-Platform Installation & Deployment Guide
 
-`CTF-Toolkit v3.0 Apex` is engineered to run seamlessly across **Windows 10/11**, **Linux (Kali, Parrot, Ubuntu, Debian, Arch, WSL2)**, **macOS (Apple Silicon & Intel)**, **Docker containers**, and **air-gapped CTF jumpboxes**.
+`CTF-Toolkit v4.0 Apex` is engineered to run seamlessly across **Windows 10/11**, **Linux (Kali, Parrot, Ubuntu, Debian, Arch, WSL2)**, **macOS (Apple Silicon & Intel)**, **Docker containers**, and **air-gapped CTF jumpboxes**.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Launch Interactive TUI v3 Apex Command Center
+# 2. Launch Interactive TUI v4 Apex Command Center
 .\ctf.ps1
 
 # 3. Run Headless CLI commands
@@ -106,25 +106,25 @@ Run `CTF-Toolkit` inside an isolated `python:3.12-slim` container with your curr
 
 ```bash
 # Build the image
-docker build -t ctf-toolkit:v3 .
+docker build -t ctf-toolkit:v4 .
 
 # Launch interactive TUI with current folder mounted
-docker run -it --rm -v "$(pwd):/work" ctf-toolkit:v3
+docker run -it --rm -v "$(pwd):/work" ctf-toolkit:v4
 
 # Run headless triage on a file in the current directory
-docker run --rm -v "$(pwd):/work" ctf-toolkit:v3 triage /work/challenge.bin
+docker run --rm -v "$(pwd):/work" ctf-toolkit:v4 triage /work/challenge.bin
 ```
 
 On **Windows PowerShell**:
 ```powershell
-docker run -it --rm -v "${PWD}:/work" ctf-toolkit:v3
+docker run -it --rm -v "${PWD}:/work" ctf-toolkit:v4
 ```
 
 ---
 
 ## 6. Running the Test Suite Across Platforms
 
-The repository includes a zero-dependency test runner (`run_tests.py`) that discovers and runs all **118+ test files (1,228+ tests)** across Windows, Linux, and macOS without requiring external test frameworks:
+The repository includes a zero-dependency test runner (`run_tests.py`) that discovers and runs all **118+ test files (1,238+ tests)** across Windows, Linux, and macOS without requiring external test frameworks:
 
 ```bash
 python run_tests.py

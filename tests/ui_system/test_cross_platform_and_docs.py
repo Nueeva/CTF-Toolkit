@@ -11,11 +11,11 @@ from ctf_toolkit import __version__
 from ctf_toolkit.main_cli import build_parser, configure_utf8_console
 from scripts.build_portable import build_pyz
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def test_version_and_utf8_console():
-    assert __version__ == "3.0.0"
+    assert __version__ == "4.0.0"
     configure_utf8_console()
     assert os.environ.get("PYTHONIOENCODING", "").lower() == "utf-8"
 
@@ -40,7 +40,7 @@ def test_portable_pyz_builder_and_execution():
             timeout=15,
         )
         assert proc_ver.returncode == 0
-        assert "3.0.0" in proc_ver.stdout
+        assert "4.0.0" in proc_ver.stdout
 
         # 2. Test headless recipe execution inside the portable .pyz archive
         proc_rec = subprocess.run(

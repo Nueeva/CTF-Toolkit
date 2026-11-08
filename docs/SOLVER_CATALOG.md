@@ -1,64 +1,43 @@
-# CTF-Toolkit Solver Abstractions Catalog (106+ Primitives)
+# CTF-Toolkit v4.0 Apex — Solver Abstractions Catalog (560+ Functions)
 
-All solver modules in `ctf_toolkit` are designed to be used both interactively via the **Command Palette (`/search`)** and programmatically inside standalone Python solve scripts.
+All solver modules in `ctf_toolkit` are dynamically indexed in the **Command Palette (`/search`)**, directly callable from the terminal via **`ctf-toolkit call <function_name> [args...]`**, and importable inside standalone Python solve scripts.
 
 ---
 
-## 1. Cryptography & Encodings (`ctf_toolkit.crypto`)
+## 1. Cryptography & Mathematical Attacks (`ctf_toolkit.crypto`)
 
-### 1.1 Classical & Polyalphabetic Ciphers (`ctf_toolkit.crypto.classical`)
-| Function | Signature | Purpose |
+### 1.1 Automated RSA, Lattice (LLL) & Elliptic Curve (`rsa_auto`, `lattice_lll`, `ecc`, `rsa`)
+| Function | Module | Signature & Purpose |
 | :--- | :--- | :--- |
-| `rot_n` | `(text: str, shift: int) -> str` | Rotate alphabetic characters by `shift` positions. |
-| `caesar_encrypt` / `caesar_decrypt` | `(text: str, shift: int) -> str` | Standard Caesar shift encryption and decryption. |
-| `caesar_bruteforce` | `(text: str) -> list[tuple[int, str]]` | Generate all 26 Caesar shift candidates. |
-| `atbash` | `(text: str) -> str` | Mirror substitution (`A <-> Z`, `a <-> z`). |
-| `vigenere_encrypt` / `vigenere_decrypt` | `(text: str, key: str) -> str` | Standard Vigenère polyalphabetic cipher. |
-| `beaufort_decrypt` | `(text: str, key: str) -> str` | Reciprocal Beaufort cipher (`C = K - P mod 26`). |
-| `autokey_decrypt` | `(text: str, key: str) -> str` | Autokey cipher where plaintext extends the keystream. |
-| `gronsfeld_decrypt` | `(text: str, digits_key: str) -> str` | Numeric-key Vigenère variant. |
-| `porta_decrypt` | `(text: str, key: str) -> str` | 13-tableau reciprocal Porta cipher. |
-| `trithemius_decrypt` | `(text: str, start: int = 0, step: int = 1) -> str` | Progressive shift cipher. |
-| `affine_encrypt` / `affine_decrypt` | `(text: str, a: int, b: int) -> str` | Affine linear congruence cipher ($E(x) = ax + b \pmod{26}$). |
-| `multiplicative_decrypt` | `(text: str, a: int) -> str` | Multiplicative cipher ($b = 0$ special case of Affine). |
-| `bacon_decode` | `(text: str) -> str` | 5-bit A/B binary steganographic cipher decoder (26-letter & 24-letter). |
-| `polybius_decode` / `polybius_6x6_decode` | `(text: str, key: str = "") -> str` | 5x5 and 6x6 coordinate grid decoders. |
-| `playfair_decrypt` | `(text: str, key: str) -> str` | Digraph substitution on a 5x5 key square. |
-| `bifid_decrypt` / `trifid_decrypt` | `(text: str, key: str, period: int) -> str` | Fractionated Polybius ciphers. |
-| `four_square_decrypt` / `two_square_decrypt` | `(text: str, key1: str, key2: str) -> str` | Multi-grid digraph substitution ciphers. |
-| `adfgx_decrypt` / `adfgvx_decrypt` | `(text: str, polybius_key: str, trans_key: str) -> str` | Fractionation + columnar transposition ciphers. |
-| `nihilist_decrypt` | `(cipher_nums: list[int], poly_key: str, add_key: str) -> str` | Russian Nihilist numeric Polybius addition cipher. |
-| `hill_decrypt_2x2` / `hill_decrypt_3x3` | `(text: str, matrix: list[list[int]]) -> str` | Linear algebra matrix modulo 26 decryption. |
-| `rail_fence_decrypt` | `(text: str, rails: int) -> str` | Zig-zag transposition decryption. |
-| `scytale_decrypt` | `(text: str, diameter: int) -> str` | Spartan cylinder transposition decryption. |
-| `columnar_transposition_decrypt` | `(text: str, key: str) -> str` | Single and double keyed columnar transposition. |
-| `myszkowski_decrypt` | `(text: str, key: str) -> str` | Transposition supporting repeated key letters. |
-| `tap_code_decode` | `(text: str) -> str` | Knock/dot prison tap code decoder. |
-| `a1z26_decode` | `(text: str) -> str` | Numeric position (`1=A .. 26=Z`) decoder. |
-| `nato_phonetic_decode` | `(text: str) -> str` | `Alfa Bravo Charlie` phonetic word decoder. |
-| `rot47` / `rot18` | `(text: str) -> str` | Printable ASCII 33–126 rotation and alphanumeric rotation. |
-| `repeating_key_xor` / `xor_bytes` | `(data: bytes, key: bytes \| int) -> bytes` | Single-byte and multi-byte repeating XOR. |
+| `solve_rsa_auto` | `ctf_toolkit.crypto.rsa_auto` | `(n, e, c=None, dp=None, dq=None, phi=None, ...) -> dict`: Cascades across Small-$e$ root, Fermat, Small factor, Pollard $p-1$, Pollard $\rho$, Wiener, Boneh-Durfee lattice roots, Common Modulus, and Håstad CRT. |
+| `parse_pem_key` | `ctf_toolkit.crypto.rsa_auto` | `(pem_or_der: str \| bytes) -> dict`: Extracts `(n, e, d, p, q)` from PEM/DER public or private keys. |
+| `rsa_factor_small` | `ctf_toolkit.crypto.rsa` | `(n: int, e: int = 65537, c: int \| None = None) -> tuple[int, int] \| bytes`: Factors composite $N$ via trial division + Pollard $\rho$ and optionally decrypts $c$. |
+| `rsa_solve_pqec` / `rsa_solve_phi_e_c` | `ctf_toolkit.crypto.rsa` | Decrypt RSA given prime factors $(p, q)$ or Euler's totient $\phi(N)$. |
+| `rsa_fermat` / `rsa_wiener` | `ctf_toolkit.crypto.rsa` | Fermat close-prime factorization and Wiener continued-fraction small-$d$ recovery. |
+| `hastad_unpadded` / `common_modulus_attack` | `ctf_toolkit.crypto.rsa` | Chinese Remainder Theorem (CRT) broadcast attack and Extended GCD common modulus recovery. |
+| `pollard_p_minus_1` / `dp_leak_recover` / `rabin_decrypt` | `ctf_toolkit.crypto.rsa` | Pollard $p-1$ smooth factorizer, CRT $d_p$ leak recovery, and 4-root Rabin decryption ($e=2$). |
+| `lll_reduce` / `gauss_reduce_2d` | `ctf_toolkit.crypto.lattice_lll` | `(basis: list[list[int]], delta: float = 0.75) -> list[list[int]]`: Pure-Python Lenstra–Lenstra–Lovász (LLL) and 2D Gauss lattice basis reduction. |
+| `solve_knapsack_lll` | `ctf_toolkit.crypto.lattice_lll` | `(weights: list[int], target_sum: int) -> list[int] \| None`: Solves subset-sum / Merkle-Hellman knapsack via LLL embedding. |
+| `coppersmith_small_root_univariate` | `ctf_toolkit.crypto.lattice_lll` | `(coeffs: list[int], N: int, X: int) -> list[int]`: Finds small modular roots $|x_0| \le X$ of $f(x) \equiv 0 \pmod N$. |
+| `ecc_point_add` / `ecc_scalar_mul` | `ctf_toolkit.crypto.ecc` | Weierstrass elliptic curve point addition and double-and-add scalar multiplication over $\mathbb{F}_p$. |
+| `ecc_small_subgroup_dlog` | `ctf_toolkit.crypto.ecc` | Baby-Step Giant-Step (BSGS) discrete logarithm solver on elliptic curves. |
+| `ecc_smarts_attack` | `ctf_toolkit.crypto.ecc` | `(G, Q, a, b, p) -> int`: Smart's $p$-adic lift attack for anomalous curves where $\#E(\mathbb{F}_p) = p$. |
+| `ecc_invalid_curve_recovery` | `ctf_toolkit.crypto.ecc` | Combines partial discrete log residues `(d mod m_i)` via CRT for invalid-curve / Pohlig-Hellman attacks. |
 
-### 1.2 RSA, Asymmetric & Mathematical Attacks (`ctf_toolkit.crypto.rsa`)
-| Function | Signature | Purpose |
+### 1.2 Active Block, Stream & Hash Attacks (`block_attacks`, `aes`, `des`, `hashes`, `auto_decode`)
+| Function | Module | Purpose |
 | :--- | :--- | :--- |
-| `rsa_solve_pqec` | `(p: int, q: int, e: int, c: int) -> bytes` | Decrypt RSA given prime factors $p, q$. |
-| `rsa_solve_phi_e_c` | `(phi: int, e: int, c: int) -> bytes` | Decrypt RSA given Euler's totient $\phi(N)$. |
-| `rsa_fermat` | `(n: int, max_steps: int = 100000) -> tuple[int, int]` | Factor $N = p \cdot q$ when $|p - q|$ is small. |
-| `rsa_wiener` | `(e: int, n: int) -> int \| None` | Recover private key $d$ via continued fractions when $d < \frac{1}{3}N^{1/4}$. |
-| `hastad_unpadded` | `(ciphertexts: list[int], moduli: list[int], e: int) -> int` | Chinese Remainder Theorem (CRT) broadcast attack + $e$-th root. |
-| `common_modulus_attack` | `(n: int, e1: int, e2: int, c1: int, c2: int) -> bytes` | Extended GCD recovery when two messages share modulus $N$. |
-| `pollard_p_minus_1` | `(n: int, B: int = 10000) -> int \| None` | Factor $N$ when $p - 1$ is $B$-smooth. |
-| `dp_leak_recover` | `(n: int, e: int, dp: int, c: int) -> bytes` | Recover $p, q$ and plaintext from CRT exponent $d_p = d \bmod (p-1)$. |
-| `rabin_decrypt` | `(p: int, q: int, c: int) -> list[bytes]` | Compute all 4 modular square roots for Rabin cryptosystem ($e=2$). |
+| `cbc_bitflip_craft` | `ctf_toolkit.crypto.block_attacks` | XOR-crafts an IV or previous ciphertext block to mutate target plaintext bytes in AES/DES-CBC. |
+| `padding_oracle_decrypt_block` | `ctf_toolkit.crypto.block_attacks` | Recovers plaintext block byte-by-byte against a boolean PKCS#7 padding oracle callback. |
+| `ecb_byte_at_a_time_recover` | `ctf_toolkit.crypto.block_attacks` | Automated chosen-prefix block alignment and byte-by-byte suffix recovery against an ECB encryption oracle. |
+| `many_time_pad_crib_drag` | `ctf_toolkit.crypto.block_attacks` | Slides known cribs across multi-ciphertext XOR streams and ranks printable plaintext segments. |
+| `aes_ecb_decrypt` / `aes_cbc_decrypt` / `aes_ctr_decrypt` | `ctf_toolkit.crypto.aes` | Standard AES decryption primitives and `pkcs7_unpad`. |
+| `des_ecb_decrypt` / `triple_des_ecb_decrypt` | `ctf_toolkit.crypto.des` | PyCryptodome-backed DES and 3DES ECB/CBC encryption and decryption. |
+| `crack_crc32_4byte` | `ctf_toolkit.crypto.hashes` | Algebraically inverts the IEEE 802.3 CRC32 state machine to recover 4-byte ASCII preimages. |
+| `auto_decode_layers` | `ctf_toolkit.crypto.auto_decode` | Greedy iterative multi-hop decoder across Hex, Base64/32/58/85, URL, zlib/gzip, and ROT13. |
 
-### 1.3 Symmetric, Stream, PRNG & Hashes (`ctf_toolkit.crypto.*`)
-- `ctf_toolkit.crypto.aes`: `aes_ecb_decrypt`, `aes_cbc_decrypt`, `aes_ctr_decrypt`, `pkcs7_unpad`
-- `ctf_toolkit.crypto.des`: `des_ecb_decrypt`, `des3_cbc_decrypt`
-- `ctf_toolkit.crypto.rc4`: `rc4_crypt`
-- `ctf_toolkit.crypto.fernet`: `fernet_decrypt_token`
-- `ctf_toolkit.crypto.stream_attacks`: `crib_drag_xor`, `recover_lcg_modulus`, `shamir_reconstruct_secret`
-- `ctf_toolkit.crypto.encoding`: Base32/45/58/62/64/85/91, Braille, Baudot, Z85, EBCDIC, Morse (`ctf_toolkit.crypto.morse`)
+### 1.3 Classical & Polyalphabetic Ciphers (`ctf_toolkit.crypto.classical`)
+Includes 30+ ciphers: `rot_n`, `caesar_decrypt`, `caesar_bruteforce`, `atbash`, `vigenere_decrypt`, `beaufort_decrypt`, `autokey_decrypt`, `gronsfeld_decrypt`, `porta_decrypt`, `trithemius_decrypt`, `affine_decrypt`, `multiplicative_decrypt`, `bacon_decode`, `polybius_decode`, `playfair_decrypt`, `bifid_decrypt`, `trifid_decrypt`, `four_square_decrypt`, `two_square_decrypt`, `adfgx_decrypt`, `adfgvx_decrypt`, `nihilist_decrypt`, `hill_decrypt_2x2`, `hill_decrypt_3x3`, `rail_fence_decrypt`, `scytale_decrypt`, `columnar_transposition_decrypt`, `myszkowski_decrypt`, `tap_code_decode`, `a1z26_decode`, `nato_phonetic_decode`, `rot47`, `rot18`, `repeating_key_xor`, `xor_bytes`.
 
 ---
 
@@ -66,49 +45,52 @@ All solver modules in `ctf_toolkit` are designed to be used both interactively v
 
 | Function | Module | Purpose |
 | :--- | :--- | :--- |
-| `build_ret2win_payload` | `ctf_toolkit.pwn.overflow` | Construct buffer padding + packed 32/64-bit return address override. |
-| `build_variable_overwrite` | `ctf_toolkit.pwn.overflow` | Construct stack local variable corruption payload. |
-| `build_rop_chain` | `ctf_toolkit.pwn.rop` | Assemble padding + sequence of little-endian ROP gadget addresses and arguments. |
-| `leak_stack_offsets` | `ctf_toolkit.pwn.format_string` | Generate `%k$p` format string probes and parse leaked hex words into ASCII. |
-| `calculate_oob_offset` | `ctf_toolkit.pwn.arrays` | Compute negative/positive array index offset `(target_addr - base_addr) // stride`. |
-| `cyclic_create` / `cyclic_find` | `ctf_toolkit.binex.pwncalc` | De Bruijn non-repeating pattern generator and crash offset calculator. |
-| `describe_integer_bounds` | `ctf_toolkit.binex.pwncalc` | Analyze signed/unsigned 32/64-bit integer overflow/underflow boundaries. |
+| `build_ret2win_payload` | `ctf_toolkit.pwn` | Construct buffer padding + packed 32/64-bit return address override. |
+| `build_variable_overwrite` | `ctf_toolkit.pwn` | Construct stack local variable corruption payload. |
+| `build_rop_chain` | `ctf_toolkit.pwn` | Assemble padding + sequence of little-endian ROP gadget addresses and arguments. |
+| `leak_stack_offsets` / `build_format_string_probe` | `ctf_toolkit.pwn` | Generate `%k$p` format string probes and parse leaked hex words into ASCII. |
+| `calculate_oob_offset` | `ctf_toolkit.pwn` | Compute negative/positive array index offset `(target_addr - base_addr) // stride`. |
+| `cyclic_create` / `cyclic_find` | `ctf_toolkit.pwn` | De Bruijn non-repeating pattern generator and crash offset calculator. |
+| `describe_integer_bounds` | `ctf_toolkit.pwn` | Analyze signed/unsigned 32/64-bit integer overflow/underflow boundaries. |
 | `parse_elf` / `scan_gadgets` | `ctf_toolkit.binex.elf` / `gadgets` | Inspect ELF headers/protections and locate `ret` / `pop rdi; ret` gadgets. |
 
 ---
 
-## 3. Web Exploitation (`ctf_toolkit.web`)
+## 3. Web Exploitation & Deserialization (`ctf_toolkit.web`)
 
 | Function | Module | Purpose |
 | :--- | :--- | :--- |
+| `jwt_forge_none` | `ctf_toolkit.web.jwt_attacks` | Craft unsigned `alg: "none"` JWT tokens with modified payload claims. |
+| `jwt_crack_hs256` / `jwt_sign_hs256` | `ctf_toolkit.web.jwt_attacks` | Offline dictionary cracker and signer for HMAC-SHA256 JWT tokens. |
+| `jwt_forge_key_confusion` | `ctf_toolkit.web.jwt_attacks` | Forge RS256→HS256 key-confusion tokens signed using the server's RSA public key bytes. |
+| `jwt_inject_jwk_header` / `jwt_inject_kid_sqli` | `ctf_toolkit.web.jwt_attacks` | Inject custom `jwk` headers or `kid` path-traversal / SQLi payloads into JWT headers. |
+| `pickle_inspect_opcodes` / `generate_pickle_test_payload` | `ctf_toolkit.web.deserialization` | Disassemble Python `pickle` VM opcodes safely via `pickletools` and craft `__reduce__` payloads. |
+| `parse_php_serialized` / `build_php_serialized_object` | `ctf_toolkit.web.deserialization` | Parse PHP `O:...` strings and craft PHP Object Injection payloads (with CVE-2016-7124 `__wakeup` bypass). |
 | `build_sqli_payload` / `build_sqli_auth_bypass` | `ctf_toolkit.web.helpers` | Generate UNION, boolean, and comment-truncated SQL injection payloads. |
 | `build_ssti_payload` | `ctf_toolkit.web.helpers` | Craft Jinja2/Twig/Mako Server-Side Template Injection payloads. |
 | `build_ssrf_url` / `build_ssrf_metadata_url` | `ctf_toolkit.web.helpers` | Generate cloud metadata (`169.254.169.254`) and localhost bypass URLs. |
 | `build_lfi_path` / `generate_traversal_payloads` | `ctf_toolkit.web.helpers` / `traversal` | Generate dot-dot-slash, double-encoded, and PHP filter LFI payloads. |
-| `build_json_post` / `build_post_request` / `build_get_request` | `ctf_toolkit.web.helpers` | Construct raw HTTP request envelopes with custom headers/cookies. |
-| `build_multipart_payload` | `ctf_toolkit.web.helpers` | Build multipart/form-data file upload bypass bodies. |
-| `build_cors_request` / `add_forwarded_headers` | `ctf_toolkit.web.helpers` | Inject `Origin`, `X-Forwarded-For`, `X-Real-IP`, and `Client-IP` bypass headers. |
-| `jwt_decode_no_verify` | `ctf_toolkit.web.helpers` | Inspect JWT header, claims, and signature without secret verification. |
 | `build_idor_payloads` | `ctf_toolkit.web.idor` | Generate padded, Base64, MD5, and hex IDOR enumeration matrices. |
 
 ---
 
-## 4. Forensics, Steganography & Reversing (`ctf_toolkit.forensics` & `reversing`)
+## 4. Forensics, Steganography, Wasm & Reversing (`ctf_toolkit.forensics` & `reversing`)
 
 | Function | Module | Purpose |
 | :--- | :--- | :--- |
-| `extract_docx_metadata` | `ctf_toolkit.forensics.office` | Parse OOXML `docProps/core.xml`, `app.xml`, and `custom.xml` properties. |
-| `extract_docx_hidden_vanish` / `comments` / `revisions` | `ctf_toolkit.forensics.docx_tools` | Extract `<w:vanish>` hidden runs, author comments, and tracked changes. |
+| `carve_embedded_files` | `ctf_toolkit.forensics.carver` | Signature-based multi-stream binary carver (PNG, ZIP, PDF, ELF, GZIP, ZLIB, BZ2, XZ, RAR, 7z, SQLite) with automatic decompression. |
+| `analyze_wasm_binary` | `ctf_toolkit.forensics.wasm_analyzer` | Pure-Python WebAssembly (`.wasm`) binary dissector extracting imports, exports, and data-segment strings. |
+| `extract_mov_stack_strings` | `ctf_toolkit.reversing.stack_strings` | Reconstructs obfuscated stack strings from x86/x64 disassembly (`mov BYTE/WORD/DWORD/QWORD PTR [rbp-...], 0x...`). |
+| `solve_crackme_byte_transform` | `ctf_toolkit.reversing.transforms` | Brute-forces single-byte XOR, additive/subtractive shifts, and ROL/ROR bit rotations for crackme targets. |
+| `extract_docx_metadata` / `extract_docx_hidden_vanish` | `ctf_toolkit.forensics.docx_tools` | Parse OOXML properties, `<w:vanish>` hidden runs, author comments, and tracked changes. |
 | `extract_xlsx_metadata` | `ctf_toolkit.forensics.xlsx_tools` | Extract `veryHidden` worksheets, sharedStrings, and cell comments. |
-| `extract_pdf_metadata` / `extract_pdf_decompressed_streams` | `ctf_toolkit.forensics.pdf_tools` | Decompress PDF `/FlateDecode` streams, off-page text, and attachments. |
-| `extract_png_trailing_bytes` / `extract_png_text_chunks` | `ctf_toolkit.forensics.png_tools` | Carve payloads after `IEND` and extract `tEXt`/`zTXt`/`iTXt` metadata. |
-| `repair_png_header` / `repair_jpeg_header` / `repair_zip_header` | `ctf_toolkit.forensics.*` | Automatically fix corrupted magic bytes and CRC headers. |
-| `extract_channel_lsb` / `extract_sequential_rgb_bytes` | `ctf_toolkit.forensics.image_channels` | Extract R/G/B/A bitplanes and LSB steganography payloads. |
+| `extract_pdf_metadata` / `scan_pdf_raw_objects` | `ctf_toolkit.forensics.pdf_tools` | Decompress PDF `/FlateDecode` streams, off-page text, attachments, and raw object tokens. |
+| `extract_png_trailing_bytes` / `repair_png_header` | `ctf_toolkit.forensics.png_tools` | Carve payloads after `IEND`, extract text chunks, and repair corrupted magic/CRC headers. |
+| `extract_channel_lsb` / `decode_qr_image` | `ctf_toolkit.forensics.image_channels` | Extract R/G/B/A bitplanes, LSB steganography payloads, and rotated QR codes. |
 | `extract_audio_pcm_lsb` / `decode_dtmf_tones` / `demodulate_audio_fsk` | `ctf_toolkit.forensics.audio_tools` | Recover WAV LSB bits, DTMF keypad digits, and FSK/MFSK audio modems. |
 | `extract_pcap_artifacts` / `extract_dns_subdomain_exfiltration` | `ctf_toolkit.forensics.pcap_extract` | Reassemble HTTP auth, DNS exfiltration chunks, and USB HID/serial captures. |
-| `extract_strings_from_object` | `ctf_toolkit.forensics.artifact_discovery` | Extract printable strings from zlib-compressed Git loose objects and blobs. |
 | `extract_pyc_constants_raw` / `decompile_pyc` | `ctf_toolkit.forensics.pyc_decompile` | Extract marshaled code constants and disassemble Python `.pyc` bytecode. |
-| `xor_bruteforce_single` / `byte_shift_bruteforce` / `endian_swap` | `ctf_toolkit.reversing.transforms` | Reverse common binary string obfuscation loops and 32/64-bit endianness swaps. |
+| `audit_etc_passwd` / `audit_sshd_config` | `ctf_toolkit.forensics.linux_forensics` | Detect rogue UID 0 accounts, login shells, and insecure SSH daemon directives. |
 
 ---
 
@@ -117,20 +99,21 @@ All solver modules in `ctf_toolkit` are designed to be used both interactively v
 | Function | Module | Purpose |
 | :--- | :--- | :--- |
 | `parse_calldata` / `decode_calldata_charcodes` | `ctf_toolkit.blockchain.calldata` | Split Ethereum ABI calldata into 4-byte selector, 32-byte words, and ASCII strings. |
-| `decode_revert_reason` | `ctf_toolkit.blockchain.calldata` / `revert` | Decode EVM `Error(string)` (`0x08c379a0`) and `Panic(uint256)` (`0x4e487b71`) payloads. |
+| `decode_revert_reason` | `ctf_toolkit.blockchain.revert` | Decode EVM `Error(string)` (`0x08c379a0`) and `Panic(uint256)` (`0x4e487b71`) payloads. |
 | `compute_mapping_slot` / `compute_dynamic_array_slot` | `ctf_toolkit.blockchain.storage` | Calculate Keccak-aligned EVM storage slot indices for private mappings/arrays. |
 | `decode_event_logs` | `ctf_toolkit.blockchain.events` | Extract indexed topics and non-indexed ABI data from transaction receipt logs. |
+| `compute_merkle_root` / `resolve_4byte_selector` / `crack_keccak256_wordlist` | `ctf_toolkit.blockchain.protocols` | Compute Keccak256 Merkle tree roots, match 4-byte function selectors, and crack Keccak256 hashes. |
 
 ---
 
-## 6. OSINT, Config Hunting & Esoteric Languages (`ctf_toolkit.osint_misc`)
+## 6. OSINT, Wire Formats, Config Hunting & Esolangs (`ctf_toolkit.osint_misc`)
 
 | Function | Module | Purpose |
 | :--- | :--- | :--- |
-| `ct_parser` | `ctf_toolkit.osint_misc.parsers` | Extract subdomains and flags from Certificate Transparency (`crt.sh`) JSON logs. |
-| `whois_parser` | `ctf_toolkit.osint_misc.parsers` | Parse ASN/domain WHOIS records into normalized dictionaries (`org`, `aut-num`, `country`). |
-| `html_comment_parser` | `ctf_toolkit.osint_misc.parsers` | Extract HTML comments (`<!-- ... -->`) and embedded tokens from Wayback snapshots. |
-| `landmark_matcher` / `lookup_city_by_coordinates` | `ctf_toolkit.osint_misc.parsers` | Resolve geographic coordinates and plaque clues to landmark/city names. |
-| `extract_sqlite_secrets` / `extract_cron_secrets` | `ctf_toolkit.osint_misc.config_hunter` | Scan SQLite databases and crontab files for embedded credentials, Base64, and flags. |
-| `extract_json_secrets` / `extract_yaml_secrets` / `extract_ini_secrets` | `ctf_toolkit.osint_misc.config_hunter` | Traverse nested JSON, JSONL, YAML, INI, CSV, TSV, VCF, and ICS files for secrets. |
-| `brainfuck_eval` / `ook_eval` / `deadfish_eval` / `spoon_eval` / `whitespace_eval` | `ctf_toolkit.osint_misc.esolang` | Execute esoteric programming languages and return captured standard output. |
+| `decode_protobuf_raw` / `decode_msgpack_raw` / `decode_cbor_raw` | `ctf_toolkit.osint_misc.binary_formats` | Schema-less decoders for Protobuf wire tags, MessagePack, and CBOR binary objects. |
+| `parse_asn1_der_strings` / `parse_bplist_strings` | `ctf_toolkit.osint_misc.binary_formats` | Extract printable strings from ASN.1 DER structures and Apple `bplist00` binary property lists. |
+| `decompress_git_loose_object` / `reassemble_seq_chunks` / `decode_timestamp_delta_channel` | `ctf_toolkit.osint_misc.binary_formats` | Decompress Git objects, reassemble out-of-order `SEQ:N:` packets, and decode covert timing channels. |
+| `mine_profile_handles` | `ctf_toolkit.osint_misc.profile_miner` | Extract `@handles`, emails, URLs, commit SHAs, and flags from OSINT profile dumps. |
+| `parse_toml_secrets` / `parse_jsonc` / `resolve_json_pointer` / `parse_mime_email_parts` / `extract_xml_namespaced_values` | `ctf_toolkit.osint_misc.config_hunter` | Parse TOML, JSONC, RFC 6901 JSON Pointers, `.eml` MIME attachments, and namespaced XML documents. |
+| `decode_unicode_tag_plane` / `decode_seven_segment` / `extract_acrostic` / `extract_periodic_step` / `decode_case_bitstream` / `reconstruct_from_regex_pattern` | `ctf_toolkit.osint_misc.stego` | Decode Unicode Plane 14 tag stego (`U+E0000`), 7-segment displays, acrostics, case bitstreams, and regex patterns. |
+| `befunge_extract_strings` / `decode_collatz_ascii` / `brainfuck_eval` / `ook_eval` / `deadfish_eval` / `spoon_eval` / `whitespace_eval` | `ctf_toolkit.osint_misc.esolang` | Execute or extract flags from Befunge-93, Collatz sequences, Brainfuck, Ook!, Deadfish, Spoon, and Whitespace. |

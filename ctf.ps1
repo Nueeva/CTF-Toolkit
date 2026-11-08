@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# CTF-Toolkit v3.0 Apex - Windows PowerShell Launcher
+# CTF-Toolkit v4.0 Apex - Windows PowerShell Launcher
 $ErrorActionPreference = "Stop"
 
 # Ensure UTF-8 console encoding for Unicode borders & sparklines

@@ -1,6 +1,6 @@
-# TUI v3 Apex & Headless CLI Operator Guide
+# TUI v4 Apex & Headless CLI Operator Guide
 
-This guide covers interactive navigation in the **TUI v3 Apex Command Center**, global hotkeys, Smart Input syntax, the **Interactive CyberChef Recipe Studio**, the **Autonomous A\* Magic Solver**, and headless CLI piping across Windows PowerShell, CMD, Linux Bash, and macOS Zsh.
+This guide covers interactive navigation in the **TUI v4 Apex Command Center**, global hotkeys, Smart Input syntax, the **Interactive CyberChef Recipe Studio**, the **Autonomous A\* Magic Solver**, and headless CLI piping across Windows PowerShell, CMD, Linux Bash, and macOS Zsh.
 
 ---
 
@@ -10,7 +10,7 @@ When running in interactive mode (`python main.py` or `ctf-toolkit`), you can en
 
 | Shortcut / Command | Function | Example |
 | :--- | :--- | :--- |
-| `/<query>` | **Global Command Palette**: Fuzzy-search across all 106+ solver abstractions and run any function via an auto-generated parameter prompt. | `/wiener`, `/rop`, `/sqli`, `/docx`, `/whois`, `/revert` |
+| `/<query>` | **Global Command Palette**: Fuzzy-search across all 560+ solver abstractions and run any function via an auto-generated parameter prompt. | `/wiener`, `/rop`, `/sqli`, `/docx`, `/whois`, `/revert` |
 | `:m` or `:magic` | **Autonomous Magic Solver**: Launch the A\* heuristic multi-hop decoder/decryptor tree on any ciphertext or file. | `:m` |
 | `:s` or `:studio` | **Interactive Recipe Studio**: Open the step-by-step CyberChef pipeline builder with live intermediate trace tables. | `:s` |
 | `:f` or `:flags` | **Session Flag Vault**: Display all flags automatically captured during the active session (`FLAG{...}`, `GETSFLAG{...}`, `LKS{...}`, etc.). | `:f` |

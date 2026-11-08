@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# CTF-Toolkit v3.0 Apex - Linux / macOS / WSL2 Launcher
+# CTF-Toolkit v4.0 Apex - Linux / macOS / WSL2 Launcher
 set -e
 
 export PYTHONIOENCODING="utf-8"

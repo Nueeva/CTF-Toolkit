@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-LABEL org.opencontainers.image.title="CTF-Toolkit v3.0 Apex"
+LABEL org.opencontainers.image.title="CTF-Toolkit v4.0 Apex"
 LABEL org.opencontainers.image.description="Multi-domain CTF Exploitation Workbench, A* Magic Solver & CyberChef Recipe Studio"
 LABEL org.opencontainers.image.licenses="MIT"
 

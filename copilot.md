@@ -1,7 +1,7 @@
 # Copilot Guide
 
 ## Repository Context
-This repository contains **CTF Toolkit v3.0 Apex**, a modular multi-domain TUI/CLI workbench and 106+ solver library for CTF challenges and authorized security labs.
+This repository contains **CTF Toolkit v4.0 Apex**, a modular multi-domain TUI/CLI workbench and 106+ solver library for CTF challenges and authorized security labs.
 Penjelasan singkat: repo ini untuk penyelesaian soal CTF, analisis offline, dan pembelajaran keamanan siber.
 
 ## Scope & Boundaries

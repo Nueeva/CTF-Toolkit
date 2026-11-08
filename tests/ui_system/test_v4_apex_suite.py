@@ -17,7 +17,7 @@ from Crypto.PublicKey import RSA
 
 class TestV4AuditRemediation(unittest.TestCase):
     def test_all_python_files_compile_cleanly(self) -> None:
-        root = Path(__file__).resolve().parent.parent / "ctf_toolkit"
+        root = Path(__file__).resolve().parents[2] / "ctf_toolkit"
         py_files = list(root.rglob("*.py"))
         self.assertGreaterEqual(len(py_files), 100)
         for py in py_files:
@@ -257,7 +257,7 @@ class TestV4AuditRemediation(unittest.TestCase):
         self.assertIn("GETSFLAG{wasm}", wasm_info["data_strings"])
 
     def test_ctf_solutions_md_1600_completeness(self) -> None:
-        sol_path = Path(__file__).resolve().parent.parent.parent / "CTF-Vault" / "CTF_SOLUTIONS.md"
+        sol_path = Path(__file__).resolve().parents[3] / "CTF-Vault" / "CTF_SOLUTIONS.md"
         if not sol_path.exists():
             return
         text = sol_path.read_text(encoding="utf-8", errors="replace")
