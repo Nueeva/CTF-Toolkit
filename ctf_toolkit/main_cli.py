@@ -8,14 +8,35 @@ import sys
 from ctf_toolkit.pipeline import run_recipe
 from ctf_toolkit.registry import get_menu_registry
 from ctf_toolkit.triage import triage_data, triage_file
+from ctf_toolkit.ui.console import (
+    HAS_RICH,
+    render_header,
+    render_menu_panel,
+    console_info,
+    console_success,
+    console_warn,
+    show_flag_vault_interactive,
+    show_buffer_history_interactive,
+)
+from ctf_toolkit.ui.inspector import inspect_output
+from ctf_toolkit.ui.magic_solver import magic_interactive, solve_magic, render_magic_tree
+from ctf_toolkit.ui.palette import palette_interactive
+from ctf_toolkit.ui.session import (
+    copy_to_clipboard,
+    export_case_script,
+    export_case_writeup,
+    get_session,
+    resolve_smart_input,
+)
+from ctf_toolkit.ui.workbench.menu import recipe_studio_interactive
 from ctf_toolkit.utils.io import safe_input, success, warn
 
 
 def show_main_menu() -> None:
-    print("\n=== CTF Toolkit CLI ===")
-    for entry in get_menu_registry():
-        print(f"[{entry.key}] {entry.label}")
-    print("[0] Exit")
+    render_header("Apex Command Center")
+    items = [(entry.key, entry.label) for entry in get_menu_registry()]
+    items.append(("0", "Exit Toolkit"))
+    render_menu_panel("Category Modules & Workbenches", items, subtitle="Tip: Ketik '/' untuk Command Palette, ':m' untuk Magic Solver")
 
 
 def interactive_menu() -> None:
@@ -26,6 +47,43 @@ def interactive_menu() -> None:
         if choice == "0":
             success("Keluar dari toolkit. Bye!")
             return
+
+        # Global Hotkey Handlers
+        if choice.startswith("/"):
+            palette_interactive(choice)
+            continue
+        if choice in (":m", ":magic"):
+            magic_interactive()
+            continue
+        if choice in (":s", ":studio"):
+            recipe_studio_interactive()
+            continue
+        if choice in (":f", ":flags", ":vault"):
+            show_flag_vault_interactive()
+            continue
+        if choice in (":b", ":buf", ":history"):
+            show_buffer_history_interactive()
+            continue
+        if choice in (":c", ":copy"):
+            last_val = get_session().registers.get("$last", "")
+            if copy_to_clipboard(last_val):
+                console_success("Buffer $last berhasil disalin ke clipboard OS!")
+            else:
+                console_warn("Gagal menyalin ke clipboard (clipboard tool tidak tersedia).")
+            continue
+        if choice.startswith(":case"):
+            parts = choice.split(maxsplit=1)
+            if len(parts) > 1:
+                get_session().active_case = parts[1].strip()
+                console_success(f"Active case diubah menjadi: [bold yellow]{get_session().active_case}[/bold yellow]")
+            else:
+                console_info(f"Active case saat ini: {get_session().active_case}")
+            continue
+        if choice in (":export", ":writeup"):
+            f_sc = export_case_script()
+            f_wr = export_case_writeup()
+            console_success(f"Artefak berhasil diekspor:\n  - Script : {f_sc}\n  - Writeup: {f_wr}")
+            continue
 
         selected = next((entry for entry in get_menu_registry() if entry.key == choice), None)
         if selected is None:
@@ -43,7 +101,6 @@ def handle_triage(args: argparse.Namespace) -> int:
         if os.path.exists(target):
             report = triage_file(target)
         else:
-            # Treat as raw string
             report = triage_data(target.encode(), target_label="cli_raw")
     else:
         warn("Error: Harap berikan target file (-f / target) atau string (-s).")
@@ -69,7 +126,6 @@ def handle_recipe(args: argparse.Namespace) -> int:
     elif args.data is not None:
         data = args.data
     else:
-        # Check if stdin has data piped
         if not sys.stdin.isatty():
             data = sys.stdin.read()
         else:
@@ -102,10 +158,38 @@ def handle_recipe(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_magic(args: argparse.Namespace) -> int:
+    target = args.target
+    data: bytes
+
+    if args.string is not None:
+        data = resolve_smart_input(args.string, as_bytes=True)
+    elif target:
+        if os.path.exists(target):
+            data = open(target, "rb").read()
+        else:
+            data = resolve_smart_input(target, as_bytes=True)
+    else:
+        if not sys.stdin.isatty():
+            data = sys.stdin.buffer.read()
+        else:
+            warn("Error: Harap berikan target melalui argumen atau pipe stdin.")
+            return 1
+
+    console_info(f"Running Autonomous Magic Solver on {len(data)} bytes...")
+    best_data, best_path, best_score, history = solve_magic(data, max_depth=args.depth)
+    render_magic_tree(data, best_path, history)
+
+    if best_path and best_path != ["(direct)"]:
+        console_success(f"Solusi ditemukan via: {' -> '.join(best_path)} (Score: {best_score:.1f})")
+    inspect_output(best_data, title=f"Magic Result ({' -> '.join(best_path)})", op_name="magic_cli")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ctf-toolkit",
-        description="CTF Toolkit - Headless Workbench & Multi-Domain Exploitation Suite",
+        description="CTF Toolkit v3 Apex - Headless Workbench & Multi-Domain Exploitation Suite",
     )
     subparsers = parser.add_subparsers(dest="subcommand", help="Mode operasi")
 
@@ -127,11 +211,16 @@ def build_parser() -> argparse.ArgumentParser:
     recipe_parser.add_argument("-o", "--output", dest="output", help="Output file path")
     recipe_parser.add_argument("--raw", action="store_true", help="Output raw bytes tanpa decoding")
 
+    # Subcommand: magic
+    magic_parser = subparsers.add_parser("magic", help="Autonomous A* multi-hop solver (Ciphey-style)")
+    magic_parser.add_argument("target", nargs="?", default=None, help="Target string, @file, hex:, or b64:")
+    magic_parser.add_argument("-s", "--string", dest="string", help="Raw string target")
+    magic_parser.add_argument("--depth", type=int, default=4, help="Max search tree depth (default 4)")
+
     return parser
 
 
 def main() -> None:
-    # If no args provided, default to interactive
     if len(sys.argv) <= 1:
         interactive_menu()
         return
@@ -145,6 +234,8 @@ def main() -> None:
         sys.exit(handle_triage(args))
     elif args.subcommand == "recipe":
         sys.exit(handle_recipe(args))
+    elif args.subcommand == "magic":
+        sys.exit(handle_magic(args))
     else:
         parser.print_help()
 
