@@ -3,6 +3,7 @@ from __future__ import annotations
 import platform
 import shlex
 from dataclasses import dataclass
+import re
 from pathlib import Path
 
 
@@ -96,3 +97,11 @@ def render_discovery_report(target_os: str, items: list[ArtifactPath]) -> str:
     lines.append(generate_hash_oneliner(items, target_os))
     lines.append("")
     return "\n".join(lines)
+
+
+def extract_strings_from_object(data: bytes | str, min_len: int = 4) -> list[str]:
+    """Extract printable ASCII strings from raw object data (e.g. zlib-decompressed git loose object)."""
+    if isinstance(data, str):
+        data = data.encode("utf-8", errors="ignore")
+    pattern = rb"[ -~]{" + str(min_len).encode("ascii") + rb",}"
+    return [m.decode("ascii", errors="ignore") for m in re.findall(pattern, data)]

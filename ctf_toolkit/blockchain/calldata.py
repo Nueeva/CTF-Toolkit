@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .revert import decode_revert_reason
+
 import re
 
 

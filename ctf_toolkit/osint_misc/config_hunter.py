@@ -323,3 +323,81 @@ def parse_ics(ics_text: str) -> list[dict[str, str]]:
 
     return events
 
+
+
+
+
+def extract_cron_secrets(text: str) -> list[str]:
+    """Extract potential secrets, commands, and base64 payloads from crontab lines."""
+    secrets: list[str] = []
+    lines = text.strip().splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        # Base64 encoded strings
+        b64_matches = re.findall(r"(?:echo|base64\s+-d|b64decode)\s+['\"]?([A-Za-z0-9+/=]{8,})", line)
+        for b in b64_matches:
+            secrets.append(b)
+        # Tokens, flags, keys
+        token_matches = re.findall(r"(?:token|key|secret|password|flag)=([^\s;&]+)", line, re.IGNORECASE)
+        for t in token_matches:
+            secrets.append(t)
+        # Flag patterns
+        flag_matches = re.findall(r"[A-Za-z0-9_]+{[^}]+}", line)
+        for f in flag_matches:
+            secrets.append(f)
+    return secrets
+
+
+def extract_sqlite_secrets(db_path_or_bytes: str | bytes | Any, keywords: list[str] | None = None) -> list[str]:
+    """Inspect an SQLite database for secret-bearing values across all tables and text columns."""
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    if keywords is None:
+        keywords = ["flag", "token", "key", "secret", "password", "hash", "auth", "root"]
+
+    results: list[str] = []
+    tmp_path = None
+    if isinstance(db_path_or_bytes, bytes):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+        tmp.write(db_path_or_bytes)
+        tmp.close()
+        db_path = tmp.name
+        tmp_path = tmp.name
+    else:
+        db_path = str(db_path_or_bytes)
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall() if not row[0].startswith("sqlite_")]
+
+        for table in tables:
+            try:
+                cursor.execute(f"PRAGMA table_info({table});")
+                cols = [col[1] for col in cursor.fetchall()]
+                cursor.execute(f"SELECT * FROM {table};")
+                rows = cursor.fetchall()
+                for row in rows:
+                    for i, val in enumerate(row):
+                        val_str = str(val)
+                        col_name = cols[i].lower() if i < len(cols) else ""
+                        if any(kw in col_name for kw in keywords) or any(kw in val_str.lower() for kw in keywords) or "{" in val_str:
+                            results.append(val_str)
+            except Exception:
+                continue
+        conn.close()
+    except Exception:
+        pass
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+    return results

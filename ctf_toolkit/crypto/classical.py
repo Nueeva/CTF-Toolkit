@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ctf_toolkit.reversing.transforms import xor_bytes
+
 from collections import Counter
 
 from ctf_toolkit.utils.math import gcd, modinv

