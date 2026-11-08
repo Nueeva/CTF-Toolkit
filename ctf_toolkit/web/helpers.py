@@ -278,6 +278,7 @@ def build_multipart_payload(
 def build_cors_request(target_url: str, origin: str = "null") -> dict[str, str]:
     """Construct request headers testing cross-origin resource sharing policy."""
     return {
+        "url": target_url,
         "Origin": origin,
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     }

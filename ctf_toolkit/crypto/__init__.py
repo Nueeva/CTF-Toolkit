@@ -43,6 +43,23 @@ from ctf_toolkit.crypto.encoding import (
 )
 from ctf_toolkit.crypto.fernet import fernet_decrypt
 from ctf_toolkit.crypto.morse import morse_decode, morse_encode
+from ctf_toolkit.crypto.prng import (
+    glibc_rand_generate,
+    glibc_rand_predict,
+    lcg_generate,
+    lcg_next,
+    recover_lcg_params_known_mod,
+)
+from ctf_toolkit.crypto.rsa import (
+    factor_integer_auto,
+    solve_rsa_auto,
+    rsa_encrypt,
+    rsa_decrypt,
+    wiener_attack,
+    fermat_factor,
+    hastad_broadcast,
+    common_modulus_attack,
+)
 from ctf_toolkit.crypto.stream_attacks import (
     repeating_key_xor,
     two_time_pad_decrypt,
@@ -63,6 +80,7 @@ __all__ = [
     "multiplicative_encrypt",
     "multiplicative_decrypt",
     "rot18",
+    "t9_decode",
     "crack_numeric_hash",
     "des_ecb_decrypt",
     "des_ecb_encrypt",
@@ -91,4 +109,17 @@ __all__ = [
     "affine_encrypt",
     "bacon_decode",
     "bacon_encode",
+    "factor_integer_auto",
+    "solve_rsa_auto",
+    "rsa_encrypt",
+    "rsa_decrypt",
+    "wiener_attack",
+    "fermat_factor",
+    "hastad_broadcast",
+    "common_modulus_attack",
+    "glibc_rand_generate",
+    "glibc_rand_predict",
+    "lcg_generate",
+    "lcg_next",
+    "recover_lcg_params_known_mod",
 ]

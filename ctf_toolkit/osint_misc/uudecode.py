@@ -39,9 +39,10 @@ def decode_uu(data: str | bytes) -> bytes:
     return bytes(out)
 
 
-def encode_uu(data: bytes, filename: str = "data.txt", mode: int = 644) -> str:
+def encode_uu(data: bytes, filename: str = "data.txt", mode: int = 0o644) -> str:
     """Encode binary data into standard UUencoded format with begin/end envelope."""
-    lines = [f"begin {mode:o} {filename}"]
+    mode_str = f"{mode:o}" if mode <= 0o777 else str(mode)
+    lines = [f"begin {mode_str} {filename}"]
     chunk_size = 45  # Standard uuencode chunk is 45 bytes
     for i in range(0, len(data), chunk_size):
         chunk = data[i : i + chunk_size]
@@ -89,10 +90,11 @@ def decode_xx(data: str | bytes) -> bytes:
     return bytes(out)
 
 
-def encode_xx(data: bytes, filename: str = "data.xxe", mode: int = 644) -> str:
+def encode_xx(data: bytes, filename: str = "data.xxe", mode: int = 0o644) -> str:
     """Encode binary data into standard XXencoded format with begin/end envelope."""
     char_map = XXE_ALPHABET
-    lines = [f"begin {mode:o} {filename}"]
+    mode_str = f"{mode:o}" if mode <= 0o777 else str(mode)
+    lines = [f"begin {mode_str} {filename}"]
     chunk_size = 45
     for i in range(0, len(data), chunk_size):
         chunk = data[i : i + chunk_size]

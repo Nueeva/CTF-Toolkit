@@ -61,22 +61,34 @@ def brainfuck_eval(source: str, input_str: str = "", max_steps: int = 5_000_000)
     return "".join(output)
 
 
-def ook_to_brainfuck(source: str) -> str:
-    """Translate Ook! source code into equivalent Brainfuck syntax."""
+def ook_to_brainfuck(source: str, variant: str = "standard") -> str:
+    """Translate Ook! source code into equivalent Brainfuck syntax (standard or inverted)."""
     tokens = re.findall(r"Ook[\.\?\!]", source)
     if len(tokens) % 2 != 0:
         raise ValueError("Ook! source must contain an even number of tokens")
 
-    ook_map = {
-        "Ook. Ook?": ">",
-        "Ook? Ook.": "<",
-        "Ook. Ook.": "+",
-        "Ook! Ook!": "-",
-        "Ook! Ook.": ".",
-        "Ook. Ook!": ",",
-        "Ook! Ook?": "[",
-        "Ook? Ook!": "]",
-    }
+    if variant == "inverted":
+        ook_map = {
+            "Ook? Ook.": ">",
+            "Ook. Ook?": "<",
+            "Ook! Ook!": "+",
+            "Ook. Ook.": "-",
+            "Ook. Ook!": ".",
+            "Ook! Ook.": ",",
+            "Ook? Ook!": "[",
+            "Ook! Ook?": "]",
+        }
+    else:
+        ook_map = {
+            "Ook. Ook?": ">",
+            "Ook? Ook.": "<",
+            "Ook. Ook.": "+",
+            "Ook! Ook!": "-",
+            "Ook! Ook.": ".",
+            "Ook. Ook!": ",",
+            "Ook! Ook?": "[",
+            "Ook? Ook!": "]",
+        }
 
     bf: list[str] = []
     for i in range(0, len(tokens), 2):
@@ -86,10 +98,25 @@ def ook_to_brainfuck(source: str) -> str:
     return "".join(bf)
 
 
-def ook_eval(source: str, input_str: str = "", max_steps: int = 5_000_000) -> str:
-    """Interpret and execute Ook! source code directly."""
-    bf_code = ook_to_brainfuck(source)
-    return brainfuck_eval(bf_code, input_str=input_str, max_steps=max_steps)
+def ook_eval(source: str, input_str: str = "", max_steps: int = 5_000_000, variant: str = "auto") -> str:
+    """Interpret and execute Ook! source code directly with auto-variant fallback."""
+    if variant in ("standard", "inverted"):
+        bf_code = ook_to_brainfuck(source, variant=variant)
+        return brainfuck_eval(bf_code, input_str=input_str, max_steps=max_steps)
+
+    bf_code = ook_to_brainfuck(source, variant="standard")
+    out = brainfuck_eval(bf_code, input_str=input_str, max_steps=max_steps)
+    if out and any(32 <= ord(c) <= 126 for c in out):
+        return out
+
+    try:
+        bf_inv = ook_to_brainfuck(source, variant="inverted")
+        out_inv = brainfuck_eval(bf_inv, input_str=input_str, max_steps=max_steps)
+        if out_inv and any(32 <= ord(c) <= 126 for c in out_inv):
+            return out_inv
+    except Exception:
+        pass
+    return out
 
 
 def deadfish_eval(source: str) -> str:

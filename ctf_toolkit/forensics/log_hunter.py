@@ -53,20 +53,22 @@ def detect_line_incident(line: str) -> Incident | None:
         return None
 
     url = parsed["url"]
-    if PATH_TRAVERSAL_RE.search(url):
-        return Incident(
-            time=parsed["time"],
-            source_ip=parsed["ip"],
-            attack_type="Path Traversal",
-            target=url,
-        )
-    if SQLI_RE.search(url):
-        return Incident(
-            time=parsed["time"],
-            source_ip=parsed["ip"],
-            attack_type="SQL Injection",
-            target=url,
-        )
+    decoded_url = urllib.parse.unquote_plus(url)
+    for check_url in (url, decoded_url):
+        if PATH_TRAVERSAL_RE.search(check_url):
+            return Incident(
+                time=parsed["time"],
+                source_ip=parsed["ip"],
+                attack_type="Path Traversal",
+                target=url,
+            )
+        if SQLI_RE.search(check_url):
+            return Incident(
+                time=parsed["time"],
+                source_ip=parsed["ip"],
+                attack_type="SQL Injection",
+                target=url,
+            )
     return None
 
 

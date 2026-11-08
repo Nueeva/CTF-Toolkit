@@ -1,5 +1,10 @@
 """Forensics and reverse engineering helpers."""
 
+from ctf_toolkit.forensics.apk_tools import (
+    extract_apk_manifest_strings,
+    extract_dex_strings,
+    inspect_apk_components,
+)
 from ctf_toolkit.forensics.audio_tools import (
     decode_16fsk_nibbles,
     decode_dtmf_tones,
@@ -54,7 +59,12 @@ from ctf_toolkit.forensics.log_hunter import (
     extract_usb_serial_hex,
 )
 from ctf_toolkit.forensics.memory_tools import assemble_memory_frag_headers, extract_memory_dump_xor
-from ctf_toolkit.forensics.pcap_extract import extract_http_basic_auth, extract_pcap_artifacts
+from ctf_toolkit.forensics.pcap_extract import (
+    decrypt_pcap_tls_keylog,
+    extract_http_basic_auth,
+    extract_pcap_artifacts,
+    repair_pcap_header,
+)
 from ctf_toolkit.forensics.pdf_tools import (
     extract_pdf_all_text_tokens,
     extract_pdf_decompressed_streams,
@@ -97,10 +107,12 @@ __all__ = [
     "decompress_nested_stream",
     "decode_qr_image",
     "decrypt_marker_bounded_xor",
+    "decrypt_pcap_tls_keylog",
     "demodulate_audio_fsk",
     "dtmf_digits_to_ascii",
     "extract_all_jpeg_comments_bytes",
     "extract_alpha_direct_bytes",
+    "extract_apk_manifest_strings",
     "extract_audio_pcm_lsb",
     "extract_audio_tone_bytes",
     "extract_b64_url_parameters",
@@ -108,6 +120,7 @@ __all__ = [
     "extract_channel_bytes",
     "extract_channel_lsb",
     "extract_channel_lsb_xor",
+    "extract_dex_strings",
     "extract_dns_subdomain_exfiltration",
     "extract_docx_comments",
     "extract_docx_embeddings",
@@ -141,9 +154,11 @@ __all__ = [
     "extract_cascading_archives",
     "fast_zip_crypto_crack",
     "find_flags_in_channel",
+    "inspect_apk_components",
     "recover_corrupted_zip",
     "repair_docx_broken_header",
     "repair_jpeg_header",
+    "repair_pcap_header",
     "repair_pdf_broken_header",
     "repair_png_header",
     "repair_zip_header",

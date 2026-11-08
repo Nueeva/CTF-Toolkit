@@ -55,8 +55,8 @@ def extract_pyc_constants_raw(data_or_path: bytes | str | Path) -> list[str]:
 
     extracted: list[str] = []
 
-    # 1. Regex search for printable ASCII strings length >= 6
-    ascii_matches = re.findall(rb"[A-Za-z0-9+/=_ -]{6,}", raw_bytes)
+    # 1. Regex search for printable ASCII strings length >= 4 including braces and punctuation
+    ascii_matches = re.findall(rb"[A-Za-z0-9+/=_ \-{}!?:@#$%\^&*()]{4,}", raw_bytes)
     for m in ascii_matches:
         s = m.decode("latin1", errors="ignore").strip()
         if s and s not in extracted:

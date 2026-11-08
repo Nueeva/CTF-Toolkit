@@ -209,6 +209,12 @@ def handle_magic(args: argparse.Namespace) -> int:
 def handle_call(args: argparse.Namespace) -> int:
     """Invoke any indexed solver function directly from the CLI."""
     catalog = build_tool_catalog()
+    if getattr(args, "list", False) or not (args.function_name or "").strip():
+        for tool in catalog:
+            doc_first = (tool.get("doc") or "").strip().splitlines()[0] if tool.get("doc") else ""
+            print(f"{tool['name']:<35} [{tool['category']}] {doc_first}")
+        print(f"\nTotal: {len(catalog)} functions indexed.")
+        return 0
     func_name = args.function_name.strip()
     exact = next((t for t in catalog if t["name"] == func_name), None)
     if exact is None:
@@ -293,8 +299,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Subcommand: call
     call_parser = subparsers.add_parser("call", help="Panggil fungsi solver apa pun secara langsung via CLI")
-    call_parser.add_argument("function_name", help="Nama fungsi solver (mis. caesar_decrypt, solve_rsa_auto)")
+    call_parser.add_argument("function_name", nargs="?", default="", help="Nama fungsi solver (mis. caesar_decrypt, solve_rsa_auto)")
     call_parser.add_argument("args", nargs="*", help="Argumen posisi fungsi (mendukung @file, hex:, b64:, $last)")
+    call_parser.add_argument("-l", "--list", action="store_true", help="Daftar semua fungsi solver yang tersedia di katalog")
     call_parser.add_argument("--json", action="store_true", help="Output hasil dalam format JSON")
 
     return parser

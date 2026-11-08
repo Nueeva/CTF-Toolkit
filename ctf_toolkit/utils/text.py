@@ -18,6 +18,35 @@ def redact_sensitive_text(text: str) -> str:
     return redacted
 
 
+def extract_utf16_strings(raw_bytes: bytes, min_len: int = 4, endian: str = "le") -> list[str]:
+    """Extract UTF-16 printable strings (LE or BE) from binary data."""
+    results: list[str] = []
+    enc = "utf-16le" if endian.lower() in ("le", "little") else "utf-16be"
+    # Scan raw_bytes by decoding slices or via regex without literal null bytes in source
+    null_byte = bytes([0])
+    # Build regex dynamically with re.escape
+    if enc == "utf-16le":
+        pattern = b"(?:[\x20-\x7e]" + null_byte + b"){" + str(min_len).encode() + b",}"
+    else:
+        pattern = b"(?:" + null_byte + b"[\x20-\x7e]){" + str(min_len).encode() + b",}"
+    for match in re.finditer(pattern, raw_bytes):
+        try:
+            s = match.group(0).decode(enc, errors="ignore")
+            if len(s) >= min_len and s not in results:
+                results.append(s)
+        except Exception:
+            pass
+    return results
+
+
+def extract_all_strings(raw_bytes: bytes, min_len: int = 4) -> list[str]:
+    """Extract both ASCII and UTF-16 (LE and BE) strings from raw binary data."""
+    ascii_strs = extract_printable_strings(raw_bytes, min_len=min_len)
+    utf16le = extract_utf16_strings(raw_bytes, min_len=min_len, endian="le")
+    utf16be = extract_utf16_strings(raw_bytes, min_len=min_len, endian="be")
+    return list(dict.fromkeys(ascii_strs + utf16le + utf16be))
+
+
 def extract_printable_strings(raw_bytes: bytes, min_len: int = 4) -> list[str]:
     results: list[str] = []
     current: list[str] = []
@@ -211,13 +240,21 @@ RESISTOR_COLOR_CODES = {
 }
 
 
-def resistor_colors_to_int(colors: list[str] | str) -> int:
+def resistor_colors_to_int(colors: list[str] | str, multiplier: bool = False) -> int:
     """Convert resistor color band names (e.g. ['black', 'violet', 'brown']) to integer value."""
     if isinstance(colors, str):
         c_list = colors.lower().replace(",", " ").split()
     else:
         c_list = [c.lower() for c in colors]
-    digits = [str(RESISTOR_COLOR_CODES[c]) for c in c_list if c in RESISTOR_COLOR_CODES]
+    codes = [RESISTOR_COLOR_CODES[c] for c in c_list if c in RESISTOR_COLOR_CODES]
+    if not codes:
+        return 0
+    if multiplier and len(codes) >= 3:
+        if len(codes) in (3, 4):
+            return (codes[0] * 10 + codes[1]) * (10 ** codes[2])
+        elif len(codes) >= 5:
+            return (codes[0] * 100 + codes[1] * 10 + codes[2]) * (10 ** codes[3])
+    digits = [str(c) for c in codes]
     return int("".join(digits)) if digits else 0
 
 

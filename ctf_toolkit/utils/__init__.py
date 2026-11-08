@@ -17,6 +17,8 @@ from ctf_toolkit.utils.text import (
     chem_elements_to_bytes,
     dna_to_bytes,
     extract_printable_strings,
+    extract_utf16_strings,
+    extract_all_strings,
     hexdump,
     int_to_roman,
     int_to_spreadsheet_col,
@@ -33,6 +35,8 @@ from ctf_toolkit.utils.text import (
 __all__ = [
     "redact_sensitive_text",
     "extract_printable_strings",
+    "extract_utf16_strings",
+    "extract_all_strings",
     "hexdump",
     "shannon_entropy",
     "base45_decode",

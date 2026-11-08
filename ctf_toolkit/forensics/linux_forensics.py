@@ -13,9 +13,26 @@ def decrypt_marker_bounded_xor(
     Locate segments enclosed by markers (or entire payload if marker absent),
     XOR decrypt with key, and extract discovered flags.
     """
-    decrypted = bytes(b ^ key for b in data)
-    matches = re.findall(pattern, decrypted)
-    return [m.decode("utf-8", errors="ignore") for m in matches]
+    segments: list[bytes] = []
+    if marker and marker in data:
+        parts = data.split(marker)
+        if len(parts) >= 3:
+            for i in range(1, len(parts), 2):
+                segments.append(parts[i])
+        else:
+            segments.append(data)
+    else:
+        segments.append(data)
+
+    results: list[str] = []
+    for seg in segments:
+        decrypted = bytes(b ^ key for b in seg)
+        matches = re.findall(pattern, decrypted, re.IGNORECASE)
+        for m in matches:
+            decoded = m.decode("utf-8", errors="ignore")
+            if decoded not in results:
+                results.append(decoded)
+    return results
 
 
 def audit_etc_passwd(passwd_text: str) -> list[dict[str, str]]:

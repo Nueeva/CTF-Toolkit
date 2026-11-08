@@ -296,16 +296,24 @@ def assemble_icmp_echo_payloads(pcap_data: bytes) -> bytes:
     return b"".join(frags)
 
 
-def extract_dns_base32_subdomains(pcap_data: bytes, domain_suffix: str = "exfil-c2.net") -> bytes:
+def extract_dns_base32_subdomains(pcap_data: bytes, domain_suffix: str | None = None) -> bytes:
     """Extract Base32 subdomain query fragments and decode to bytes."""
     import base64
     import re
 
-    pattern = rf"([a-z2-7A-Z2-7]{{10,}})\.dns\.{re.escape(domain_suffix)}"
+    if domain_suffix:
+        pattern = rf"([a-z2-7A-Z2-7=]{{4,}})(?:\.dns)?\.{re.escape(domain_suffix)}"
+    else:
+        pattern = r"([a-z2-7A-Z2-7=]{4,})(?:\.dns)?\.[a-zA-Z0-9.\-]+"
     matches = re.findall(pattern.encode("latin-1"), pcap_data)
-    b32_str = b"".join(matches).decode("latin-1").upper()
-    pad = (8 - len(b32_str) % 8) % 8
-    return base64.b32decode(b32_str + "=" * pad)
+    b32_raw = b"".join(matches).decode("latin-1").upper().replace("=", "")
+    if not b32_raw:
+        return b""
+    pad = (8 - len(b32_raw) % 8) % 8
+    try:
+        return base64.b32decode(b32_raw + "=" * pad)
+    except Exception:
+        return b"" 
 
 
 def decode_dns_xor_b32_beacon(

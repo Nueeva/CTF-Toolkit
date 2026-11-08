@@ -246,3 +246,86 @@ def hastad_unpadded(ciphertext: int, e: int = 3) -> bytes:
     """Recover plaintext bytes from unpadded small-e RSA when m^e < n."""
     m = integer_nth_root(ciphertext, e)
     return int_to_bytes(m)
+
+
+def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
+    """
+    Attempt automated factorization of composite modulus `n` using an adaptive cascade:
+    1. Small prime trial division (up to 1,000,000)
+    2. Fermat's factorization for close primes
+    3. Pollard's p - 1 algorithm for B-smooth primes
+    4. Pollard's rho algorithm for medium-sized factors
+    5. SymPy factorint fallback
+    """
+    if n <= 1:
+        return [n]
+
+    # 1. Trial division up to 1,000,000
+    p_small = rsa_factor_small(n, limit=1_000_000)
+    if p_small is not None:
+        q = n // p_small
+        return (min(p_small, q), max(p_small, q))
+
+    # 2. Fermat factor
+    p_fermat = fermat_factor(n, max_iter=200_000)
+    if p_fermat is not None:
+        p, q = p_fermat if isinstance(p_fermat, tuple) else (p_fermat, n // p_fermat)
+        return (min(p, q), max(p, q)), "fermat" 
+
+    # 3. Pollard p - 1
+    p_pollard = pollard_p_minus_1(n, b=500_000)
+    if p_pollard is not None and 1 < p_pollard < n:
+        q = n // p_pollard
+        return (min(p_pollard, q), max(p_pollard, q))
+
+    # 4. Pollard's rho
+    def _pollard_rho(val: int) -> int | None:
+        import math
+        x = 2
+        y = 2
+        d = 1
+        c = 1
+        f = lambda z: (z * z + c) % val
+        for _ in range(500_000):
+            x = f(x)
+            y = f(f(y))
+            d = math.gcd(abs(x - y), val)
+            if d == val:
+                return None
+            if d > 1:
+                return d
+        return None
+
+    p_rho = _pollard_rho(n)
+    if p_rho is not None and 1 < p_rho < n:
+        q = n // p_rho
+        return (min(p_rho, q), max(p_rho, q))
+
+    # 5. Sympy fallback
+    try:
+        import sympy
+        factors_dict = sympy.factorint(n)
+        res = []
+        for prime, exp in factors_dict.items():
+            res.extend([prime] * exp)
+        if len(res) == 2:
+            return (min(res), max(res))
+        return res
+    except Exception:
+        pass
+
+    raise ValueError(f"Unable to factor integer {n} using automated methods")
+
+
+def solve_rsa_auto(n: int, e: int, c: int) -> bytes:
+    """Automatically factor modulus n and decrypt ciphertext c into plaintext bytes."""
+    factors = factor_integer_auto(n)
+    if isinstance(factors, (list, tuple)) and len(factors) == 2:
+        p, q = factors
+        phi = (p - 1) * (q - 1)
+        d = modinv(e, phi)
+        m = pow(c, d, n)
+        return int_to_bytes(m)
+    elif isinstance(factors, list) and len(factors) > 2:
+        return rsa_multiprime_decrypt(c, e, factors)
+    raise ValueError(f"Unsupported factor shape: {factors}")

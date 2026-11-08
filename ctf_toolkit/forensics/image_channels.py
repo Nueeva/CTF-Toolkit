@@ -8,7 +8,10 @@ import numpy as np
 
 def extract_channel_bytes(img_data: bytes | io.BytesIO | str, channel: str = "R") -> bytes:
     """Extract raw byte sequence from a specific color channel of an image."""
-    ch_idx = {"R": 0, "G": 1, "B": 2, "A": 3}.get(channel.upper(), 0)
+    ch_map = {"R": 0, "G": 1, "B": 2, "A": 3}
+    if channel.upper() not in ch_map:
+        raise ValueError(f"Unknown channel '{channel}'. Expected one of: R, G, B, A")
+    ch_idx = ch_map[channel.upper()]
     if isinstance(img_data, (bytes, bytearray)):
         im = Image.open(io.BytesIO(img_data))
     else:
@@ -22,7 +25,7 @@ def extract_channel_bytes(img_data: bytes | io.BytesIO | str, channel: str = "R"
 def find_flags_in_channel(img_data: bytes | io.BytesIO | str, channel: str = "R") -> list[str]:
     """Find CTF flags directly embedded in an image color channel."""
     raw = extract_channel_bytes(img_data, channel)
-    matches = re.findall(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", raw)
+    matches = re.findall(rb"[A-Za-z0-9_\-]+\{[^}\r\n]+\}", raw)
     return [m.decode("utf-8", errors="ignore") for m in matches]
 
 
@@ -36,7 +39,10 @@ def extract_channel_lsb(
     Extract least significant bit (or specific bit plane) from a given color channel (R, G, B, A).
     Packs 8 bits per byte in 'big' (MSB-first) or 'little' (LSB-first) order.
     """
-    ch_idx = {"R": 0, "G": 1, "B": 2, "A": 3}.get(channel.upper(), 0)
+    ch_map = {"R": 0, "G": 1, "B": 2, "A": 3}
+    if channel.upper() not in ch_map:
+        raise ValueError(f"Unknown channel '{channel}'. Expected one of: R, G, B, A")
+    ch_idx = ch_map[channel.upper()]
     if isinstance(img_data, (bytes, bytearray)):
         im = Image.open(io.BytesIO(img_data))
     else:
@@ -106,7 +112,7 @@ def extract_png_trailing_bytes(img_data: bytes | str) -> bytes:
     else:
         raw = bytes(img_data)
 
-    idx = raw.rfind(b"IEND")
+    idx = raw.find(b"IEND")
     if idx == -1:
         return b""
     return raw[idx + 8 :]

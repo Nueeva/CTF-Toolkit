@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import struct
 from pathlib import Path
+import struct
 
 ELF_MAGIC = b"\x7fELF"
 PT_GNU_STACK = 0x6474E551
@@ -102,7 +102,12 @@ def parse_elf(path: str) -> dict[str, object]:
             elif tag == DT_FLAGS_1 and (val & DF_1_NOW):
                 bind_now = True
 
-    canary = b"__stack_chk_fail" in data
+    canary = bool(
+        b"__stack_chk_fail" in data
+        or b"__stack_chk_guard" in data
+        or b"__intel_security_cookie" in data
+        or b"__stack_smash_handler" in data
+    )
 
     relro_state = "No RELRO"
     if relro and bind_now:
@@ -119,5 +124,6 @@ def parse_elf(path: str) -> dict[str, object]:
         "pie": e_type == 3,
         "nx": nx,
         "relro": relro_state,
+        "canary": canary,
         "canary_heuristic": canary,
     }

@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REQUEST_PATTERN = re.compile(r"\brequest\.(get_json\(\)|form)\b")
-UNPACK_PATTERN = re.compile(r"\*\*\s*request\.(get_json\(\)|form)\b")
+REQUEST_PATTERN = re.compile(r"\brequest\.(?:get_json\s*\([^)]*\)|form\b|json\b)")
+UNPACK_PATTERN = re.compile(r"\*\*\s*request\.(?:get_json\s*\([^)]*\)|form\b|json\b)")
 DB_CONTEXT_PATTERN = re.compile(
     r"(db\.session\.add|db\.session\.bulk|db\.session\.execute|"
     r"\.create\(|\.update\(|\.save\(|insert\(|update\(|\bModel\b)",

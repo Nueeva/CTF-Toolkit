@@ -152,8 +152,14 @@ def decimal_to_text(decimal_str: str) -> str:
 
 def ascii85_decode(data: str | bytes) -> bytes:
     """Decode Adobe Ascii85 encoded string or bytes."""
-    raw = data.encode("utf-8") if isinstance(data, str) else data
-    return base64.a85decode(raw.strip())
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    s = raw.strip()
+    if s.startswith(b"<~") and s.endswith(b"~>"):
+        return base64.a85decode(s, adobe=True)
+    try:
+        return base64.a85decode(s)
+    except Exception:
+        return base64.a85decode(s, adobe=True)
 
 
 def base85_decode(data: str | bytes) -> bytes:
@@ -397,12 +403,22 @@ def base_n_decode(encoded_str: str, base: int) -> bytes:
     as well as standard 0-9a-z radix for bases 2-36.
     """
     clean = encoded_str.strip().lower()
-    if base <= 26 and clean.isalpha() and any(c > 'p' for c in clean):
+    if not clean:
+        return b""
+    if base <= 26 and clean.isalpha() and (base == 26 or any(c >= chr(ord('a') + base - 10) for c in clean if base > 10)):
         val = 0
         for c in clean:
             val = val * base + (ord(c) - ord('a'))
     else:
-        val = int(clean, base)
+        try:
+            val = int(clean, base)
+        except ValueError:
+            if base <= 26 and clean.isalpha():
+                val = 0
+                for c in clean:
+                    val = val * base + (ord(c) - ord('a'))
+            else:
+                raise
     h = hex(val)[2:]
     if len(h) % 2 != 0:
         h = "0" + h
@@ -415,9 +431,34 @@ def xxdecode(encoded_str: str) -> bytes:
     xx_alpha = "+-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     b64_alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     trans = str.maketrans(xx_alpha, b64_alpha)
-    clean = encoded_str.strip().translate(trans)
-    clean += "=" * ((4 - len(clean) % 4) % 4)
-    return base64.b64decode(clean)
+
+    lines = [line.strip() for line in encoded_str.strip().splitlines() if line.strip()]
+    if any(line.startswith("begin ") for line in lines):
+        payload_bytes = bytearray()
+        for line in lines:
+            if line.startswith("begin ") or line == "end" or line == "+":
+                continue
+            if len(line) > 1 and line[0] in xx_alpha:
+                expected_len = xx_alpha.index(line[0])
+                chunk_b64 = line[1:].translate(trans)
+                chunk_b64 += "=" * ((4 - len(chunk_b64) % 4) % 4)
+                dec = base64.b64decode(chunk_b64)
+                payload_bytes.extend(dec[:expected_len])
+            else:
+                chunk_b64 = line.translate(trans)
+                chunk_b64 += "=" * ((4 - len(chunk_b64) % 4) % 4)
+                payload_bytes.extend(base64.b64decode(chunk_b64))
+        return bytes(payload_bytes)
+
+    clean = encoded_str.strip()
+    b64_str = clean.translate(trans)
+    b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+    try:
+        return base64.b64decode(b64_str)
+    except Exception:
+        raw_b64 = encoded_str.strip().translate(trans)
+        raw_b64 += "=" * ((4 - len(raw_b64) % 4) % 4)
+        return base64.b64decode(raw_b64)
 
 
 Z85_CHARS = (

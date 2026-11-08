@@ -112,11 +112,20 @@ def triage_data(raw_data: bytes, target_label: str = "buffer") -> TriageReport:
     report.entropy = shannon_entropy(raw_data)
 
     # 1. Magic bytes
-    for sig, label, cat in MAGIC_SIGNATURES:
-        if raw_data.startswith(sig) or (sig == b"ustar" and len(raw_data) > 265 and raw_data[257:262] == b"ustar"):
-            report.magic_type = label
-            report.category_hint = cat
-            break
+    if raw_data.startswith(b"PK\x03\x04") and (b"AndroidManifest.xml" in raw_data or b"classes.dex" in raw_data):
+        report.magic_type = "Android Application Package (APK)"
+        report.category_hint = "reversing"
+        report.suggestions.append("Inspect DEX strings & manifest: 'extract_apk_manifest_strings' / 'extract_dex_strings'")
+    elif raw_data.startswith(b"dex\n"):
+        report.magic_type = "Dalvik Executable (DEX)"
+        report.category_hint = "reversing"
+        report.suggestions.append("Extract DEX strings: 'extract_dex_strings'")
+    else:
+        for sig, label, cat in MAGIC_SIGNATURES:
+            if raw_data.startswith(sig) or (sig == b"ustar" and len(raw_data) > 265 and raw_data[257:262] == b"ustar"):
+                report.magic_type = label
+                report.category_hint = cat
+                break
 
     # 2. Check for embedded plaintext flags
     text_view = raw_data.decode("latin-1", errors="ignore")
@@ -124,11 +133,15 @@ def triage_data(raw_data: bytes, target_label: str = "buffer") -> TriageReport:
     if flags:
         report.flags_found.extend(flags)
 
-    # 3. Unicode & zero-width check
-    text_utf8 = raw_data.decode("utf-8", errors="ignore")
-    if "\u200b" in text_utf8 or "\u200c" in text_utf8 or "\u200d" in text_utf8 or "\ufeff" in text_utf8:
-        report.encodings_detected.append("Zero-Width Steganography")
-        report.suggestions.append("Run zero-width decoder: 'decode_zero_width'")
+    # 3. Unicode & zero-width check (Skip for archives, images, executables to avoid false positives)
+    is_archive_or_binary = bool(report.magic_type and any(
+        m in report.magic_type for m in ('Archive', 'APK', 'ELF', 'Executable', 'Image', 'PDF', 'Audio')
+    ))
+    if not is_archive_or_binary:
+        text_utf8 = raw_data.decode('utf-8', errors='ignore')
+        if chr(0x200B) in text_utf8 or chr(0x200C) in text_utf8 or chr(0x200D) in text_utf8:
+            report.encodings_detected.append('Zero-Width Steganography')
+            report.suggestions.append("Run zero-width decoder: 'decode_zero_width'")
 
     # 4. Text analysis
     printable_chars = [b for b in raw_data if 32 <= b <= 126 or b in (9, 10, 13)]

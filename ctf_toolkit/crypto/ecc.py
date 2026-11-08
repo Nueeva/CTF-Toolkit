@@ -159,33 +159,36 @@ def ecc_smarts_attack(
         return (x, (y + k * p) % p2, 1)
 
     for b_mod in (b, (b + p) % p2):
-        G_lift = _lift(G, a, b_mod)
-        Q_lift = _lift(Q, a, b_mod)
-        # Compute (p - 1)*G_lift + G_lift in projective coordinates mod p^2
-        p_minus_1_G = _proj_mul_mod_p2(p - 1, G_lift, a, b_mod, p2)
-        p_minus_1_Q = _proj_mul_mod_p2(p - 1, Q_lift, a, b_mod, p2)
+        try:
+            G_lift = _lift(G, a, b_mod)
+            Q_lift = _lift(Q, a, b_mod)
+            # Compute (p - 1)*G_lift + G_lift in projective coordinates mod p^2
+            p_minus_1_G = _proj_mul_mod_p2(p - 1, G_lift, a, b_mod, p2)
+            p_minus_1_Q = _proj_mul_mod_p2(p - 1, Q_lift, a, b_mod, p2)
 
-        # In affine mod p^2 before the final addition, (p-1)*P = (x', y') with x' == x mod p, y' == -y mod p
-        # Formal group parameter for P + (p-1)*P uses slope lambda = (y_2 - y_1) / (x_2 - x_1)
-        inv_zG = modinv(p_minus_1_G[2] // (p if p_minus_1_G[2] % p == 0 else 1), p2)
-        inv_zQ = modinv(p_minus_1_Q[2] // (p if p_minus_1_Q[2] % p == 0 else 1), p2)
-        xG2 = (p_minus_1_G[0] * inv_zG) % p2
-        yG2 = (p_minus_1_G[1] * inv_zG) % p2
-        xQ2 = (p_minus_1_Q[0] * inv_zQ) % p2
-        yQ2 = (p_minus_1_Q[1] * inv_zQ) % p2
+            # In affine mod p^2 before the final addition, (p-1)*P = (x', y') with x' == x mod p, y' == -y mod p
+            # Formal group parameter for P + (p-1)*P uses slope lambda = (y_2 - y_1) / (x_2 - x_1)
+            inv_zG = modinv(p_minus_1_G[2] // (p if p_minus_1_G[2] % p == 0 else 1), p2)
+            inv_zQ = modinv(p_minus_1_Q[2] // (p if p_minus_1_Q[2] % p == 0 else 1), p2)
+            xG2 = (p_minus_1_G[0] * inv_zG) % p2
+            yG2 = (p_minus_1_G[1] * inv_zG) % p2
+            xQ2 = (p_minus_1_Q[0] * inv_zQ) % p2
+            yQ2 = (p_minus_1_Q[1] * inv_zQ) % p2
 
-        dx_G = ((xG2 - G_lift[0]) % p2) // p
-        dy_G = (yG2 - G_lift[1]) % p
-        dx_Q = ((xQ2 - Q_lift[0]) % p2) // p
-        dy_Q = (yQ2 - Q_lift[1]) % p
+            dx_G = ((xG2 - G_lift[0]) % p2) // p
+            dy_G = (yG2 - G_lift[1]) % p
+            dx_Q = ((xQ2 - Q_lift[0]) % p2) // p
+            dy_Q = (yQ2 - Q_lift[1]) % p
 
-        if dx_G % p != 0 and dy_G % p != 0 and dy_Q % p != 0:
-            log_G = (dx_G * modinv(dy_G, p)) % p
-            log_Q = (dx_Q * modinv(dy_Q, p)) % p
-            if log_G % p != 0:
-                d = (log_Q * modinv(log_G, p)) % p
-                if ecc_scalar_mul(d, G, a, p) == Q:
-                    return d
+            if dx_G % p != 0 and dy_G % p != 0 and dy_Q % p != 0:
+                log_G = (dx_G * modinv(dy_G, p)) % p
+                log_Q = (dx_Q * modinv(dy_Q, p)) % p
+                if log_G % p != 0:
+                    d = (log_Q * modinv(log_G, p)) % p
+                    if ecc_scalar_mul(d, G, a, p) == Q:
+                        return d
+        except Exception:
+            continue
 
     # Fallback to BSGS when p is small
     if p <= 1_000_000:

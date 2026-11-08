@@ -879,15 +879,18 @@ def variant_beaufort_decrypt(ciphertext: str, key: str) -> str:
     """Decrypt Variant Beaufort cipher (C = P - K => P = C + K mod 26)."""
     key = key.lower()
     pt: list[str] = []
-    for i, c in enumerate(ciphertext):
+    key_idx = 0
+    for c in ciphertext:
         if "a" <= c <= "z":
-            k_val = ord(key[i % len(key)]) - ord("a")
+            k_val = ord(key[key_idx % len(key)]) - ord("a")
             c_val = ord(c) - ord("a")
             pt.append(chr(ord("a") + (c_val + k_val) % 26))
+            key_idx += 1
         elif "A" <= c <= "Z":
-            k_val = ord(key[i % len(key)]) - ord("a")
+            k_val = ord(key[key_idx % len(key)]) - ord("a")
             c_val = ord(c) - ord("A")
             pt.append(chr(ord("A") + (c_val + k_val) % 26))
+            key_idx += 1
         else:
             pt.append(c)
     return "".join(pt)
@@ -915,13 +918,20 @@ RIPPLE_B58_ALPHABET = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxy
 
 def base58_ripple_decode(encoded_str: str) -> bytes:
     """Decode Base58 using Ripple/XRP custom alphabet permutation."""
+    s = encoded_str.strip()
+    if not s:
+        return b""
+    zero_char = RIPPLE_B58_ALPHABET[0]
+    leading_zeros = len(s) - len(s.lstrip(zero_char))
     val = 0
-    for c in encoded_str.strip():
+    for c in s:
         val = val * 58 + RIPPLE_B58_ALPHABET.index(c)
-    h = hex(val)[2:]
-    if len(h) % 2 != 0:
-        h = "0" + h
-    return bytes.fromhex(h)
+    res = bytearray()
+    while val > 0:
+        res.append(val & 0xFF)
+        val >>= 8
+    res.reverse()
+    return (b"\x00" * leading_zeros) + bytes(res)
 
 
 def nibble_swap(data: bytes) -> bytes:

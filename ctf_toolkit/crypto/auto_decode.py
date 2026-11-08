@@ -53,11 +53,17 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             except Exception:
                 next_val = None
 
-        # 5. Fallback to smart_decode
+        # 5. Check ROT13 / Caesar if flag pattern emerges
+        import codecs
+        rot = codecs.decode(text, "rot_13")
+        if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", rot, re.IGNORECASE):
+            return rot.encode("utf-8")
+
+        # 6. Fallback to smart_decode
         if next_val is None:
             try:
                 sd = smart_decode(text)
-                if isinstance(sd, str) and sd != text:
+                if isinstance(sd, str) and sd != text and "\ufffd" not in sd:
                     next_val = sd.encode("utf-8")
             except Exception:
                 next_val = None

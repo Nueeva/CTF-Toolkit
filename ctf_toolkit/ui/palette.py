@@ -30,6 +30,7 @@ ENGINE_PACKAGES: tuple[str, ...] = (
     "ctf_toolkit.reversing",
     "ctf_toolkit.web",
     "ctf_toolkit.pwn",
+    "ctf_toolkit.binex",
     "ctf_toolkit.blockchain",
     "ctf_toolkit.osint_misc",
     "ctf_toolkit.defensive",

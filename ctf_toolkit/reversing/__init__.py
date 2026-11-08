@@ -10,6 +10,12 @@ from ctf_toolkit.reversing.transforms import (
     affine_transform_bytes,
     affine_invert_bytes,
 )
+from ctf_toolkit.reversing.permutations_and_asm import (
+    apply_permutation,
+    invert_permutation,
+    permute_bits_in_byte,
+    emulate_x86_snippet,
+)
 
 __all__ = [
     "reverse_string",
@@ -23,4 +29,8 @@ __all__ = [
     "encode_charcodes",
     "affine_transform_bytes",
     "affine_invert_bytes",
+    "apply_permutation",
+    "invert_permutation",
+    "permute_bits_in_byte",
+    "emulate_x86_snippet",
 ]

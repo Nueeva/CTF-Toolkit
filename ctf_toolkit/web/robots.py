@@ -5,13 +5,19 @@ import re
 
 def parse_robots_txt(robots_content: str) -> dict[str, list[str]]:
     """Parse robots.txt content and extract user-agents, disallow, and allow rules."""
-    rules: dict[str, list[str]] = {"disallow": [], "allow": [], "sitemaps": []}
+    rules: dict[str, list[str]] = {"user-agents": [], "disallow": [], "allow": [], "sitemaps": []}
 
     for line in robots_content.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
 
+        match_ua = re.match(r"^User-agent:\s*(.*)$", line, re.IGNORECASE)
+        if match_ua:
+            ua = match_ua.group(1).strip()
+            if ua and ua not in rules["user-agents"]:
+                rules["user-agents"].append(ua)
+            continue
         match_disallow = re.match(r"^Disallow:\s*(.*)$", line, re.IGNORECASE)
         if match_disallow:
             path = match_disallow.group(1).strip()

@@ -31,26 +31,27 @@ def decode_base64_payload(data: bytes | str) -> bytes:
     if isinstance(data, bytes):
         text = data.decode("latin-1", errors="ignore")
     else:
-        text = data.strip()
+        text = str(data).strip()
 
     # Direct decode attempt with autopadding
     clean = re.sub(r"\s+", "", text)
-    try:
-        padded = clean + "=" * ((4 - len(clean) % 4) % 4)
-        dec = base64.urlsafe_b64decode(padded)
-        if dec:
-            return dec
-    except Exception:
-        pass
+    if clean and len(clean) >= 4 and re.fullmatch(r"[A-Za-z0-9+/=\-_]+", clean):
+        try:
+            padded = clean + "=" * ((4 - len(clean) % 4) % 4)
+            dec = base64.urlsafe_b64decode(padded)
+            if dec:
+                return dec
+        except Exception:
+            pass
 
-    # Search for longest valid base64 token inside binary/string
-    candidates = re.findall(r"[A-Za-z0-9+/=\-_]{12,}", text)
+    # Search for valid base64 tokens inside binary/string
+    candidates = re.findall(r"[A-Za-z0-9+/=\-_]{4,}", text)
     candidates.sort(key=len, reverse=True)
     for cand in candidates:
         try:
             padded = cand + "=" * ((4 - len(cand) % 4) % 4)
             dec = base64.urlsafe_b64decode(padded)
-            if sum(1 for b in dec if 32 <= b <= 126) >= len(dec) * 0.6:
+            if dec and sum(1 for b in dec if 32 <= b <= 126 or b in (9, 10, 13)) >= len(dec) * 0.6:
                 return dec
         except Exception:
             continue

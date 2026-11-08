@@ -166,6 +166,14 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
     """
     initial_score = score_plaintext(data)
     if initial_score >= 10000.0:
+        flag_m = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{([^}\r\n]{3,100})\}", data, re.IGNORECASE)
+        if flag_m:
+            inner = flag_m.group(1).decode("latin-1", errors="ignore")
+            for shift in range(1, 26):
+                shifted = rot_n(inner, shift)
+                if any(term in shifted.lower() for term in (" the ", "the", "and", "that", "cross", "rubicon", "flag", "congrat", "welcome", "secret", "easy", "key", "hidden", "apex", "cyber")):
+                    prefix = flag_m.group(0).split(b"{")[0].decode("latin-1")
+                    return f"{prefix}{{{shifted}}}".encode("utf-8"), [f"rot_inner:{shift}"], initial_score + 100.0, []
         return data, ["(direct)"], initial_score, []
 
     # Priority Queue stores (-score, depth, path, data)
@@ -190,8 +198,18 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
             best_data = current
             best_path = path
 
-        # Found flag! Short-circuit search immediately
+        # Found flag! Check if inner content is Caesar/ROT-shifted before short-circuiting
         if current_score >= 10000.0:
+            flag_m = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{([^}\r\n]{3,100})\}", current, re.IGNORECASE)
+            if flag_m:
+                inner = flag_m.group(1).decode("latin-1", errors="ignore")
+                for shift in range(1, 26):
+                    shifted = rot_n(inner, shift)
+                    if any(term in shifted.lower() for term in ("flag", "congrat", "welcome", "secret", "easy", "key", "hidden", "apex", "cyber")):
+                        prefix = flag_m.group(0).split(b"{")[0].decode("latin-1")
+                        best_data = f"{prefix}{{{shifted}}}".encode("utf-8")
+                        best_path = path + [f"rot_inner:{shift}"]
+                        break
             break
 
         if depth >= max_depth:
