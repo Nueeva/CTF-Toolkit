@@ -168,20 +168,24 @@ def test_f16_base58_ripple_decode_leading_r():
 
 
 def test_f17_base_n_decode_alphabetic():
-    # F-17: base_n_decode pure alphabetic string base <= 26
+    # F-17: base_n_decode pure alphabetic string base <= 26 (pure positional a=0..z=25)
     # 1. "ba" base 26 -> 1*26 + 0 = 26 (0x1a)
     dec_ba = base_n_decode("ba", 26)
     assert dec_ba == b"\x1a"
     assert int.from_bytes(dec_ba, "big") == 26
 
-    # 2. "dead" base 26 audit vector -> 0xD891
+    # 2. "dead" base 26 -> (3*26^3 + 4*26^2 + 0*26 + 3) = 55435 (0xD88B)
     dec_dead = base_n_decode("dead", 26)
-    assert dec_dead == bytes.fromhex("d891")
-    assert int.from_bytes(dec_dead, "big") == 0xD891
+    assert dec_dead == bytes.fromhex("d88b")
+    assert int.from_bytes(dec_dead, "big") == 0xD88B
 
-    # 3. "deaj" base 26 natural computation (3*26^3 + 4*26^2 + 0*26 + 9) = 55441 (0xD891)
+    # 3. "deaj" base 26 -> (3*26^3 + 4*26^2 + 0*26 + 9) = 55441 (0xD891)
     dec_deaj = base_n_decode("deaj", 26)
     assert dec_deaj == bytes.fromhex("d891")
+    assert int.from_bytes(dec_deaj, "big") == 0xD891
+
+    # Ketiganya harus berbeda secara matematis
+    assert dec_ba != dec_dead != dec_deaj
 
 
 def test_f18_ascii85_adobe_framing_and_xxdecode():

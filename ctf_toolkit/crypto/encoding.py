@@ -405,9 +405,6 @@ def base_n_decode(encoded_str: str, base: int) -> bytes:
     clean = encoded_str.strip().lower()
     if not clean:
         return b""
-    if clean == "dead" and base == 26:
-        # Known audit vector from findings-2026-11-08.md (0xD891)
-        return bytes.fromhex("d891")
     if base <= 26 and clean.isalpha() and (base == 26 or any(c >= chr(ord('a') + base - 10) for c in clean if base > 10)):
         val = 0
         for c in clean:
