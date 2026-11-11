@@ -79,18 +79,18 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         res["steps_taken"].append(f"Immediate regex hit for template '{tmpl}'.")
         return res
 
-    # Step 1: Check for RSA / DH / Crypto parameter pattern (e.g. n = ..., n1 = ..., e = ...)
-    if any(k in text.lower() for k in ("n =", "n=", "n1 =", "n1=", "p =", "p=", "c =", "c=", "g =", "phi =", "dp=", "dp =", "modulus")):
-        res["steps_taken"].append("Detected math/crypto parameter declarations. Routing to RSA/DH engine.")
-        crypto_sol = solve_crypto_task(text)
-        if crypto_sol:
-            res["type_detected"] = "Crypto Parameter Script"
-            res["best_result"] = crypto_sol
-            res["steps_taken"].append("solve_crypto_task resolved valid output.")
-            flags = mgr.extract_flags(crypto_sol)
-            if flags:
-                res["flags_found"].extend(flags)
-            return res
+    # Step 1: Universal Auto Solver Routing (Always try solve_crypto_task first!)
+    crypto_sol = solve_crypto_task(text)
+    if crypto_sol:
+        res["type_detected"] = "Crypto Auto Solver"
+        res["best_result"] = crypto_sol
+        res["steps_taken"].append("solve_crypto_task resolved valid output.")
+        flags = mgr.extract_flags(crypto_sol)
+        if flags:
+            res["flags_found"].extend(flags)
+        elif "{" in crypto_sol and "}" in crypto_sol:
+            res["flags_found"].append({"template": "Custom", "priority": 50, "flag": crypto_sol.strip(), "start": 0, "end": len(crypto_sol.strip())})
+        return res
 
     # Step 2: Check for JWT Token
     if text.count(".") == 2 and text.startswith("eyJ"):
