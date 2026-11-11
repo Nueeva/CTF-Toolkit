@@ -275,6 +275,60 @@ def handle_call(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_train(args: argparse.Namespace) -> int:
+    """Connect to CTFd / GetsFlag platform and train toolkit auto-solvers."""
+    from ctf_toolkit.utils.ctfd_client import CTFdClient
+    from ctf_toolkit.utils.ctf_auto_solver import solve_challenge_text, extract_flag
+
+    client = CTFdClient(base_url=args.url)
+    console_info(f"Connecting to CTFd instance at {args.url}...")
+    if not client.login(args.user, args.password):
+        console_warn(f"Login failed for user '{args.user}'. Check credentials.")
+        return 1
+
+    console_success(f"Authenticated as '{args.user}'. Fetching challenge list...")
+    challenges = client.get_challenges()
+    console_info(f"Retrieved {len(challenges)} total challenges.")
+
+    unsolved = [c for c in challenges if not c.get("solved_by_me")]
+    if args.category:
+        unsolved = [c for c in unsolved if c.get("category", "").lower() == args.category.lower()]
+
+    console_info(f"Targeting {len(unsolved)} unsolved challenges (limit={args.limit})...")
+    solved_count = 0
+
+    for chal in unsolved[: args.limit]:
+        cid = chal["id"]
+        cname = chal.get("name", f"Challenge {cid}")
+        cat = chal.get("category", "Misc")
+        detail = client.get_challenge_detail(cid)
+        desc = detail.get("description", "")
+
+        console_info(f"Analyzing [{cat}] #{cid} '{cname}'...")
+        cand_flag = solve_challenge_text(desc)
+
+        if cand_flag:
+            console_info(f"  -> Candidate flag discovered: {cand_flag}")
+            if not args.dry_run:
+                res = client.submit_flag(cid, cand_flag)
+                status = res.get("data", {}).get("status")
+                if status == "correct":
+                    console_success(f"  [SOLVED] Challenge #{cid} solved successfully!")
+                    solved_count += 1
+                elif status == "already_solved":
+                    console_info(f"  [SKIP] Already solved.")
+                else:
+                    console_warn(f"  [WRONG] Attempt rejected: {res}")
+            else:
+                console_info(f"  [DRY-RUN] Flag would be submitted: {cand_flag}")
+                solved_count += 1
+        else:
+            console_warn(f"  -> No heuristic flag pattern extracted from description.")
+
+    console_success(f"Training run finished. Total challenges processed: {min(len(unsolved), args.limit)}, Solved: {solved_count}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ctf-toolkit",
@@ -319,6 +373,15 @@ def build_parser() -> argparse.ArgumentParser:
     call_parser.add_argument("-l", "--list", action="store_true", help="Daftar semua fungsi solver yang tersedia di katalog")
     call_parser.add_argument("--json", action="store_true", help="Output hasil dalam format JSON")
 
+    # Subcommand: train
+    train_parser = subparsers.add_parser("train", help="Automated CTFd / GetsFlag challenge solver & training engine")
+    train_parser.add_argument("--url", default="https://getsflag.com", help="Base URL CTFd instance (default: https://getsflag.com)")
+    train_parser.add_argument("-u", "--user", default="Nueva", help="Username / Identifier")
+    train_parser.add_argument("-p", "--password", default="NuevaStore123#", help="Password")
+    train_parser.add_argument("-c", "--category", default=None, help="Filter by category (Crypto, Forensics, Web, Pwn, Reversing, Blockchain)")
+    train_parser.add_argument("-n", "--limit", type=int, default=10, help="Jumlah challenge maksimal untuk diuji (default: 10)")
+    train_parser.add_argument("--dry-run", action="store_true", help="Hanya ekstrak flag tanpa submit ke platform")
+
     return parser
 
 
@@ -342,6 +405,8 @@ def main() -> None:
         sys.exit(handle_magic(args))
     elif args.subcommand == "call":
         sys.exit(handle_call(args))
+    elif args.subcommand == "train":
+        sys.exit(handle_train(args))
     else:
         parser.print_help()
 

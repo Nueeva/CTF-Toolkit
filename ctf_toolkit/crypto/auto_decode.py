@@ -21,6 +21,16 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             return curr
 
         next_val: bytes | None = None
+        # 0. Check Morse code
+        if next_val is None and re.fullmatch(r"[.\- /_\n]+", text) and (".-" in text or "-." in text or "..." in text or "---" in text):
+            try:
+                from ctf_toolkit.crypto.morse import morse_decode
+                cand_m = morse_decode(text)
+                if cand_m and len(cand_m) >= 4 and "?" not in cand_m:
+                    next_val = cand_m.encode("utf-8")
+            except Exception:
+                next_val = None
+
         # 1. Try Hex
         if len(text) >= 4 and len(text) % 2 == 0 and re.fullmatch(r"[0-9a-fA-F]+", text):
             try:

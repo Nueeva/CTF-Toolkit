@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ctf_toolkit.crypto.morse import morse_decode, morse_encode, fractionated_morse_decode
 from ctf_toolkit.reversing.transforms import xor_bytes
 
 from collections import Counter

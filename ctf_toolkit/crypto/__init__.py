@@ -59,6 +59,8 @@ from ctf_toolkit.crypto.rsa import (
     fermat_factor,
     hastad_broadcast,
     common_modulus_attack,
+    rsa_solve_pqec,
+    rsa_solve_phi_e_c,
 )
 from ctf_toolkit.crypto.stream_attacks import (
     repeating_key_xor,
@@ -98,6 +100,8 @@ __all__ = [
     "smart_decode",
     "morse_decode",
     "morse_encode",
+    "rsa_solve_pqec",
+    "rsa_solve_phi_e_c",
     "bin_to_gray",
     "gray_to_bin",
     "gray_encode_bytes",
