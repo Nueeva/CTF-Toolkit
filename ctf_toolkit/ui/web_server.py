@@ -129,6 +129,34 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             templates = get_flag_manager().templates
             self.wfile.write(json.dumps(templates).encode("utf-8"))
+        elif self.path == "/api/tools":
+            from ctf_toolkit.ui.palette import build_tool_catalog
+            catalog = build_tool_catalog()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            summary = [
+                {"name": t["name"], "category": t["category"], "module": t["module"], "doc": (t.get("doc") or "").strip()}
+                for t in catalog
+            ]
+            self.wfile.write(json.dumps(summary).encode("utf-8"))
+        elif self.path == "/api/cheatsheets":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(get_web_cheatsheet()).encode("utf-8"))
+        elif self.path == "/api/queue":
+            queue_file = Path("/home/agentuser/output/queue_live.json")
+            if queue_file.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(queue_file.read_bytes())
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b"[]")
         else:
             self.send_error(404, "Not Found")
 
@@ -166,11 +194,77 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/triage_file":
             try:
-                # Handle raw binary or multipart upload
                 temp_path = Path("/tmp/uploaded_ctf_artifact.bin")
                 temp_path.write_bytes(body)
                 res = AutoTriageDispatcher.dispatch_file(temp_path)
                 self._send_json({"success": True, "data": res})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/call":
+            try:
+                payload = json.loads(body.decode("utf-8"))
+                func_name = payload.get("function", "").strip()
+                args_list = payload.get("args", [])
+                kwargs_dict = payload.get("kwargs", {})
+
+                from ctf_toolkit.ui.palette import build_tool_catalog, coerce_arg_value
+                import inspect
+                catalog = build_tool_catalog()
+                tool = next((t for t in catalog if t["name"] == func_name), None)
+                if not tool:
+                    self._send_json({"success": False, "error": f"Function '{func_name}' not found."})
+                    return
+
+                fn = tool["func"]
+                sig = inspect.signature(fn)
+                params = [p for p in sig.parameters.values() if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)]
+
+                call_kwargs = {}
+                pos_idx = 0
+                for param in params:
+                    if param.name in kwargs_dict:
+                        call_kwargs[param.name] = coerce_arg_value(str(kwargs_dict[param.name]), param)
+                    elif pos_idx < len(args_list):
+                        call_kwargs[param.name] = coerce_arg_value(str(args_list[pos_idx]), param)
+                        pos_idx += 1
+                    elif param.default != inspect.Parameter.empty:
+                        call_kwargs[param.name] = param.default
+
+                res = fn(**call_kwargs)
+                if isinstance(res, bytes):
+                    res_val = {"hex": res.hex(), "utf8": res.decode("utf-8", errors="replace")}
+                else:
+                    res_val = res
+                self._send_json({"success": True, "function": func_name, "result": res_val})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/writeup/generate":
+            try:
+                payload = json.loads(body.decode("utf-8"))
+                from ctf_toolkit.utils.writeup_generator import DynamicWriteupGenerator
+                name = payload.get("name", "Challenge")
+                cat = payload.get("category", "Crypto")
+                flag = payload.get("flag", "")
+                points = int(payload.get("points", 100))
+                steps = payload.get("steps", [])
+
+                wf, sf = DynamicWriteupGenerator.generate_writeup_and_solver(
+                    challenge_name=name,
+                    category=cat,
+                    flag=flag,
+                    steps=steps,
+                    output_dir="/home/agentuser/output",
+                    points=points,
+                )
+                self._send_json({
+                    "success": True,
+                    "writeup_path": str(wf),
+                    "solver_path": str(sf),
+                    "writeup_md": wf.read_text(encoding="utf-8"),
+                    "solver_py": sf.read_text(encoding="utf-8"),
+                })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
         else:
