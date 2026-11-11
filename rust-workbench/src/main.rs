@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::process::Command;
 use tracing::{error, info};
 
-static PROTOTYPE_HTML: &str = include_str!("../../prototype/prototype.html");
+static WORKBENCH_HTML: &str = include_str!("../../prototype/prototype.html");
 
 #[derive(Debug, Deserialize)]
 struct HubSolveRequest {
@@ -36,7 +36,6 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(serve_index))
-        .route("/prototype", get(serve_index))
         .route("/api/health", get(health_check))
         .route("/api/flags", get(get_flags).post(post_flags))
         .route("/api/flag/verify", post(verify_flag))
@@ -62,7 +61,7 @@ async fn main() {
 }
 
 async fn serve_index() -> Html<&'static str> {
-    Html(PROTOTYPE_HTML)
+    Html(WORKBENCH_HTML)
 }
 
 async fn health_check() -> Json<Value> {
