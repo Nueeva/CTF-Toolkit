@@ -438,6 +438,7 @@ def custom_menu() -> None:
 
 
 def menu() -> None:
+    from ctf_toolkit.ui.crypto.dh_ecc_menu import dh_ecc_interactive_menu, cipher_identification_menu
     run_menu(
         "Crypto",
         {
@@ -447,6 +448,8 @@ def menu() -> None:
             "4": ("PRNG", prng_menu),
             "5": ("Hashes", hashes_menu),
             "6": ("Attacks", attacks_menu),
-            "7": ("Custom", custom_menu),
+            "7": ("Diffie-Hellman & ECC", dh_ecc_interactive_menu),
+            "8": ("Cipher & Hash Identification", cipher_identification_menu),
+            "9": ("Custom Alphabet", custom_menu),
         },
     )

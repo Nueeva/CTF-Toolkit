@@ -74,6 +74,10 @@ from ctf_toolkit.crypto.dh_ecc_tool import (
 from ctf_toolkit.crypto.auto_solver import (
     solve_crypto_task,
 )
+from ctf_toolkit.crypto.cipher_id import (
+    identify_cipher_text,
+    identify_hash_format,
+)
 from ctf_toolkit.crypto.ecc import (
     ecc_point_add,
     ecc_scalar_mul,
@@ -119,6 +123,8 @@ __all__ = [
     "ecc_point_operation",
     "is_point_on_curve",
     "solve_crypto_task",
+    "identify_cipher_text",
+    "identify_hash_format",
     "ecc_point_add",
     "ecc_scalar_mul",
     "ecc_smarts_attack",

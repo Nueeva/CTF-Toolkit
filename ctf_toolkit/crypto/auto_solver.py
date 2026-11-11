@@ -8,20 +8,12 @@ from ctf_toolkit.crypto.classical import a1z26_decode
 from ctf_toolkit.crypto.rsa import rsa_solve_pqec, rsa_solve_phi_e_c
 from ctf_toolkit.crypto.rsa_auto import solve_rsa_auto
 from ctf_toolkit.crypto.dh_ecc_tool import diffie_hellman_compute, ecc_point_operation
-
-
-FLAG_REGEX = re.compile(
-    r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}",
-    re.IGNORECASE,
-)
+from ctf_toolkit.utils.flag_manager import get_flag_manager
 
 
 def extract_flag(text: str | bytes) -> str | None:
-    """Extract standard or event-specific CTF flag from text/bytes."""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    m = FLAG_REGEX.search(text)
-    return m.group(0) if m else None
+    """Extract standard or event-specific CTF flag via intelligent dynamic flag manager."""
+    return get_flag_manager().find_first_flag(text)
 
 
 def solve_crypto_task(desc: str) -> str | None:

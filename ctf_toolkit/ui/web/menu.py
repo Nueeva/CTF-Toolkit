@@ -310,6 +310,12 @@ def menu() -> None:
             res[provider] = build_ssrf_metadata_url(provider)
         inspect_output(res, title="Cloud SSRF Endpoints", op_name="ssrf_crafter")
 
+    def cheatsheet_action() -> None:
+        from ctf_toolkit.web.cheatsheets import format_cheatsheet_text
+        cat = safe_input("Filter kategori (SQLi, LFI, SSTI, XSS, Command Injection, JWT) [kosong=semua]: ").strip() or None
+        text = format_cheatsheet_text(cat)
+        inspect_output(text, title="Web Exploitation Cheatsheet", op_name="web_cheatsheet")
+
     run_menu(
         "Web",
         {
@@ -325,5 +331,6 @@ def menu() -> None:
             "10": ("Command Injection Crafter", cmdi_action),
             "11": ("Cloud SSRF Prober Endpoints", ssrf_action),
             "12": ("Web Payload Diff Matrix (Posting/Burp-Style)", payload_diff_matrix_action),
+            "13": ("Curated Exploitation Cheatsheets (GetsFlag Parity)", cheatsheet_action),
         },
     )

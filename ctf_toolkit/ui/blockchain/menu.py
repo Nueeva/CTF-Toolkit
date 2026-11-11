@@ -8,6 +8,8 @@ from ctf_toolkit.blockchain.protocols import (
     compute_merkle_root,
     crack_keccak256_wordlist,
     resolve_4byte_selector,
+    to_checksum_address,
+    convert_eth_unit,
 )
 from ctf_toolkit.blockchain.revert import decode_revert_reason
 from ctf_toolkit.blockchain.storage import (
@@ -31,6 +33,8 @@ def menu() -> None:
         ("5", "Deterministic Contract Address (CREATE & CREATE2)"),
         ("6", "Sorted-Pair Merkle Root Calculator"),
         ("7", "4-Byte Selector & Keccak-256 Wordlist Resolver"),
+        ("8", "EIP-55 Address Checksum Formatter"),
+        ("9", "Ethereum Denomination Unit Converter (Wei <-> Ether/Gwei)"),
         ("0", "Kembali"),
     ]
 
@@ -100,5 +104,21 @@ def menu() -> None:
                 inspect_output(resolve_4byte_selector(target, cands), title="4-Byte Selector Match", op_name="resolve_4byte_selector")
             else:
                 inspect_output(crack_keccak256_wordlist(target, cands), title="Keccak-256 Preimage", op_name="crack_keccak256_wordlist")
+        elif choice == "8":
+            addr = safe_input("Ethereum address (0x...): ").strip()
+            try:
+                res_cs = to_checksum_address(addr)
+                inspect_output({"raw": addr, "checksummed": res_cs}, title="EIP-55 Checksum Address", op_name="to_checksum_address")
+            except Exception as e:
+                warn(f"Error checksum: {e}")
+        elif choice == "9":
+            val = safe_input("Value: ").strip()
+            from_u = safe_input("From unit [wei/gwei/ether, default wei]: ").strip() or "wei"
+            to_u = safe_input("To unit [ether/gwei/wei, default ether]: ").strip() or "ether"
+            try:
+                converted = convert_eth_unit(val, from_u, to_u)
+                inspect_output({"input": f"{val} {from_u}", "result": f"{converted} {to_u}"}, title="ETH Unit Conversion", op_name="convert_eth_unit")
+            except Exception as e:
+                warn(f"Error unit conversion: {e}")
         else:
             warn("Pilihan tidak valid.")

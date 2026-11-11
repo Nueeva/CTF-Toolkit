@@ -16,6 +16,7 @@ from ctf_toolkit.ui.console import (
     console_info,
     console_success,
     console_warn,
+    console_error,
     show_flag_vault_interactive,
     show_buffer_history_interactive,
 )
@@ -387,6 +388,19 @@ def build_parser() -> argparse.ArgumentParser:
     cheat_parser.add_argument("category", nargs="?", default=None, help="Kategori cheatsheet (SQLi, LFI, SSTI, XSS, Command Injection, JWT)")
     cheat_parser.add_argument("--json", action="store_true", help="Output cheatsheet dalam format JSON")
 
+    # Subcommand: flags
+    flag_parser = subparsers.add_parser("flags", help="Kelola template dan format flag dinamis")
+    flag_parser.add_argument("-l", "--list", action="store_true", help="Daftar semua format flag aktif dan prioritasnya")
+    flag_parser.add_argument("--add", nargs=2, metavar=("NAME", "REGEX"), help="Tambah custom flag template (contoh: --add MYCTF 'MYCTF\\{[^\\}]+\\}')")
+    flag_parser.add_argument("--priority", type=int, default=50, help="Prioritas template custom (default: 50)")
+    flag_parser.add_argument("--remove", metavar="NAME", help="Hapus custom template berdasarkan nama")
+    flag_parser.add_argument("--reset", action="store_true", help="Reset ke konfigurasi bawaan toolkit")
+
+    # Subcommand: identify
+    id_parser = subparsers.add_parser("identify", help="Identifikasi otomatis algoritma hash, cipher, atau pola encoding")
+    id_parser.add_argument("target", help="Ciphertext atau hash string untuk dianalisis")
+    id_parser.add_argument("--json", action="store_true", help="Output hasil analisis dalam format JSON")
+
     return parser
 
 
@@ -418,6 +432,55 @@ def main() -> None:
             print(json.dumps(get_web_cheatsheet(args.category), indent=2))
         else:
             print(format_cheatsheet_text(args.category))
+        sys.exit(0)
+    elif args.subcommand == "flags":
+        from ctf_toolkit.utils.flag_manager import get_flag_manager
+        fm = get_flag_manager()
+        if args.add:
+            name, regex = args.add
+            try:
+                fm.add_template(name, regex, priority=args.priority)
+                console_success(f"Template flag '{name}' berhasil ditambahkan (priority={args.priority}).")
+            except Exception as e:
+                console_error(f"Gagal menambahkan template: {e}")
+                sys.exit(1)
+        elif args.remove:
+            if fm.remove_template(args.remove):
+                console_success(f"Template '{args.remove}' berhasil dihapus.")
+            else:
+                console_warn(f"Template '{args.remove}' tidak ditemukan atau tidak dapat dihapus.")
+        elif args.reset:
+            fm.reset_to_defaults()
+            console_success("Template flag berhasil di-reset ke preset bawaan.")
+        else:
+            console_info("Daftar Template Flag Format Aktif:")
+            for t in fm.templates:
+                prio = t.get("priority", 0)
+                name = t.get("name")
+                patt = t.get("pattern")
+                is_b = " (builtin)" if t.get("builtin") else ""
+                print(f"  [{prio:3d}] {name:<35}{is_b} -> {patt}")
+        sys.exit(0)
+    elif args.subcommand == "identify":
+        from ctf_toolkit.crypto.cipher_id import identify_cipher_text, identify_hash_format
+        target_str = args.target.strip()
+        hashes = identify_hash_format(target_str)
+        ciphers = identify_cipher_text(target_str)
+        out = {"hashes": hashes, "analysis": ciphers}
+        if args.json:
+            print(json.dumps(out, indent=2))
+        else:
+            console_info(f"Analisis Pola untuk input ({len(target_str)} karakter):")
+            print(f"  Entropy : {ciphers.get('entropy')} bits/symbol")
+            print(f"  IoC     : {ciphers.get('ioc')}")
+            if ciphers.get("likely_types"):
+                print("  Kemungkinan Cipher / Encoding:")
+                for lt in ciphers["likely_types"]:
+                    print(f"    • {lt}")
+            if hashes:
+                print("  Kemungkinan Hash Digest:")
+                for h in hashes:
+                    print(f"    • {h.get('algorithm')} ({h.get('category')}) - Confidence {int(h.get('confidence',0)*100)}%")
         sys.exit(0)
     else:
         parser.print_help()

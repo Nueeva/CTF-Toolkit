@@ -31,4 +31,5 @@ def get_menu_registry() -> list[MenuModule]:
         MenuModule("7", "Utilities", _lazy_loader("ctf_toolkit.ui.utilities.menu")),
         MenuModule("8", "Defensive / Blue Team", _lazy_loader("ctf_toolkit.ui.defensive.menu")),
         MenuModule("9", "Workbench (Auto-Triage & Recipe Pipeline)", _lazy_loader("ctf_toolkit.ui.workbench.menu")),
+        MenuModule("10", "Flag Format Manager (Custom Templates & Priorities)", _lazy_loader("ctf_toolkit.ui.flags.menu")),
     ]
