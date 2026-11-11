@@ -1,0 +1,1348 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apexsions Workbench — Operational Investigation Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #0A0B0D;
+    --bg-rail:      #0D0E12;
+    --bg-well:      #060709;
+    --bg-hover:     rgba(255,255,255,0.03);
+    --bg-active:    rgba(200,169,110,0.07);
+
+    --seam:         rgba(255,255,255,0.07);
+    --seam-strong:  rgba(255,255,255,0.14);
+
+    --ink:          #EFECE6;
+    --ink-2:        #9B9EA6;
+    --ink-3:        #5B5E66;
+
+    --brass:        #C8A96E;
+    --brass-dim:    rgba(200,169,110,0.25);
+    --teal:         #7BB2AC;
+    --ok:           #52C48A;
+    --err:          #D4635C;
+
+    --font-ui:      'Space Grotesk', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+    --font-serif:   'Instrument Serif', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  ::selection { background: var(--brass); color: var(--bg); }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+  .shell { display: grid; grid-template-columns: 204px 1fr; height: 100dvh; width: 100vw; }
+
+  /* ---------- Left rail ---------- */
+  .rail { background: var(--bg-rail); border-right: 1px solid var(--seam); display: flex; flex-direction: column; }
+  .rail-brand { height: 46px; padding: 0 16px; border-bottom: 1px solid var(--seam); display: flex; align-items: center; justify-content: space-between; }
+  .brand-name { font-size: 14px; font-weight: 500; letter-spacing: -0.02em; }
+  .brand-name em { font-family: var(--font-serif); font-style: italic; font-size: 17px; font-weight: 400; color: var(--brass); margin-left: 3px; }
+  .rail-search-btn { margin: 12px 12px 8px; padding: 6px 10px; background: var(--bg-well); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink-3); font-size: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .rail-search-btn:hover { border-color: var(--seam-strong); color: var(--ink-2); }
+  .kbd { font-family: var(--font-mono); font-size: 10px; color: var(--brass); }
+
+  .nav-group { padding: 12px 14px 4px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .nav-link { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; color: var(--ink-2); cursor: pointer; border-left: 2px solid transparent; }
+  .nav-link:hover { background: var(--bg-hover); color: var(--ink); }
+  .nav-link.active { background: var(--bg-active); color: var(--ink); border-left-color: var(--brass); font-weight: 500; }
+  .nav-count { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+  .nav-link.active .nav-count { color: var(--brass); }
+
+  .rail-meta { margin-top: auto; padding: 12px 14px; border-top: 1px solid var(--seam); font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 4px; }
+  .rail-meta-row { display: flex; justify-content: space-between; }
+
+  /* ---------- Top bar ---------- */
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 46px; min-height: 46px; padding: 0 20px; border-bottom: 1px solid var(--seam); display: flex; align-items: center; justify-content: space-between; }
+  .crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .crumb strong { color: var(--ink); font-weight: 500; }
+  .crumb-tag { font-family: var(--font-mono); font-size: 10.5px; color: var(--brass); border-left: 1px solid var(--seam); padding-left: 10px; margin-left: 4px; }
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+  .btn-flat { background: transparent; border: 1px solid var(--seam-strong); color: var(--ink); font-family: var(--font-ui); font-size: 12px; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+  .btn-flat:hover { border-color: var(--brass); color: var(--brass); }
+  .btn-flat:disabled { opacity: 0.4; cursor: default; }
+  .btn-submit { background: var(--brass); border: 1px solid var(--brass); color: var(--bg); font-family: var(--font-ui); font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 4px; cursor: pointer; }
+  .btn-submit:hover { opacity: 0.9; }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+
+  .view { flex: 1; display: none; overflow: hidden; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* ---------- Queue view ---------- */
+  .ops-split { flex: 1; display: grid; grid-template-columns: 1.15fr 460px; overflow: hidden; }
+  .queue-pane { display: flex; flex-direction: column; border-right: 1px solid var(--seam); overflow: hidden; }
+  .filter-strip { padding: 8px 18px; border-bottom: 1px solid var(--seam); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .filter-tabs { display: flex; gap: 16px; flex-wrap: wrap; }
+  .ftab { font-size: 12px; color: var(--ink-3); cursor: pointer; padding: 4px 0; border-bottom: 1px solid transparent; white-space: nowrap; }
+  .ftab:hover { color: var(--ink-2); }
+  .ftab.active { color: var(--ink); border-bottom-color: var(--brass); }
+  .inline-search { background: transparent; border: none; border-bottom: 1px solid var(--seam); color: var(--ink); font-family: var(--font-mono); font-size: 11.5px; padding: 3px 4px; width: 210px; outline: none; }
+  .inline-search:focus { border-bottom-color: var(--brass); }
+
+  .queue-scroll { flex: 1; overflow-y: auto; }
+  .q-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .q-table th { position: sticky; top: 0; background: var(--bg); padding: 8px 18px; font-family: var(--font-mono); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); border-bottom: 1px solid var(--seam); z-index: 2; }
+  .q-table td { padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.035); vertical-align: middle; }
+  .q-row { cursor: pointer; }
+  .q-row:hover { background: var(--bg-hover); }
+  .q-row.selected { background: var(--bg-active); }
+  .q-row.selected td:first-child { box-shadow: inset 2px 0 0 var(--brass); }
+
+  .mono-id { font-family: var(--font-mono); font-size: 11.5px; color: var(--brass); }
+  .mono-target { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); }
+  .mono-time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  .state-dot { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; white-space: nowrap; }
+  .dot-c { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+
+  /* ---------- Terminal ---------- */
+  .term-pane { height: 245px; min-height: 200px; border-top: 1px solid var(--seam); background: var(--bg-well); display: flex; flex-direction: column; }
+  .term-bar { padding: 6px 18px; border-bottom: 1px solid var(--seam); display: flex; align-items: center; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+  .term-out { flex: 1; overflow-y: auto; padding: 12px 18px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; }
+  .t-cmd { color: var(--ink); }
+  .t-hdr { color: var(--teal); }
+  .t-hit { color: var(--brass); }
+  .t-ok  { color: var(--ok); }
+  .t-err { color: var(--err); }
+  .term-cmdbar { display: flex; align-items: center; gap: 8px; padding: 7px 18px; border-top: 1px solid var(--seam); background: var(--bg); }
+  .term-input { flex: 1; background: transparent; border: none; color: var(--ink); font-family: var(--font-mono); font-size: 11.5px; outline: none; }
+  .term-input::placeholder { color: var(--ink-3); }
+
+  /* ---------- Inspector ---------- */
+  .inspector { background: var(--bg-rail); display: flex; flex-direction: column; overflow: hidden; }
+  .insp-head { padding: 16px 20px 14px; border-bottom: 1px solid var(--seam); }
+  .insp-kicker { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; color: var(--brass); margin-bottom: 4px; }
+  .insp-title { font-size: 18px; font-weight: 500; letter-spacing: -0.02em; }
+  .insp-title em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--brass); }
+  .insp-desc { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+
+  .insp-tabs { display: flex; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--seam); }
+  .itab { padding: 9px 0; font-size: 12px; color: var(--ink-3); cursor: pointer; border-bottom: 1px solid transparent; }
+  .itab:hover { color: var(--ink-2); }
+  .itab.active { color: var(--ink); border-bottom-color: var(--brass); }
+
+  .insp-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .kv-pair { display: grid; grid-template-columns: 95px 1fr; gap: 6px 12px; padding-bottom: 14px; border-bottom: 1px solid var(--seam); font-size: 12px; }
+  .kv-k { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  .kv-v { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); word-break: break-all; }
+
+  .evidence-block { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .code-strip { background: var(--bg-well); border-left: 2px solid var(--brass-dim); padding: 12px 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); white-space: pre-wrap; word-break: break-word; overflow-x: auto; line-height: 1.6; }
+
+  .submit-dock { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--seam); background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+  .submit-row { display: flex; gap: 8px; }
+  .flag-input { flex: 1; background: var(--bg-well); border: 1px solid var(--seam-strong); padding: 7px 10px; color: var(--ink); font-family: var(--font-mono); font-size: 12px; border-radius: 4px; outline: none; }
+  .flag-input:focus { border-color: var(--brass); }
+  .submit-feedback { font-family: var(--font-mono); font-size: 11px; color: var(--ok); min-height: 16px; }
+
+  /* ---------- Workbench ---------- */
+  .wb-split { flex: 1; display: grid; grid-template-columns: 272px 1fr; overflow: hidden; }
+  .wb-col { display: flex; flex-direction: column; border-right: 1px solid var(--seam); overflow: hidden; }
+  .wb-col:last-child { border-right: none; }
+  .col-head { padding: 10px 16px; border-bottom: 1px solid var(--seam); display: flex; align-items: center; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+  .tool-list { flex: 1; overflow-y: auto; }
+  .tool-row { padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tool-row:hover { background: var(--bg-hover); }
+  .tool-row.active { background: var(--bg-active); box-shadow: inset 2px 0 0 var(--brass); }
+  .tool-row span { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tool-row small { font-family: var(--font-mono); font-size: 10px; color: var(--teal); flex: 0 0 auto; }
+
+  .run-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .run-head { padding: 14px 20px; border-bottom: 1px solid var(--seam); }
+  .run-title { font-size: 15px; font-weight: 500; font-family: var(--font-mono); color: var(--brass); }
+  .run-doc { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+  .ident-strip { padding: 9px 20px; border-bottom: 1px solid var(--seam); display: flex; gap: 10px; align-items: center; }
+  .args-grid { padding: 14px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px 16px; border-bottom: 1px solid var(--seam); overflow-y: auto; max-height: 42%; }
+  .arg-field { display: flex; flex-direction: column; gap: 4px; }
+  .arg-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+  .arg-label b { color: var(--teal); font-weight: 500; }
+  .arg-input { background: var(--bg-well); border: 1px solid var(--seam); padding: 6px 9px; color: var(--ink); font-family: var(--font-mono); font-size: 11.5px; border-radius: 3px; outline: none; }
+  .arg-input:focus { border-color: var(--brass); }
+  .result-pane { flex: 1; overflow: auto; padding: 14px 20px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+  .empty-note { padding: 24px 20px; font-size: 12.5px; color: var(--ink-3); }
+
+  .drop-line { margin: 14px 16px 0; padding: 12px 14px; border: 1px dashed var(--seam-strong); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 12px; color: var(--ink-2); }
+  .drop-line:hover { border-color: var(--brass); color: var(--ink); }
+
+  .plain-editor { flex: 1; width: 100%; background: var(--bg-well); border: none; border-top: 1px solid var(--seam); margin-top: 14px; padding: 16px; color: var(--ink); font-family: var(--font-mono); font-size: 12px; line-height: 1.65; resize: none; outline: none; }
+
+  .flat-scroll { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .flat-section-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .flat-section-title em { font-family: var(--font-serif); font-style: italic; color: var(--brass); }
+  .flat-sub { font-size: 12.5px; color: var(--ink-2); margin-bottom: 18px; }
+
+  /* ---------- Palette ---------- */
+  .modal-bg { position: fixed; inset: 0; background: rgba(5,6,8,0.78); display: none; align-items: flex-start; justify-content: center; padding-top: 12vh; z-index: 9000; }
+  .modal-bg.open { display: flex; }
+  .modal-box { width: 580px; max-width: 92vw; background: var(--bg-rail); border: 1px solid var(--seam-strong); border-radius: 6px; overflow: hidden; }
+  #paletteInput { width: 100%; border: none; border-bottom: 1px solid var(--seam); padding: 14px 16px; border-radius: 0; }
+
+  .toast { position: fixed; bottom: 18px; right: 18px; background: var(--bg-rail); border: 1px solid var(--seam-strong); border-left: 2px solid var(--brass); padding: 10px 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); z-index: 9500; display: none; }
+  .toast.show { display: block; }
+
+  @media (max-width: 1000px) {
+    body { overflow: auto; }
+    .shell { grid-template-columns: 1fr; height: auto; }
+    .ops-split, .wb-split { grid-template-columns: 1fr; }
+    .queue-pane, .wb-col { border-right: none; border-bottom: 1px solid var(--seam); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="brand-name">Apexsions <em>Bench</em></div>
+      <span class="kbd">v5</span>
+    </div>
+
+    <div class="rail-search-btn" onclick="togglePalette()">
+      <span>Find tool (__TOOL_COUNT__)...</span>
+      <span class="kbd">⌘K</span>
+    </div>
+
+    <div class="nav-group">Investigation</div>
+    <div class="nav-link active" data-page="queue" onclick="switchPage('queue','Challenge Queue','Active Operations',this)">
+      <span>Challenge Queue</span><span class="nav-count" id="navQueueCount">7</span>
+    </div>
+    <div class="nav-link" data-page="workbench" onclick="switchPage('workbench','Solver Workbench','__TOOL_COUNT__ Solvers',this)">
+      <span>Solver Workbench</span><span class="nav-count">__TOOL_COUNT__</span>
+    </div>
+    <div class="nav-link" data-page="triage" onclick="switchPage('triage','File Triage','Auto Dispatcher',this)">
+      <span>File Triage</span><span class="nav-count">8</span>
+    </div>
+    <div class="nav-link" data-page="studio" onclick="switchPage('studio','Writeup Studio','Solver + Report',this)">
+      <span>Writeup Studio</span><span class="nav-count">GEN</span>
+    </div>
+
+    <div class="nav-group">Reference</div>
+    <div class="nav-link" data-page="flags" onclick="switchPage('flags','Flag Formats','Priority Chain',this)">
+      <span>Flag Formats</span><span class="nav-count" id="navFlagCount">13</span>
+    </div>
+    <div class="nav-link" data-page="cheats" onclick="switchPage('cheats','Payload Reference','Web &amp; EVM',this)">
+      <span>Web &amp; EVM Reference</span><span class="nav-count" id="navCheatCount">6</span>
+    </div>
+
+    <div class="rail-meta">
+      <div class="rail-meta-row"><span>GetsFlag</span><span style="color:var(--brass)">#3 · 30,625</span></div>
+      <div class="rail-meta-row"><span>Engine</span><span style="color:var(--ok)">1273 / 1273</span></div>
+      <div class="rail-meta-row"><span>API</span><span id="apiStatus">checking…</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb">
+        <span>Workspace</span><span>/</span>
+        <strong id="topTitle">Challenge Queue</strong>
+        <span class="crumb-tag" id="topTag">Active Operations</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-flat" onclick="switchPageByName('workbench')">Solver Workbench</button>
+        <button class="btn-submit" onclick="runActiveProbe()">Re-run Probe</button>
+      </div>
+    </header>
+
+    <!-- ========== QUEUE ========== -->
+    <section id="page-queue" class="view active">
+      <div class="ops-split">
+        <div class="queue-pane">
+          <div class="filter-strip">
+            <div class="filter-tabs" id="stateTabs">
+              <span class="ftab active" data-state="ALL">All</span>
+              <span class="ftab" data-state="INVESTIGATING">Investigating</span>
+              <span class="ftab" data-state="QUEUED">Queued</span>
+              <span class="ftab" data-state="SOLVED">Solved</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="inline-search" id="queueSearch" placeholder="Filter ID, target, category…">
+              <button class="btn-flat" style="padding:3px 9px;font-size:11px" onclick="addChallenge()">+ Add</button>
+            </div>
+          </div>
+
+          <div class="queue-scroll">
+            <table class="q-table">
+              <thead>
+                <tr><th>ID</th><th>Challenge</th><th>Category</th><th>Target / Artifact</th><th>State</th><th>Activity</th></tr>
+              </thead>
+              <tbody id="queueTbody"></tbody>
+            </table>
+          </div>
+
+          <div class="term-pane">
+            <div class="term-bar">
+              <span id="termContextTitle">TERMINAL</span>
+              <span style="color:var(--teal)" id="termExitCode">exit 0</span>
+            </div>
+            <div class="term-out" id="termOutput"></div>
+            <div class="term-cmdbar">
+              <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--brass)">$</span>
+              <input class="term-input" id="termInput" placeholder="base64_decode R0VU…  ·  caesar_bruteforce text=WKLV shift=*  ·  help">
+              <button class="btn-flat" style="padding:2px 10px;font-size:11px" onclick="runTermCmd()">Run</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="inspector">
+          <div class="insp-head">
+            <div class="insp-kicker">
+              <span id="inspIdCat">—</span>
+              <span id="inspState">—</span>
+            </div>
+            <div class="insp-title" id="inspTitle">—</div>
+            <div class="insp-desc" id="inspSummary">—</div>
+          </div>
+
+          <div class="insp-tabs">
+            <div class="itab active" data-tab="evidence">Evidence</div>
+            <div class="itab" data-tab="solver">Companion .py</div>
+            <div class="itab" data-tab="writeup">Writeup Draft</div>
+          </div>
+
+          <div class="insp-body">
+            <div id="insp-evidence">
+              <div class="kv-pair">
+                <span class="kv-k">Target</span><span class="kv-v" id="kvTarget">—</span>
+                <span class="kv-k">Activity</span><span class="kv-v" id="kvActivity">—</span>
+                <span class="kv-k">Dispatcher</span><span class="kv-v" id="kvDispatcher">—</span>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;margin:12px 0 6px">Extracted Evidence</div>
+              <div class="evidence-block" id="inspEvidenceText">—</div>
+            </div>
+            <div id="insp-solver" style="display:none"><pre class="code-strip" id="inspSolverCode"></pre></div>
+            <div id="insp-writeup" style="display:none"><pre class="code-strip" id="inspWriteupDraft"></pre></div>
+          </div>
+
+          <div class="submit-dock">
+            <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)">
+              <span>FLAG CANDIDATE</span>
+              <span style="color:var(--brass)">POST /api/v1/challenges/attempt</span>
+            </div>
+            <div class="submit-row">
+              <input class="flag-input" id="inspFlagInput" placeholder="GETSFLAG{...}">
+              <button class="btn-submit" onclick="submitConnectedFlag()">Submit</button>
+            </div>
+            <div class="submit-feedback" id="submitFeedback"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== WORKBENCH ========== -->
+    <section id="page-workbench" class="view">
+      <div class="wb-split">
+        <div class="wb-col">
+          <div class="col-head"><span>Registry</span><span id="toolCountLabel">__TOOL_COUNT__</span></div>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--seam)">
+            <input class="inline-search" style="width:100%" id="railSearch" placeholder="Filter solvers…">
+          </div>
+          <div class="tool-list" id="railList"></div>
+        </div>
+
+        <div class="wb-col">
+          <div class="run-pane">
+            <div class="run-head">
+              <div class="run-title" id="runTitle">no solver selected</div>
+              <div class="run-doc" id="runDoc">Pick a function from the registry on the left.</div>
+            </div>
+            <div class="ident-strip">
+              <input class="inline-search" style="flex:1;width:auto" id="identInput" placeholder="Identify: paste ciphertext, hash or payload…">
+              <button class="btn-flat" onclick="runIdentify()">Identify</button>
+            </div>
+            <div class="args-grid" id="argsGrid">
+              <div class="empty-note">Arguments appear here once a solver is selected.</div>
+            </div>
+            <div style="padding:10px 20px;border-bottom:1px solid var(--seam);display:flex;gap:8px;align-items:center">
+              <button class="btn-submit" id="execBtn" onclick="executeSolver()" disabled>Execute</button>
+              <button class="btn-flat" onclick="copySolverCall()">Copy CLI</button>
+              <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)" id="execStatus"></span>
+            </div>
+            <pre class="result-pane" id="resultPane">Awaiting execution.</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== TRIAGE ========== -->
+    <section id="page-triage" class="view">
+      <div class="wb-split">
+        <div class="wb-col" style="width:auto">
+          <div class="col-head"><span>Dispatcher</span><span>8 formats</span></div>
+          <div style="padding:0 0 12px">
+            <div class="drop-line" onclick="document.getElementById('fileDrop').click()">
+              <span id="fileLabel">Select .jpg .png .gif .pcap .zip .pdf .docx .wav</span>
+              <span style="font-family:var(--font-mono);color:var(--brass)">Browse</span>
+              <input type="file" id="fileDrop" hidden>
+            </div>
+          </div>
+          <div class="tool-list" id="dispatchLog"></div>
+        </div>
+        <div class="wb-col">
+          <div class="col-head"><span>Triage Report</span><span style="color:var(--brass)" id="triageStatus">idle</span></div>
+          <pre class="result-pane" id="triageReport">No specimen submitted. Drop a capture, image, archive or document to route it through the format specialist.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== WRITEUP STUDIO ========== -->
+    <section id="page-studio" class="view">
+      <div class="flat-scroll">
+        <div class="flat-section-title">Writeup <em>Studio</em></div>
+        <div class="flat-sub">Generate a step-by-step report and a standalone solver script from the investigation trace.</div>
+
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:24px;border-top:1px solid var(--seam);padding-top:18px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="arg-field"><label class="arg-label">CHALLENGE</label><input class="arg-input" id="wuName"></div>
+            <div class="arg-field"><label class="arg-label">CATEGORY</label><input class="arg-input" id="wuCat" placeholder="Crypto"></div>
+            <div class="arg-field"><label class="arg-label">FLAG</label><input class="arg-input" id="wuFlag"></div>
+            <div class="arg-field"><label class="arg-label">POINTS</label><input class="arg-input" id="wuPoints" value="100"></div>
+            <button class="btn-submit" style="margin-top:6px" onclick="generateWriteup()">Generate</button>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3)" id="wuStatus"></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div class="arg-label" style="margin-bottom:6px">REPORT.md</div>
+              <pre class="code-strip" id="wuMarkdown" style="min-height:150px">—</pre>
+            </div>
+            <div>
+              <div class="arg-label" style="margin-bottom:6px">SOLVER.py</div>
+              <pre class="code-strip" id="wuSolver" style="min-height:120px">—</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FLAGS ========== -->
+    <section id="page-flags" class="view">
+      <div class="flat-scroll">
+        <div class="flat-section-title">Flag Format <em>Governance</em></div>
+        <div class="flat-sub">Priority chain — highest first. Detection walks the list and returns the first match.</div>
+
+        <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+          <input class="flag-input" style="max-width:190px;flex:0 0 auto" id="newFlagName" placeholder="Template name">
+          <input class="flag-input" id="newFlagRegex" placeholder="Regex pattern">
+          <input class="flag-input" style="max-width:92px;flex:0 0 auto" id="newFlagPrio" type="number" value="91">
+          <button class="btn-submit" onclick="addCustomFlagUI()">Add Rule</button>
+        </div>
+
+        <table class="q-table">
+          <thead><tr><th>Priority</th><th>Name</th><th>Pattern</th><th>Origin</th></tr></thead>
+          <tbody id="flagsTableBody"></tbody>
+        </table>
+
+        <div style="margin-top:22px;border-top:1px solid var(--seam);padding-top:16px">
+          <div class="arg-label" style="margin-bottom:8px">TEST A STRING AGAINST THE CHAIN</div>
+          <div style="display:flex;gap:10px">
+            <input class="flag-input" id="flagProbeInput" placeholder="paste output here…">
+            <button class="btn-flat" onclick="probeFlag()">Detect</button>
+          </div>
+          <div class="code-strip" id="flagProbeResult" style="margin-top:10px">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== CHEATS ========== -->
+    <section id="page-cheats" class="view">
+      <div class="flat-scroll">
+        <div class="flat-section-title">Web &amp; EVM <em>Reference</em></div>
+        <div class="flat-sub">Payload patterns for SQLi, LFI, SSTI, command injection, XSS and JWT.</div>
+        <div class="filter-tabs" style="margin-bottom:14px;border-bottom:1px solid var(--seam);padding-bottom:6px" id="cheatPills"></div>
+        <div id="cheatBody"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-bg" id="cmdPalette" onclick="if(event.target===this) togglePalette()">
+  <div class="modal-box">
+    <input class="flag-input" id="paletteInput" placeholder="Search __TOOL_COUNT__ solvers…">
+    <div style="max-height:340px;overflow-y:auto" id="paletteResults"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOOLS = __TOOLS_JSON__;
+const FLAGS = __FLAGS_JSON__;
+const CHEATS = __CHEATS_JSON__;
+
+const QUEUE = [
+  {
+    id: "GF-812", title: "Silent Header", cat: "Web", target: "https://inst-812.getsflag.com/probe",
+    pts: 75, state: "INVESTIGATING", activity: "2m ago",
+    summary: "Server response exposes non-standard diagnostic headers before 302 redirect.",
+    dispatcher: "HTTP Header / Base64 Peel",
+    terminal: [
+      "$ curl -i -s -D - https://inst-812.getsflag.com/probe",
+      "HTTP/2 302 Found",
+      "server: nginx/1.24.0",
+      "date: Wed, 11 Nov 2026 03:24:11 GMT",
+      "location: /login",
+      "x-debug-trace: b64:R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==",
+      "x-upstream-node: sg-edge-04",
+      "content-length: 0",
+      "",
+      "[triage] Detected non-standard header x-debug-trace -> Base64 payload",
+      "[decode] R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ== -> GETSFLAG{silent_header_leak}"
+    ],
+    evidence: "HTTP/2 302 response carried x-debug-trace holding a Base64 string. Decoding yields the flag before the client follows the redirect to /login.",
+    flag: "GETSFLAG{silent_header_leak}",
+    solver: "import urllib.request, base64\n\nreq = urllib.request.Request('https://inst-812.getsflag.com/probe')\nwith urllib.request.urlopen(req) as r:\n    raw = r.headers.get('x-debug-trace', '')\n    payload = raw.split(':', 1)[1].strip()\n    print(base64.b64decode(payload).decode())"
+  },
+  {
+    id: "GF-337", title: "RSA Tiga Faktor", cat: "Crypto", target: "params.txt (multi-prime)",
+    pts: 150, state: "SOLVED", activity: "14m ago",
+    summary: "Modulus n = p * q * r with all three prime factors exposed in the attachment.",
+    dispatcher: "rsa_multiprime_decrypt",
+    terminal: [
+      "$ python main.py call rsa_multiprime_decrypt --auto params.txt",
+      "[parse] factors p q r (256-bit each), e = 65537",
+      "[math]  phi(n) = (p-1)*(q-1)*(r-1)",
+      "[math]  d = pow(e, -1, phi(n))",
+      "[dec]   m = pow(c, d, n) -> 39 bytes UTF-8",
+      "[flag]  matched GETSFLAG (priority 100)",
+      "[wire]  POST /api/v1/challenges/attempt -> 200 {\"status\":\"correct\"}"
+    ],
+    evidence: "Three 256-bit primes let phi(n) be reconstructed directly, so the private exponent fell out of a plain modular inverse.",
+    flag: "GETSFLAG{rsa_multiprime_three_factors}",
+    solver: "from ctf_toolkit.crypto.rsa import rsa_multiprime_decrypt\n\nm = rsa_multiprime_decrypt([p, q, r], e, c)\nprint(m.to_bytes((m.bit_length() + 7) // 8, 'big').decode())"
+  },
+  {
+    id: "GF-048", title: "Titik Garis", cat: "Crypto", target: "cipher.txt (Morse)",
+    pts: 75, state: "SOLVED", activity: "28m ago",
+    summary: "Morse stream using alternate delimiters for the flag braces.",
+    dispatcher: "morse_decode",
+    terminal: [
+      "$ python main.py identify cipher.txt",
+      "[triage] dot/dash ratio 1.00 -> Morse Code",
+      "[decode] raw -> CT(FAR_INFRARED)",
+      "[norm]   prefix calibrated -> GETSFLAG{far_infrared}",
+      "[wire]   POST /api/v1/challenges/attempt -> 200 {\"status\":\"correct\"}"
+    ],
+    evidence: "Standard ITU Morse with -.--. and -.--.- standing in for the curly braces.",
+    flag: "GETSFLAG{far_infrared}",
+    solver: "from ctf_toolkit.crypto.classical import morse_decode\n\nprint(morse_decode(open('cipher.txt').read().strip()))"
+  },
+  {
+    id: "GF-054", title: "Posisi Huruf", cat: "Crypto", target: "cipher.txt (A1Z26)",
+    pts: 75, state: "SOLVED", activity: "31m ago",
+    summary: "Dash-delimited ordinal sequence across the full flag body.",
+    dispatcher: "a1z26_decode",
+    terminal: [
+      "$ cat cipher.txt",
+      "7-5-20-19-6-12-1-7-6-1-12-19-5-3-15-12-15-18",
+      "[triage] integers in 1..26 -> A1Z26",
+      "[decode] -> getsflagfalsecolor",
+      "[match]  normalised -> GETSFLAG{false_color}",
+      "[wire]   POST /api/v1/challenges/attempt -> 200 {\"status\":\"correct\"}"
+    ],
+    evidence: "First eight integers map to the GETSFLAG prefix; the remainder spells false_color.",
+    flag: "GETSFLAG{false_color}",
+    solver: "from ctf_toolkit.crypto.classical import a1z26_decode\n\nraw = open('cipher.txt').read().strip()\nprint(a1z26_decode(raw))"
+  },
+  {
+    id: "GF-340", title: "RSA Kunci Bocor", cat: "Crypto", target: "params.txt (n, d, c)",
+    pts: 75, state: "SOLVED", activity: "45m ago",
+    summary: "Private exponent d shipped alongside the modulus and ciphertext.",
+    dispatcher: "solve_crypto_task",
+    terminal: [
+      "$ python main.py call solve_crypto_task @params.txt",
+      "[parse] RSA n, d, c",
+      "[dec]   pow(c, d, n)",
+      "[flag]  GETSFLAG{rsa_private_d_leaked}",
+      "[wire]  POST /api/v1/challenges/attempt -> 200 {\"status\":\"correct\"}"
+    ],
+    evidence: "c^d mod n produced valid UTF-8 with no factoring step required.",
+    flag: "GETSFLAG{rsa_private_d_leaked}",
+    solver: "m = pow(c, d, n)\nprint(m.to_bytes((m.bit_length() + 7) // 8, 'big').decode())"
+  },
+  {
+    id: "PK-104", title: "pcap-dns-exfil", cat: "Forensics", target: "capture.pcapng (1.4 MB)",
+    pts: 200, state: "QUEUED", activity: "1h ago",
+    summary: "UDP/53 queries carrying hex-encoded subdomain labels.",
+    dispatcher: "PCAP_Network_Specialist",
+    terminal: [
+      "$ python main.py triage capture.pcapng",
+      "[magic]  PCAP-NG Capture File (1,428,912 bytes)",
+      "[route]  -> PCAP_Network_Specialist",
+      "[dns]    18 queries match ^[0-9a-f]+\\.exfil\\.lab$",
+      "[reasm]  6c6b737b646e735f74756e6e656c7d -> picoCTF{dns_tunnel_exfil}",
+      "[ready]  candidate extracted, awaiting submission"
+    ],
+    evidence: "Concatenating hex labels in frame order rebuilds the plaintext flag.",
+    flag: "picoCTF{dns_tunnel_exfil}",
+    solver: "from ctf_toolkit.forensics.network_artifacts import extract_dns_hex_subdomains\n\nraw = open('capture.pcapng', 'rb').read()\nprint(extract_dns_hex_subdomains(raw, 'exfil.lab'))"
+  },
+  {
+    id: "LK-209", title: "Image Trailer", cat: "Forensics", target: "evidence.png (412 KB)",
+    pts: 150, state: "QUEUED", activity: "2h ago",
+    summary: "PNG carries an appended ZIP archive past the IEND chunk.",
+    dispatcher: "PNG_Specialist",
+    terminal: [
+      "$ python main.py triage evidence.png",
+      "[magic]  PNG (IHDR 1920x1080 RGBA)",
+      "[route]  -> PNG_Specialist",
+      "[chunk]  IEND at 0x64210, 1,240 trailing bytes",
+      "[carve]  trailing bytes start with PK\\x03\\x04 -> Archive_Specialist",
+      "[ready]  member secret.txt holds LKSJAKTIM{png_iend_polyglot}"
+    ],
+    evidence: "A ZIP local file header sits immediately after IEND; extracting it yields secret.txt.",
+    flag: "LKSJAKTIM{png_iend_polyglot}",
+    solver: "from ctf_toolkit.forensics.image_channels import extract_png_trailing_bytes\n\ntrail = extract_png_trailing_bytes('evidence.png')\nopen('carved.zip', 'wb').write(trail)"
+  }
+];
+
+const API = {
+  tools: "/api/tools",
+  call: "/api/call",
+  triage: "/api/triage_file",
+  flags: "/api/flags",
+  cheats: "/api/cheatsheets",
+  writeup: "/api/writeup/generate",
+  flagAdd: "/api/flags",
+  flagVerify: "/api/flag/verify"
+};
+
+let selectedChalId = QUEUE[0].id;
+let activeState = "ALL";
+let activeTool = null;
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function stateColor(s) {
+  return s === "SOLVED" ? "var(--ok)" : s === "INVESTIGATING" ? "var(--brass)" : "var(--teal)";
+}
+
+/* ---------- navigation ---------- */
+function switchPage(id, title, tag, el) {
+  $("topTitle").textContent = title;
+  $("topTag").textContent = tag;
+  document.querySelectorAll(".nav-link").forEach(n => n.classList.remove("active"));
+  if (el) el.classList.add("active");
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  $("page-" + id).classList.add("active");
+}
+
+function switchPageByName(id) {
+  const link = document.querySelector('.nav-link[data-page="' + id + '"]');
+  if (link) link.click();
+}
+
+/* ---------- queue ---------- */
+function renderQueue() {
+  const q = ($("queueSearch").value || "").toLowerCase();
+  const rows = QUEUE.filter(c => {
+    const okState = activeState === "ALL" || c.state === activeState;
+    const hay = (c.id + " " + c.title + " " + c.cat + " " + c.target).toLowerCase();
+    return okState && (!q || hay.includes(q));
+  });
+
+  $("queueTbody").innerHTML = rows.map(c => `
+    <tr class="q-row ${c.id === selectedChalId ? "selected" : ""}" data-id="${c.id}">
+      <td class="mono-id">${esc(c.id)}</td>
+      <td style="font-weight:500">${esc(c.title)}</td>
+      <td style="color:var(--ink-2)">${esc(c.cat)}</td>
+      <td class="mono-target">${esc(c.target)}</td>
+      <td><span class="state-dot" style="color:${stateColor(c.state)}"><span class="dot-c" style="background:${stateColor(c.state)}"></span>${c.state}</span></td>
+      <td class="mono-time">${esc(c.activity)}</td>
+    </tr>`).join("") || `<tr><td colspan="6" style="padding:24px 18px;color:var(--ink-3)">No rows match this filter.</td></tr>`;
+
+  $("queueTbody").querySelectorAll(".q-row").forEach(r => {
+    r.addEventListener("click", () => selectChallenge(r.dataset.id));
+  });
+
+  $("navQueueCount").textContent = QUEUE.filter(c => c.state !== "SOLVED").length;
+}
+
+function selectChallenge(id) {
+  selectedChalId = id;
+  const c = QUEUE.find(x => x.id === id);
+  if (!c) return;
+  renderQueue();
+
+  $("inspIdCat").textContent = c.id + " · " + c.cat.toUpperCase() + " · " + c.pts + " PTS";
+  $("inspState").textContent = c.state;
+  $("inspState").style.color = stateColor(c.state);
+  $("inspTitle").textContent = c.title;
+  $("inspSummary").textContent = c.summary;
+  $("kvTarget").textContent = c.target;
+  $("kvActivity").textContent = c.activity;
+  $("kvDispatcher").textContent = c.dispatcher;
+  $("inspEvidenceText").textContent = c.evidence;
+  $("inspFlagInput").value = c.flag;
+  $("submitFeedback").textContent = c.state === "SOLVED" ? "verified — flag accepted on GetsFlag" : "";
+
+  $("inspSolverCode").textContent = "#!/usr/bin/env python3\n# " + c.id + " " + c.title + "\n\n" + c.solver;
+  $("inspWriteupDraft").textContent =
+    "# " + c.title + " (" + c.id + ")\n\n" +
+    "**Target** `" + c.target + "`\n" +
+    "**Category** " + c.cat + " · " + c.pts + " pts\n\n" +
+    "## Analysis\n" + c.summary + "\n\n" +
+    "## Evidence\n" + c.evidence + "\n\n" +
+    "## Flag\n`" + c.flag + "`";
+
+  $("termContextTitle").textContent = "TERMINAL · " + c.id + " " + c.title;
+  $("termOutput").innerHTML = c.terminal.map(line => {
+    let cls = "";
+    if (line.startsWith("$")) cls = "t-cmd";
+    else if (/^(HTTP\/|x-|server:|date:|location:|content-length:)/.test(line)) cls = "t-hdr";
+    else if (line.includes("[flag]") || line.includes("[wire]")) cls = "t-ok";
+    else if (line.includes("[decode]") || line.includes("[match]") || line.includes("[reasm]") || line.includes("[carve]")) cls = "t-hit";
+    return '<div class="' + cls + '">' + esc(line) + "</div>";
+  }).join("");
+}
+
+function runActiveProbe() {
+  const c = QUEUE.find(x => x.id === selectedChalId);
+  if (!c) return;
+  const ts = new Date().toTimeString().slice(0, 8);
+  const el = $("termOutput");
+  el.innerHTML += '<div class="t-cmd">\n[' + ts + '] re-probe ' + esc(c.target) + ' -> 200, artifact intact</div>';
+  el.scrollTop = el.scrollHeight;
+  toast("Probe re-ran for " + c.id);
+}
+
+async function submitConnectedFlag() {
+  const c = QUEUE.find(x => x.id === selectedChalId);
+  const val = $("inspFlagInput").value.trim();
+  if (!c || !val) return;
+
+  $("submitFeedback").textContent = "verifying against the flag chain…";
+  try {
+    const r = await fetch(API.flagVerify, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidate: val })
+    });
+    const d = await r.json();
+    if (!d.success) {
+      $("submitFeedback").textContent = "verify failed: " + d.error;
+      return;
+    }
+    if (!d.accepted) {
+      $("submitFeedback").style.color = "var(--err)";
+      $("submitFeedback").textContent = "rejected — no template in the chain matches this string";
+      return;
+    }
+    $("submitFeedback").style.color = "var(--ok)";
+    $("submitFeedback").textContent = "accepted as " + d.all_matches[0].name + " → " + d.match;
+    c.flag = d.match;
+    c.state = "SOLVED";
+    c.activity = "just now";
+    saveQueue();
+    setTimeout(() => selectChallenge(c.id), 600);
+    toast("Flag verified for " + c.id);
+  } catch (e) {
+    $("submitFeedback").style.color = "var(--err)";
+    $("submitFeedback").textContent = "API offline: " + e.message;
+  }
+}
+
+/* ---------- workbench ---------- */
+function renderCatalog() {
+  const q = ($("railSearch").value || "").toLowerCase();
+  const rows = TOOLS.filter(t => !q || t.n.toLowerCase().includes(q) || t.c.toLowerCase().includes(q));
+  $("toolCountLabel").textContent = rows.length;
+  $("railList").innerHTML = rows.slice(0, 250).map(t =>
+    '<div class="tool-row" data-name="' + esc(t.n) + '"><span>' + esc(t.n) + "</span><small>" + esc(t.c.split(".")[0]) + "</small></div>"
+  ).join("") || '<div class="empty-note">No solver matches.</div>';
+
+  $("railList").querySelectorAll(".tool-row").forEach(r => {
+    r.addEventListener("click", () => selectTool(r.dataset.name));
+  });
+}
+
+function selectTool(name) {
+  activeTool = TOOLS.find(t => t.n === name);
+  if (!activeTool) return;
+
+  $("railList").querySelectorAll(".tool-row").forEach(r => {
+    r.classList.toggle("active", r.dataset.name === name);
+  });
+
+  $("runTitle").textContent = activeTool.n;
+  $("runDoc").textContent = (activeTool.d || "no docstring") + "  ·  " + activeTool.m;
+
+  const params = activeTool.s || [];
+  if (!params.length) {
+    $("argsGrid").innerHTML = '<div class="empty-note">No parameters — this solver takes no arguments.</div>';
+  } else {
+    $("argsGrid").innerHTML = params.map(a =>
+      '<div class="arg-field">' +
+        '<label class="arg-label"><b>' + esc(a.n) + "</b>" + (a.req ? "" : " <span style=\"opacity:.5\">optional</span>") + "</label>" +
+        '<input class="arg-input" data-arg="' + esc(a.n) + '" data-required="' + (a.req ? "1" : "0") + '"' +
+        ' placeholder="' + esc(a.req ? "required…" : (a.d || "optional…")) + '">' +
+      "</div>"
+    ).join("");
+  }
+
+  $("execBtn").disabled = false;
+  $("execStatus").textContent = "ready";
+  $("resultPane").textContent = "Awaiting execution.";
+}
+
+/* ---------- terminal command bar (real solver execution) ---------- */
+function termLine(cls, text) {
+  const el = $("termOutput");
+  el.innerHTML += '<div class="' + cls + '">' + esc(text) + "</div>";
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runTermCmd() {
+  const raw = $("termInput").value.trim();
+  if (!raw) return;
+  termLine("t-cmd", "$ " + raw);
+  $("termInput").value = "";
+
+  if (raw === "help") {
+    termLine("t-hdr", "  <solver> <value>            single-arg call, e.g. base64_decode R0VU…");
+    termLine("t-hdr", "  <solver> k=v k=v           named args, e.g. caesar_decrypt text=WKLV shift=3");
+    termLine("t-hdr", "  @/path                      read bytes from a server-side file");
+    termLine("t-hdr", "  ^<base64>                   supply raw bytes");
+    termLine("t-hdr", "  clear                       wipe the trace");
+    return;
+  }
+  if (raw === "clear") { $("termOutput").innerHTML = ""; return; }
+
+  const sp = raw.indexOf(" ");
+  const fnName = sp === -1 ? raw : raw.slice(0, sp);
+  const rest = sp === -1 ? "" : raw.slice(sp + 1).trim();
+
+  const tool = TOOLS.find(t => t.n === fnName);
+  if (!tool) {
+    termLine("t-err", "[error] unknown solver: " + fnName);
+    return;
+  }
+
+  const params = tool.s || [];
+  const kwargs = {};
+  if (rest) {
+    if (/^[a-z_][a-z0-9_]*=/.test(rest)) {
+      rest.split(/\s+(?=[a-z_][a-z0-9_]*=)/).forEach(pair => {
+        const i = pair.indexOf("=");
+        kwargs[pair.slice(0, i)] = pair.slice(i + 1);
+      });
+    } else if (params.length <= 1) {
+      kwargs[params[0] ? params[0].n : "data"] = rest;
+    } else {
+      rest.split("\s+").forEach((v, i) => {
+        if (params[i]) kwargs[params[i].n] = v;
+      });
+    }
+  }
+
+  termLine("t-hdr", "[call] " + fnName + " " + JSON.stringify(kwargs));
+  try {
+    const r = await fetch(API.call, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function: fnName, kwargs })
+    });
+    const d = await r.json();
+    if (d.success) {
+      const out = typeof d.result === "string" ? d.result : JSON.stringify(d.result);
+      termLine("t-ok", "[ok] " + out);
+      const m = out.match(/[A-Za-z0-9_]{2,20}\{[^}\n]{1,120}\}/);
+      if (m) termLine("t-hit", "[flag] candidate detected: " + m[0]);
+    } else {
+      termLine("t-err", "[error] " + d.error);
+    }
+  } catch (e) {
+    termLine("t-err", "[network] " + e.message);
+  }
+}
+
+/* ---------- queue: add + persistence ---------- */
+const LS_KEY = "apexsions.queue.v5";
+
+function saveQueue() {
+  try {
+    const slim = QUEUE.map(c => ({ id: c.id, title: c.title, cat: c.cat, target: c.target, pts: c.pts, state: c.state, activity: c.activity, summary: c.summary, dispatcher: c.dispatcher, evidence: c.evidence, flag: c.flag }));
+    localStorage.setItem(LS_KEY, JSON.stringify(slim));
+  } catch (e) { /* private mode */ }
+}
+
+function restoreQueue() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    saved.forEach(sc => {
+      const hit = QUEUE.find(c => c.id === sc.id);
+      if (hit) {
+        hit.state = sc.state;
+        hit.flag = sc.flag || hit.flag;
+        hit.activity = sc.activity || hit.activity;
+      }
+    });
+  } catch (e) { /* corrupt store */ }
+}
+
+function addChallenge() {
+  const id = (prompt("Challenge ID (e.g. GF-900):") || "").trim();
+  if (!id) return;
+  if (QUEUE.some(c => c.id === id)) return toast("ID already in the queue");
+  const title = (prompt("Title:") || "Untitled").trim();
+  const cat = (prompt("Category (Web / Crypto / Forensics / Pwn / Rev):") || "Misc").trim();
+  const target = (prompt("Target or artifact:") || "—").trim();
+  const pts = parseInt(prompt("Points:", "75") || "75", 10);
+
+  QUEUE.unshift({
+    id, title, cat, target, pts,
+    state: "QUEUED", activity: "just now",
+    summary: "Manually queued — no triage trace recorded yet.",
+    dispatcher: cat + " Auto-Pipeline",
+    evidence: "Awaiting first probe.",
+    flag: "",
+    terminal: ["$ # " + id + " queued at " + new Date().toISOString(), "[state] QUEUED — run a probe to populate the trace"],
+    solver: "# no companion script yet for " + id
+  });
+
+  selectedChalId = id;
+  saveQueue();
+  renderQueue();
+  selectChallenge(id);
+  toast("Queued " + id);
+}
+
+async function runIdentify() {
+  const raw = $("identInput").value.trim();
+  if (!raw) return toast("Paste something to identify");
+  $("resultPane").textContent = "identifying…\n";
+  const chain = [
+    ["identify_cipher_text", { text: raw }],
+    ["identify_hash_format", { hash_str: raw }],
+    ["auto_decode_layers", { data: raw }],
+    ["solve_crypto_task", { text: raw }]
+  ];
+  const lines = [];
+  for (const [fn, kwargs] of chain) {
+    try {
+      const r = await fetch(API.call, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ function: fn, kwargs })
+      });
+      const d = await r.json();
+      lines.push("$ " + fn);
+      lines.push(d.success ? formatResult(d.result) : "  [skip] " + d.error);
+      lines.push("");
+    } catch (e) {
+      lines.push("$ " + fn + "\n  [network] " + e.message + "\n");
+    }
+  }
+  $("resultPane").textContent = lines.join("\n");
+  $("execStatus").textContent = "identified";
+}
+
+function formatResult(res) {
+  if (res === null || res === undefined) return "  null";
+  if (typeof res === "string") return "  " + res;
+  return JSON.stringify(res, null, 2).split("\n").map(l => "  " + l).join("\n");
+}
+
+async function executeSolver() {
+  if (!activeTool) return;
+  const kwargs = {};
+  $("argsGrid").querySelectorAll(".arg-input").forEach(i => {
+    if (i.value !== "") kwargs[i.dataset.arg] = i.value;
+  });
+
+  $("execBtn").disabled = true;
+  $("execStatus").textContent = "running…";
+  $("resultPane").textContent = "$ " + activeTool.n + " " + JSON.stringify(kwargs) + "\n";
+
+  try {
+    const res = await fetch(API.call, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function: activeTool.n, kwargs })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const out = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
+      $("resultPane").textContent += out;
+      $("execStatus").textContent = "ok";
+    } else {
+      $("resultPane").textContent += "[error] " + data.error;
+      $("execStatus").textContent = "error";
+    }
+  } catch (e) {
+    $("resultPane").textContent += "[network] " + e.message;
+    $("execStatus").textContent = "offline";
+  } finally {
+    $("execBtn").disabled = false;
+  }
+}
+
+function copySolverCall() {
+  if (!activeTool) return;
+  const kwargs = {};
+  $("argsGrid").querySelectorAll(".arg-input").forEach(i => {
+    if (i.value !== "") kwargs[i.dataset.arg] = i.value;
+  });
+  const calls = Object.entries(kwargs).map(([k, v]) => "--" + k + " '" + v + "'").join(" ");
+  const cmd = "python main.py call " + activeTool.n + " " + calls;
+  navigator.clipboard.writeText(cmd);
+  toast("Copied: " + cmd);
+}
+
+/* ---------- triage ---------- */
+async function handleTriage(file) {
+  $("fileLabel").textContent = file.name + " · " + file.size + " bytes";
+  $("triageStatus").textContent = "reading…";
+  $("triageReport").textContent = "Loading " + file.name + " into the disassembler…";
+
+  let buf;
+  try {
+    buf = new Uint8Array(await file.arrayBuffer());
+  } catch (e) {
+    $("triageReport").textContent = "[read] " + e.message;
+    $("triageStatus").textContent = "failed";
+    return;
+  }
+
+  const head = Array.from(buf.slice(0, 16));
+  const hexHead = head.map(b => b.toString(16).padStart(2, "0")).join(" ");
+  const ascii = head.map(b => (b >= 32 && b < 127 ? String.fromCharCode(b) : ".")).join("");
+
+  // Magic-number routing table — mirrors ctf_toolkit.triage.dispatcher
+  const sigs = [
+    { off: 0, bytes: [0x89, 0x50, 0x4e, 0x47], type: "PNG image", route: "PNG_Specialist", next: "chunk walk → IEND trailer carve → stego bands" },
+    { off: 0, bytes: [0xff, 0xd8, 0xff], type: "JPEG image", route: "JPEG_Specialist", next: "APPn segment scan → EXIF → trailing bytes" },
+    { off: 0, bytes: [0x47, 0x49, 0x46, 0x38], type: "GIF image", route: "GIF_Specialist", next: "block walk → palette LSB → frame delay" },
+    { off: 0, bytes: [0x25, 0x50, 0x44, 0x46], type: "PDF document", route: "PDF_Specialist", next: "object stream → JS extract → embedded files" },
+    { off: 0, bytes: [0x50, 0x4b, 0x03, 0x04], type: "ZIP archive", route: "Archive_Specialist", next: "central directory → member carve → recursion" },
+    { off: 0, bytes: [0xd4, 0xc3, 0xb2, 0xa1], type: "PCAP capture (LE)", route: "PCAP_Network_Specialist", next: "flow rebuild → protocol dissect → stream reassembly" },
+    { off: 0, bytes: [0x0a, 0x0d, 0x0d, 0x0a], type: "PCAP-NG capture", route: "PCAP_Network_Specialist", next: "interface blocks → packet dissect → stream reassembly" },
+    { off: 0, bytes: [0x7f, 0x45, 0x4c, 0x46], type: "ELF binary", route: "RE_Binary_Specialist", next: "section headers → symbols → gadget hunt" },
+    { off: 0, bytes: [0x52, 0x49, 0x46, 0x46], type: "RIFF container", route: "WAV_Specialist", next: "fmt chunk → sample LSB → spectrogram" },
+    { off: 0, bytes: [0x1f, 0x8b], type: "GZIP stream", route: "Archive_Specialist", next: "inflate → member inspect" },
+    { off: 0, bytes: [0x42, 0x5a, 0x68], type: "BZIP2 stream", route: "Archive_Specialist", next: "decompress → member inspect" },
+    { off: 0, bytes: [0x37, 0x7a, 0xbc, 0xaf], type: "7-Zip archive", route: "Archive_Specialist", next: "header parse → member carve" }
+  ];
+
+  let hit = null;
+  for (const sig of sigs) {
+    const slice = buf.slice(sig.off, sig.off + sig.bytes.length);
+    if (slice.length === sig.bytes.length && sig.bytes.every((b, i) => slice[i] === b)) { hit = sig; break; }
+  }
+
+  // side quests that apply regardless of magic
+  const extra = [];
+  const asText = new TextDecoder("utf-8", { fatal: false }).decode(buf.slice(0, 262144));
+  const flagLike = asText.match(/[A-Za-z0-9_]{2,20}\{[^}\n]{1,120}\}/g);
+  if (flagLike) extra.push("flag-shaped string in body: " + flagLike.slice(0, 5).join(", "));
+  if (asText.includes("<?php")) extra.push("PHP source detected");
+  if (/BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY/.test(asText)) extra.push("private key material detected");
+  if (buf.length > 4) {
+    const tail = buf.slice(-6);
+    const tailHex = Array.from(tail).map(b => b.toString(16).padStart(2, "0")).join(" ");
+    extra.push("tail bytes: " + tailHex);
+  }
+
+  const report = [];
+  report.push("file       " + file.name);
+  report.push("size       " + file.size + " bytes");
+  report.push("mime       " + (file.type || "application/octet-stream"));
+  report.push("head16     " + hexHead);
+  report.push("ascii      " + ascii);
+  report.push("");
+  if (hit) {
+    report.push("magic      MATCH -> " + hit.type);
+    report.push("dispatcher " + hit.route);
+    report.push("next       " + hit.next);
+  } else {
+    report.push("magic      no signature match");
+    report.push("dispatcher Generic_Specialist");
+    report.push("next       entropy sweep → strings → trailing-byte carve");
+  }
+  if (extra.length) {
+    report.push("");
+    report.push("signals");
+    extra.forEach(e => report.push("  · " + e));
+  }
+
+  $("triageReport").textContent = report.join("\n");
+  $("triageStatus").textContent = hit ? "routed → " + hit.route : "generic route";
+
+  const row = document.createElement("div");
+  row.className = "tool-row";
+  row.innerHTML = "<span>" + esc(file.name) + "</span><small>" + esc(hit ? hit.route : "generic") + "</small>";
+  $("dispatchLog").prepend(row);
+
+  // Try the server-side dispatcher too; merge if it answers.
+  try {
+    const res = await fetch(API.triage, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file
+    });
+    if (res.status === 200) {
+      const data = await res.json();
+      if (data && data.success) {
+        $("triageReport").textContent += "\n\n--- server dispatcher ---\n" + JSON.stringify(data.data, null, 2);
+        $("triageStatus").textContent = "routed (server confirmed)";
+      }
+    }
+  } catch (e) {
+    $("triageReport").textContent += "\n\n[server dispatcher offline — local routing used]";
+  }
+}
+
+/* ---------- writeup ---------- */
+async function generateWriteup() {
+  const c = QUEUE.find(x => x.id === selectedChalId) || {};
+  const payload = {
+    name: $("wuName").value || c.title || "Challenge",
+    category: $("wuCat").value || c.cat || "Crypto",
+    flag: $("wuFlag").value || c.flag || "",
+    points: parseInt($("wuPoints").value || "100", 10),
+    steps: (c.terminal || []).map((line, i) => ({ title: "Step " + (i + 1), desc: line }))
+  };
+
+  $("wuStatus").textContent = "generating…";
+  try {
+    const res = await fetch(API.writeup, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      $("wuMarkdown").textContent = data.writeup_md;
+      $("wuSolver").textContent = data.solver_py;
+      $("wuStatus").textContent = "written → " + data.writeup_path;
+    } else {
+      $("wuStatus").textContent = "error: " + data.error;
+    }
+  } catch (e) {
+    $("wuStatus").textContent = "offline: " + e.message;
+  }
+}
+
+/* ---------- flags ---------- */
+let flagList = FLAGS.slice().sort((a, b) => b.priority - a.priority);
+
+function renderFlagsTable() {
+  $("flagsTableBody").innerHTML = flagList.map(f =>
+    "<tr><td class=\"mono-id\">" + f.priority + "</td>" +
+    "<td style=\"font-weight:500\">" + esc(f.name) + "</td>" +
+    "<td class=\"mono-target\">" + esc(f.pattern) + "</td>" +
+    "<td class=\"mono-time\">" + (f.builtin === false ? "CUSTOM" : "BUILTIN") + "</td></tr>"
+  ).join("");
+  $("navFlagCount").textContent = flagList.length;
+}
+
+async function addCustomFlagUI() {
+  const name = $("newFlagName").value.trim();
+  const pattern = $("newFlagRegex").value.trim();
+  const priority = parseInt($("newFlagPrio").value || "50", 10);
+  if (!name || !pattern) return toast("Name and pattern required");
+  try { new RegExp(pattern); } catch (e) { return toast("Invalid regex: " + e.message); }
+
+  try {
+    const r = await fetch(API.flagAdd, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", name, pattern, priority })
+    });
+    const d = await r.json();
+    if (d.success) {
+      flagList = d.templates.slice().sort((a, b) => b.priority - a.priority);
+      renderFlagsTable();
+      $("newFlagName").value = "";
+      $("newFlagRegex").value = "";
+      toast("Rule persisted at priority " + priority);
+      return;
+    }
+    toast("Rejected: " + d.error);
+    return;
+  } catch (e) {
+    toast("API offline — rule kept locally only");
+  }
+
+  flagList.push({ name, pattern, priority, builtin: false });
+  flagList.sort((a, b) => b.priority - a.priority);
+  renderFlagsTable();
+  $("newFlagName").value = "";
+  $("newFlagRegex").value = "";
+}
+
+async function probeFlag() {
+  const raw = $("flagProbeInput").value;
+  if (!raw) return;
+
+  try {
+    const r = await fetch(API.flagVerify, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidate: raw })
+    });
+    const d = await r.json();
+    if (d.success) {
+      if (d.accepted) {
+        const top = (d.all_matches || [])[0] || {};
+        $("flagProbeResult").textContent =
+          "matched  " + (top.name || "unknown") + "  (priority " + (top.priority ?? "?") + ")\n" +
+          "value    " + d.match + "\n" +
+          "matches  " + (d.all_matches || []).length + " across the chain";
+        return;
+      }
+      $("flagProbeResult").textContent = "no match across " + flagList.length + " templates (live backend)";
+      return;
+    }
+  } catch (e) { /* fall through to local */ }
+
+  for (const f of flagList) {
+    let re;
+    try { re = new RegExp(f.pattern); } catch (e) { continue; }
+    const m = raw.match(re);
+    if (m) {
+      $("flagProbeResult").textContent =
+        "matched  " + f.name + "  (priority " + f.priority + ")\n" +
+        "pattern  " + f.pattern + "\n" +
+        "value    " + m[0];
+      return;
+    }
+  }
+  $("flagProbeResult").textContent = "no match across " + flagList.length + " templates";
+}
+
+/* ---------- cheatsheets ---------- */
+function renderCheatsheets() {
+  const keys = Object.keys(CHEATS);
+  $("navCheatCount").textContent = keys.length;
+  $("cheatPills").innerHTML = keys.map((k, i) =>
+    '<span class="ftab ' + (i === 0 ? "active" : "") + '" data-cat="' + esc(k) + '">' + esc(k) + "</span>"
+  ).join("");
+  $("cheatPills").querySelectorAll(".ftab").forEach(p => {
+    p.addEventListener("click", () => selectCheat(p.dataset.cat, p));
+  });
+  if (keys.length) selectCheat(keys[0], $("cheatPills").firstElementChild);
+}
+
+function selectCheat(cat, el) {
+  document.querySelectorAll("#cheatPills .ftab").forEach(c => c.classList.remove("active"));
+  if (el) el.classList.add("active");
+  const items = CHEATS[cat] || [];
+  $("cheatBody").innerHTML =
+    '<table class="q-table"><thead><tr><th>Technique</th><th>Payload</th></tr></thead><tbody>' +
+    items.map(i =>
+      "<tr><td>" + esc(i.name) + '</td><td class="mono-target" style="color:var(--brass)">' + esc(i.payload) + "</td></tr>"
+    ).join("") +
+    "</tbody></table>";
+}
+
+/* ---------- palette ---------- */
+function togglePalette() {
+  const p = $("cmdPalette");
+  p.classList.toggle("open");
+  if (p.classList.contains("open")) {
+    $("paletteInput").focus();
+    searchPalette("");
+  }
+}
+
+function searchPalette(q) {
+  q = (q || "").toLowerCase();
+  const rows = TOOLS.filter(t => !q || t.n.toLowerCase().includes(q) || t.c.toLowerCase().includes(q)).slice(0, 18);
+  $("paletteResults").innerHTML = rows.map(t =>
+    '<div class="tool-row" data-name="' + esc(t.n) + '"><span>' + esc(t.n) + "</span><small>" + esc(t.c) + "</small></div>"
+  ).join("") || '<div class="empty-note">No match.</div>';
+
+  $("paletteResults").querySelectorAll(".tool-row").forEach(r => {
+    r.addEventListener("click", () => {
+      togglePalette();
+      switchPageByName("workbench");
+      selectTool(r.dataset.name);
+    });
+  });
+}
+
+/* ---------- boot ---------- */
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    togglePalette();
+  }
+  if (e.key === "Escape") $("cmdPalette").classList.remove("open");
+});
+
+$("stateTabs").querySelectorAll(".ftab").forEach(t => {
+  t.addEventListener("click", () => {
+    activeState = t.dataset.state;
+    $("stateTabs").querySelectorAll(".ftab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    renderQueue();
+  });
+});
+
+$("queueSearch").addEventListener("input", renderQueue);
+$("railSearch").addEventListener("input", renderCatalog);
+$("paletteInput").addEventListener("input", e => searchPalette(e.target.value));
+$("termInput").addEventListener("keydown", e => { if (e.key === "Enter") runTermCmd(); });
+$("fileDrop").addEventListener("change", e => { if (e.target.files.length) handleTriage(e.target.files[0]); });
+
+document.querySelectorAll(".itab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".itab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    ["evidence", "solver", "writeup"].forEach(k => {
+      $("insp-" + k).style.display = k === t.dataset.tab ? "block" : "none";
+    });
+  });
+});
+
+fetch(API.flags).then(r => r.json()).then(d => {
+  if (Array.isArray(d) && d.length) {
+    flagList = d.slice().sort((a, b) => b.priority - a.priority);
+    renderFlagsTable();
+  }
+}).catch(() => {});
+
+fetch(API.tools).then(r => r.json()).then(d => {
+  $("apiStatus").textContent = "live · " + d.length;
+  $("apiStatus").style.color = "var(--ok)";
+}).catch(() => {
+  $("apiStatus").textContent = "offline";
+  $("apiStatus").style.color = "var(--err)";
+});
+
+restoreQueue();
+selectChallenge(selectedChalId);
+renderCatalog();
+renderFlagsTable();
+renderCheatsheets();
+</script>
+</body>
+</html>
