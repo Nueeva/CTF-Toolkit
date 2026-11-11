@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import urllib.parse
@@ -116,6 +117,44 @@ async function uploadAndTriage() {
 """
 
 
+def _coerce_param(raw: Any, param: inspect.Parameter) -> Any:
+    """Convert a JSON-or-string argument into the type the solver expects."""
+    ann = param.annotation
+    ann_str = str(ann)
+
+    if isinstance(raw, str):
+        if raw.startswith("@"):
+            path = Path(raw[1:]).expanduser()
+            if not path.is_file():
+                raise FileNotFoundError(f"argument {param.name!r}: no such file {path}")
+            raw = path.read_bytes()
+        elif len(raw) > 1 and raw[0] == "^":
+            import base64
+            raw = base64.b64decode(raw[1:])
+
+    if isinstance(raw, bytes):
+        if ann is str or ann_str == "str":
+            return raw.decode("utf-8", errors="replace")
+        return raw
+
+    if ann is int or ann_str == "int":
+        try:
+            return int(raw, 0) if isinstance(raw, str) else int(raw)
+        except (TypeError, ValueError):
+            return raw
+    if ann is float or ann_str == "float":
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return raw
+    if ann is bool or ann_str == "bool":
+        if isinstance(raw, str):
+            return raw.lower() in ("1", "true", "yes", "y", "on")
+        return bool(raw)
+
+    return raw
+
+
 class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in ("/", "/index.html"):
@@ -208,8 +247,7 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
                 args_list = payload.get("args", [])
                 kwargs_dict = payload.get("kwargs", {})
 
-                from ctf_toolkit.ui.palette import build_tool_catalog, coerce_arg_value
-                import inspect
+                from ctf_toolkit.ui.palette import build_tool_catalog
                 catalog = build_tool_catalog()
                 tool = next((t for t in catalog if t["name"] == func_name), None)
                 if not tool:
@@ -224,12 +262,16 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
                 pos_idx = 0
                 for param in params:
                     if param.name in kwargs_dict:
-                        call_kwargs[param.name] = coerce_arg_value(str(kwargs_dict[param.name]), param)
+                        raw_val = kwargs_dict[param.name]
                     elif pos_idx < len(args_list):
-                        call_kwargs[param.name] = coerce_arg_value(str(args_list[pos_idx]), param)
+                        raw_val = args_list[pos_idx]
                         pos_idx += 1
                     elif param.default != inspect.Parameter.empty:
                         call_kwargs[param.name] = param.default
+                        continue
+                    else:
+                        continue
+                    call_kwargs[param.name] = _coerce_param(raw_val, param)
 
                 res = fn(**call_kwargs)
                 if isinstance(res, bytes):
@@ -250,12 +292,14 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
                 points = int(payload.get("points", 100))
                 steps = payload.get("steps", [])
 
+                output_folder = Path("/tmp/ctf_writeups")
+                output_folder.mkdir(parents=True, exist_ok=True)
                 wf, sf = DynamicWriteupGenerator.generate_writeup_and_solver(
                     challenge_name=name,
                     category=cat,
                     flag=flag,
                     steps=steps,
-                    output_dir="/home/agentuser/output",
+                    output_dir=output_folder,
                     points=points,
                 )
                 self._send_json({
