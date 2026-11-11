@@ -277,6 +277,121 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
 
+        elif self.path == "/api/hub/solve":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                raw_text = payload.get("text", "")
+                from ctf_toolkit.crypto.omni_solver import auto_solve_hub
+                res = auto_solve_hub(raw_text)
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/hub/rsa":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                from ctf_toolkit.crypto.omni_solver import solve_rsa_intent
+                def _to_int(k):
+                    v = payload.get(k)
+                    if v is not None and str(v).strip():
+                        return int(str(v).strip(), 0)
+                    return None
+                primes_raw = payload.get("primes")
+                primes_list = None
+                if primes_raw:
+                    primes_list = [int(p.strip(), 0) for p in str(primes_raw).split(",") if p.strip()]
+
+                res = solve_rsa_intent(
+                    raw_desc=payload.get("raw_desc", ""),
+                    n=_to_int("n"),
+                    e=_to_int("e"),
+                    c=_to_int("c"),
+                    p=_to_int("p"),
+                    q=_to_int("q"),
+                    phi=_to_int("phi"),
+                    d=_to_int("d"),
+                    primes=primes_list,
+                )
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/hub/classical":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                from ctf_toolkit.crypto.omni_solver import solve_classical_intent
+                res = solve_classical_intent(
+                    text=payload.get("text", ""),
+                    operation=payload.get("operation", "caesar"),
+                    key=payload.get("key", ""),
+                    shift=int(payload.get("shift", 3)),
+                    a=int(payload.get("a", 1)),
+                    b=int(payload.get("b", 0)),
+                    rails=int(payload.get("rails", 3)),
+                    is_hex=bool(payload.get("is_hex", False)),
+                )
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/hub/jwt":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                from ctf_toolkit.crypto.omni_solver import solve_jwt_intent
+                res = solve_jwt_intent(
+                    token=payload.get("token", ""),
+                    extra_secret=payload.get("extra_secret", ""),
+                )
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/hub/eccdh":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                mode = payload.get("type", "dh")
+                def _to_int(k):
+                    v = payload.get(k)
+                    if v is not None and str(v).strip():
+                        return int(str(v).strip(), 0)
+                    return None
+
+                if mode == "dh":
+                    from ctf_toolkit.crypto.dh_ecc_tool import diffie_hellman_compute
+                    p = _to_int("p")
+                    g = _to_int("g")
+                    if p is None or g is None:
+                        self._send_json({"success": False, "error": "Parameters p and g are required."})
+                        return
+                    dh_res = diffie_hellman_compute(
+                        p=p,
+                        g=g,
+                        A=_to_int("A"),
+                        B=_to_int("B"),
+                        a=_to_int("a"),
+                        b=_to_int("b"),
+                    )
+                    self._send_json({"success": True, "result": dh_res})
+                elif mode == "ecc":
+                    from ctf_toolkit.crypto.dh_ecc_tool import ecc_point_operation
+                    op_mode = payload.get("mode", "mul")
+                    ecc_res = ecc_point_operation(
+                        mode=op_mode,
+                        a=_to_int("a") or 0,
+                        b=_to_int("b") or 0,
+                        p=_to_int("p") or 0,
+                        Px=_to_int("Px") or 0,
+                        Py=_to_int("Py") or 0,
+                        k=_to_int("k"),
+                        Qx=_to_int("Qx"),
+                        Qy=_to_int("Qy"),
+                    )
+                    self._send_json({"success": True, "result": ecc_res})
+                else:
+                    self._send_json({"success": False, "error": f"Unknown eccdh mode: {mode}"})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
         elif self.path == "/api/call":
             try:
                 payload = json.loads(body.decode("utf-8"))
