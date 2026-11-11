@@ -40,14 +40,103 @@ def solve_crypto_task(desc: str) -> str | None:
         return flag
 
     # 2. RSA: Check explicit parameters
-    p_m = re.search(r"\bp\s*=\s*(\d+)", desc)
-    q_m = re.search(r"\bq\s*=\s*(\d+)", desc)
-    r_m = re.search(r"\br\s*=\s*(\d+)", desc)
-    e_m = re.search(r"\be\s*=\s*(\d+)", desc)
-    c_m = re.search(r"\bc\s*=\s*(\d+)", desc)
-    n_m = re.search(r"\bn\s*=\s*(\d+)", desc)
-    phi_m = re.search(r"\b(?:phi|\u03c6)\s*=\s*(\d+)", desc, re.IGNORECASE)
-    d_m = re.search(r"\bd\s*=\s*(\d+)", desc)
+    p_m = re.search(r"(?:\b|^)p\s*=\s*(\d+)", desc, re.MULTILINE)
+    q_m = re.search(r"(?:\b|^)q\s*=\s*(\d+)", desc, re.MULTILINE)
+    r_m = re.search(r"(?:\b|^)r\s*=\s*(\d+)", desc, re.MULTILINE)
+    e_m = re.search(r"(?:\b|^)e\d*\s*=\s*(\d+)", desc, re.MULTILINE)
+    c_m = re.search(r"(?:\b|^)c\d*\s*=\s*(?:\([^)]*\)\s*=\s*)?(\d+)", desc, re.MULTILINE)
+    n_m = re.search(r"(?:\b|^)n\d*\s*=\s*(\d+)", desc, re.MULTILINE)
+    phi_m = re.search(r"(?:\b|^)(?:phi|φ)\s*=\s*(\d+)", desc, re.IGNORECASE | re.MULTILINE)
+    d_m = re.search(r"(?:\b|^)d\s*=\s*(\d+)", desc, re.MULTILINE)
+
+    # 2.0.1 Multi-modulus attacks: Common Modulus (n, c1, e1, c2, e2) & Hastad Broadcast (n1..nk, c1..ck) & Shared Prime gcd(n1, n2)
+    n_all = re.findall(r"(?:^|[^\w])n\d*\s*=\s*(\d+)", desc, re.MULTILINE)
+    e_all = re.findall(r"(?:^|[^\w])e\d*\s*=\s*(\d+)", desc, re.MULTILINE)
+    c_all = re.findall(r"(?:^|[^\w])c\d*\s*=\s*(\d+)", desc, re.MULTILINE)
+
+    # 2.0.1a Common Modulus Attack (1 modulus n, two exponents e1, e2, two ciphertexts c1, c2)
+    if len(e_all) >= 2 and len(c_all) >= 2 and n_m:
+        from ctf_toolkit.crypto.rsa import common_modulus_attack
+        try:
+            n_val = int(n_m.group(1))
+            c1, c2 = int(c_all[0]), int(c_all[1])
+            e1, e2 = int(e_all[0]), int(e_all[1])
+            m_cm = common_modulus_attack(c1, e1, c2, e2, n_val)
+            pt_bytes = m_cm.to_bytes((m_cm.bit_length() + 7) // 8, "big")
+            cand = extract_flag(pt_bytes) or pt_bytes.decode("utf-8", errors="ignore").strip()
+            if cand:
+                return cand
+        except Exception:
+            pass
+
+    # 2.0.1b Hastad Broadcast (same small e, k distinct moduli n1..nk and c1..ck where k >= e)
+    if len(n_all) >= 3 and len(c_all) >= 3:
+        from ctf_toolkit.crypto.rsa import hastad_broadcast
+        try:
+            e_val = int(e_m.group(1)) if e_m else 3
+            n_list = [int(x) for x in n_all]
+            c_list = [int(x) for x in c_all]
+            m_hastad = hastad_broadcast(c_list, n_list, e_val)
+            pt_bytes = m_hastad.to_bytes((m_hastad.bit_length() + 7) // 8, "big")
+            cand = extract_flag(pt_bytes) or pt_bytes.decode("utf-8", errors="ignore").strip()
+            if cand:
+                return cand
+        except Exception:
+            pass
+
+    # 2.0.1c Shared Prime gcd(n1, n2)
+    if len(n_all) >= 2 and c_m:
+        from math import gcd
+        try:
+            n1, n2 = int(n_all[0]), int(n_all[1])
+            common_p = gcd(n1, n2)
+            if 1 < common_p < n1:
+                q1 = n1 // common_p
+                e_val = int(e_m.group(1)) if e_m else 65537
+                c_val = int(c_m.group(1))
+                pt = rsa_solve_pqec(common_p, q1, e_val, c_val)
+                cand = extract_flag(pt) or pt.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 2.0.2 RSA Modulus Kuadrat: n = p^2 => phi = p*(p-1)
+    if "p²" in desc or "p^2" in desc or "modulus kuadrat" in desc.lower():
+        if n_m and e_m and c_m:
+            from ctf_toolkit.utils.math import integer_nthroot
+            try:
+                n_val, e_val, c_val = int(n_m.group(1)), int(e_m.group(1)), int(c_m.group(1))
+                p_cand, is_square = integer_nthroot(n_val, 2)
+                if is_square:
+                    phi_kuadrat = p_cand * (p_cand - 1)
+                    pt = rsa_solve_phi_e_c(n_val, phi_kuadrat, e_val, c_val)
+                    cand = extract_flag(pt) or pt.decode("utf-8", errors="ignore").strip()
+                    if cand:
+                        return cand
+            except Exception:
+                pass
+
+    # 2.0.3 RSA-CRT Complete (p, q, dp, dq, qinv)
+    dp_m = re.search(r"\bdp\s*=\s*(\d+)", desc)
+    dq_m = re.search(r"\bdq\s*=\s*(\d+)", desc)
+    qinv_m = re.search(r"\bqinv\s*=\s*(\d+)", desc)
+    if p_m and q_m and dp_m and dq_m and qinv_m and c_m:
+        from ctf_toolkit.crypto.rsa import rsa_crt_reconstruct
+        try:
+            p_val = int(p_m.group(1))
+            q_val = int(q_m.group(1))
+            dp_val = int(dp_m.group(1))
+            dq_val = int(dq_m.group(1))
+            qinv_val = int(qinv_m.group(1))
+            c_val = int(c_m.group(1))
+            m_crt = rsa_crt_reconstruct(c_val, p_val, q_val, dp_val, dq_val, qinv_val)
+            pt_bytes = m_crt.to_bytes((m_crt.bit_length() + 7) // 8, "big")
+            cand = extract_flag(pt_bytes) or pt_bytes.decode("utf-8", errors="ignore").strip()
+            if cand:
+                return cand
+        except Exception:
+            pass
 
     # 2.0 Multi-prime RSA (p, q, r, ...)
     if p_m and q_m and r_m and e_m and c_m:

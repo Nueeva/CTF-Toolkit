@@ -97,14 +97,14 @@ def solve_rsa_auto(
     if w_d is not None:
         return {"attack": "wiener", "plaintext": int_to_bytes(pow(c, w_d, n)), "d": w_d}
 
-    # Fermat factorization
-    fermat_res = fermat_factor(n, max_iter=50_000)
+    # Fermat factorization (close primes)
+    fermat_res = fermat_factor(n, max_iter=2_000_000)
     if fermat_res is not None:
         p, q = fermat_res
-        return {"attack": "fermat", "plaintext": rsa_solve_pqec(p, q, e, c), "p": p, "q": q}
+        return {"observed_attack": "fermat", "plaintext": rsa_solve_pqec(p, q, e, c), "p": p, "q": q}
 
-    # Pollard p - 1
-    p_pollard = pollard_p_minus_1(n, B=5000)
+    # Pollard p - 1 (smooth p-1)
+    p_pollard = pollard_p_minus_1(n, B=100_000)
     if p_pollard is not None and 1 < p_pollard < n:
         q_pollard = n // p_pollard
         if gcd(e, (p_pollard - 1) * (q_pollard - 1)) == 1:
