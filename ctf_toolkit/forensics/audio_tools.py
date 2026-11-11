@@ -372,3 +372,128 @@ def decode_audio_cw_morse(
 
     morse_str = " ".join(morse_tokens)
     return morse_decode(morse_str)
+
+
+def _load_wav_np(wav_source):
+    if isinstance(wav_source, (bytes, bytearray)):
+        wf = wave.open(io.BytesIO(wav_source), "rb")
+    elif isinstance(wav_source, io.BytesIO):
+        wf = wave.open(wav_source, "rb")
+    else:
+        wf = wave.open(str(wav_source), "rb")
+    with wf:
+        rate = wf.getframerate()
+        width = wf.getsampwidth()
+        frames = wf.readframes(wf.getnframes())
+    if width == 1:
+        samples = np.frombuffer(frames, dtype=np.uint8).astype(np.float64) - 128.0
+    elif width == 2:
+        samples = np.frombuffer(frames, dtype=np.int16).astype(np.float64)
+    else:
+        samples = np.frombuffer(frames, dtype=np.int32).astype(np.float64)
+    return samples, rate
+
+
+def auto_audio_solve(wav_source) -> dict:
+    """
+    Run the full audio decoder ladder against a WAV payload and return every
+    plaintext channel that decoded successfully. Each channel is scanned later
+    by the caller for embedded flag strings.
+
+    Channels attempted, in order of payoff:
+      1. raw PCM LSB byte stream (MSB-first)
+      2. PCM LSB byte stream (LSB-first)
+      3. CW Morse envelope
+      4. DTMF touch-tone burst sequence -> ASCII triplets
+      5. linear tone-frequency byte mapping
+      6. 16-level FSK nibble ladder
+      7. dual-band FSK nibble pair
+    """
+    result: dict[str, str] = {}
+    try:
+        lsb = extract_audio_pcm_lsb(wav_source, msb_first=True)
+        result["pcm_lsb_msb"] = lsb.decode("latin-1", errors="ignore")
+    except Exception as e:
+        result["pcm_lsb_msb_err"] = str(e)[:80]
+    try:
+        lsb2 = extract_audio_pcm_lsb(wav_source, msb_first=False)
+        result["pcm_lsb_lsb"] = lsb2.decode("latin-1", errors="ignore")
+    except Exception as e:
+        result["pcm_lsb_lsb_err"] = str(e)[:80]
+
+    try:
+        cw = decode_audio_cw_morse(wav_source)
+        if cw.strip():
+            result["cw_morse"] = cw
+    except Exception as e:
+        result["cw_morse_err"] = str(e)[:80]
+
+    try:
+        samples, rate = _load_wav_np(wav_source)
+        env_win = max(1, int(rate * 0.01))
+        env = np.convolve(np.abs(samples), np.ones(env_win) / env_win, mode="same")
+        thr = float(np.max(env) * 0.25)
+        active = env > thr
+        segs, in_seg, st = [], False, 0
+        for i, v in enumerate(active):
+            if v and not in_seg:
+                in_seg, st = True, i
+            elif not v and in_seg:
+                in_seg = False
+                if i - st > env_win * 2:
+                    segs.append((st, i))
+
+        if 4 <= len(segs) <= 4000:
+            peak_freqs = []
+            for st_i, en_i in segs:
+                chunk = samples[st_i:en_i]
+                if len(chunk) < 32:
+                    continue
+                sp = np.abs(np.fft.rfft(chunk * np.hanning(len(chunk))))
+                fr = np.fft.rfftfreq(len(chunk), 1.0 / rate)
+                peak_freqs.append(float(fr[np.argmax(sp)]))
+            if peak_freqs:
+                result["tone_count"] = str(len(peak_freqs))
+                result["tone_freqs"] = ",".join(str(round(f)) for f in peak_freqs[:64])
+
+        # DTMF: decode digit groups then map 3-digit decimal triplets to ASCII
+        try:
+            digits = decode_dtmf_tones(samples, rate,
+                                       period_samples=max(1, int(rate * 0.11)),
+                                       tone_active_samples=max(1, int(rate * 0.07)))
+            if digits:
+                result["dtmf_raw"] = digits
+                dedup = []
+                for ch in digits:
+                    if not dedup or dedup[-1] != ch:
+                        dedup.append(ch)
+                result["dtmf_dedup"] = "".join(dedup)
+                result["dtmf_ascii"] = dtmf_digits_to_ascii("".join(dedup))
+        except Exception as e:
+            result["dtmf_err"] = str(e)[:80]
+
+        for base, step in ((300.0, 10.0), (400.0, 20.0), (500.0, 25.0)):
+            try:
+                txt = extract_audio_tone_bytes(wav_source, base_freq=base, step_hz=step)
+                if txt:
+                    result[f"tone_bytes_{int(base)}"] = txt
+            except Exception:
+                pass
+
+        try:
+            t16 = decode_16fsk_nibbles(samples, rate)
+            if t16:
+                result["fsk16_nibble"] = t16
+        except Exception:
+            pass
+
+        try:
+            db = decode_dual_band_fsk(samples, rate)
+            if db:
+                result["dual_band_fsk"] = db.decode("latin-1", errors="ignore")
+        except Exception:
+            pass
+    except Exception as e:
+        result["signal_err"] = str(e)[:120]
+
+    return result

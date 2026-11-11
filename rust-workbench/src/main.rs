@@ -1,5 +1,6 @@
 use axum::{
     extract::Json,
+    http::HeaderMap,
     response::Html,
     routing::{get, post},
     Router,
@@ -49,6 +50,7 @@ async fn main() {
         .route("/api/hub/jwt", post(handle_hub_jwt))
         .route("/api/hub/eccdh", post(handle_hub_eccdh))
         .route("/api/call", post(handle_call))
+        .route("/api/triage_file", post(handle_triage_file))
         .route("/api/writeup/generate", post(handle_writeup));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8090));
@@ -350,5 +352,64 @@ async fn run_python_helper(py_code: &str) -> Json<Value> {
         }
         Ok(Err(e)) => Json(json!({ "success": false, "error": e.to_string() })),
         Err(e) => Json(json!({ "success": false, "error": e.to_string() })),
+    }
+}
+
+/// Forward an uploaded specimen to the Python triage sidecar and relay its
+/// JSON verdict. The sidecar owns the detectors; this hop only moves bytes.
+async fn handle_triage_file(
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Json<Value> {
+    const SIDECAR: &str = "127.0.0.1:8091";
+
+    if body.is_empty() {
+        return Json(json!({ "success": false, "error": "empty body" }));
+    }
+    let name = headers
+        .get("x-filename")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("upload.bin")
+        .to_string();
+
+    let mut req = format!(
+        "POST /triage HTTP/1.1\r\nHost: {}\r\nContent-Type: application/octet-stream\r\nX-Filename: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        SIDECAR,
+        name,
+        body.len()
+    )
+    .into_bytes();
+    req.extend_from_slice(&body);
+
+    let mut stream = match tokio::net::TcpStream::connect(SIDECAR).await {
+        Ok(s) => s,
+        Err(e) => {
+            return Json(json!({ "success": false, "error": format!("triage sidecar unreachable: {e}") }))
+        }
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    if let Err(e) = stream.write_all(&req).await {
+        return Json(json!({ "success": false, "error": format!("write failed: {e}") }));
+    }
+    let mut buf = Vec::new();
+    if let Err(e) = stream.read_to_end(&mut buf).await {
+        return Json(json!({ "success": false, "error": format!("read failed: {e}") }));
+    }
+
+    let split = buf
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|i| i + 4)
+        .unwrap_or(0);
+    let body_bytes = &buf[split..];
+    // chunked transfer would need decoding; the sidecar answers with a length
+    let text = String::from_utf8_lossy(body_bytes).to_string();
+    match serde_json::from_str::<Value>(text.trim()) {
+        Ok(val) => Json(json!({ "success": true, "data": val })),
+        Err(_) => Json(json!({
+            "success": false,
+            "error": "sidecar returned non-JSON",
+            "preview": text.chars().take(400).collect::<String>()
+        })),
     }
 }

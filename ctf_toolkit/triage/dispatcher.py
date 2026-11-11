@@ -148,13 +148,31 @@ class AutoTriageDispatcher:
         # --- Handler F: Office & Document Specialist ---
         if is_office:
             res["dispatched_specialists"].append("Document_Specialist")
+            meta_blob = []
             try:
                 if ext == ".pdf" or data.startswith(b"%PDF"):
                     from ctf_toolkit.forensics.pdf_tools import extract_pdf_metadata
-                    res["extracted_findings"]["pdf_meta"] = extract_pdf_metadata(data)
+                    meta = extract_pdf_metadata(data)
+                    res["extracted_findings"]["pdf_meta"] = meta
+                    if isinstance(meta, dict):
+                        meta_blob = [str(v) for v in meta.values()]
                 elif ext in (".docx", ".docm"):
                     from ctf_toolkit.forensics.docx_tools import extract_docx_metadata
-                    res["extracted_findings"]["docx_meta"] = extract_docx_metadata(data)
+                    meta = extract_docx_metadata(data)
+                    res["extracted_findings"]["docx_meta"] = meta
+                    if isinstance(meta, dict):
+                        meta_blob = [str(v) for v in meta.values()]
+                elif ext in (".xlsx", ".xlsm"):
+                    from ctf_toolkit.forensics.xlsx_tools import extract_xlsx_metadata
+                    meta = extract_xlsx_metadata(data)
+                    res["extracted_findings"]["xlsx_meta"] = meta
+                    if isinstance(meta, dict):
+                        meta_blob = [str(v) for v in meta.values()]
+                # Scan every metadata value for embedded flag strings
+                for val in meta_blob:
+                    fl = get_flag_manager().extract_flags(val)
+                    if fl:
+                        res["flags_found"].extend([f["flag"] for f in fl])
             except Exception as e:
                 res["extracted_findings"]["document_error"] = str(e)
 
@@ -162,18 +180,63 @@ class AutoTriageDispatcher:
         if is_audio:
             res["dispatched_specialists"].append("Audio_Specialist")
             try:
-                from ctf_toolkit.forensics.audio_tools import extract_audio_pcm_lsb, decode_audio_cw_morse
-                lsb = extract_audio_pcm_lsb(data)
-                cw = decode_audio_cw_morse(data)
-                if lsb:
-                    res["extracted_findings"]["audio_lsb_preview"] = lsb[:64].hex()
-                if cw:
-                    res["extracted_findings"]["audio_cw_morse"] = cw
-                    cw_fl = get_flag_manager().extract_flags(cw)
-                    if cw_fl:
-                        res["flags_found"].extend([f["flag"] for f in cw_fl])
+                from ctf_toolkit.forensics.audio_codecs import auto_decode, load_wav
+                from ctf_toolkit.forensics.audio_tools import auto_audio_solve
+                samples, srate = load_wav(data)
+                channels = dict(auto_audio_solve(data))
+                channels.update(auto_decode(samples, srate))
+                # legacy PCM-LSB channels carry flag text in raw bytes
+                for k in ("pcm_lsb_msb", "pcm_lsb_lsb"):
+                    if k in channels:
+                        channels[k] = str(channels[k])[:4096]
+                summary = {}
+                for cname, payload in channels.items():
+                    text = str(payload)
+                    summary[cname] = text[:160]
+                    fl = get_flag_manager().extract_flags(text)
+                    if fl:
+                        res["flags_found"].extend([f["flag"] for f in fl])
+                res["extracted_findings"]["audio_channels"] = summary
             except Exception as e:
                 res["extracted_findings"]["audio_error"] = str(e)
+
+        # --- Handler H: Universal Carve & Transform Pass ---
+        # Any specimen may hide the flag inside an appended archive, a base64
+        # metadata blob, a hex log line or a rot13 comment. Carve every embedded
+        # container, unpack it, then run every reversible transform over the
+        # plain text before giving up.
+        try:
+            from ctf_toolkit.forensics.carve import carve_and_expand, transform_candidates
+            carved = carve_and_expand(data, depth=2)
+            if carved:
+                res["dispatched_specialists"].append("Carve_Engine")
+            carriers = [("self", data)] + carved
+            # image/document metadata strings are carriers too
+            for key, val in list(res["extracted_findings"].items()):
+                if isinstance(val, (str, bytes)):
+                    carriers.append((f"meta:{key}", val if isinstance(val, bytes) else val.encode("latin-1", "ignore")))
+                elif isinstance(val, dict):
+                    for k2, v2 in val.items():
+                        if isinstance(v2, (str, bytes)):
+                            carriers.append((f"meta:{key}.{k2}", v2 if isinstance(v2, bytes) else v2.encode("latin-1", "ignore")))
+            seen = 0
+            for name, blob in carriers[:60]:
+                text = blob.decode("latin-1", errors="ignore")
+                for tname, ttext in transform_candidates(text):
+                    seen += 1
+                    fl = get_flag_manager().extract_flags(ttext)
+                    if fl:
+                        res["flags_found"].extend([f["flag"] for f in fl])
+                        res["extracted_findings"].setdefault("carve_hits", []).append(
+                            {"carrier": name, "transform": tname}
+                        )
+                fl = get_flag_manager().extract_flags(text)
+                if fl:
+                    res["flags_found"].extend([f["flag"] for f in fl])
+            res["extracted_findings"]["carve_carriers"] = len(carriers)
+            res["extracted_findings"]["carve_transforms"] = seen
+        except Exception as e:
+            res["extracted_findings"]["carve_error"] = str(e)
 
         # Deduplicate discovered flags
         res["flags_found"] = list(dict.fromkeys(res["flags_found"]))

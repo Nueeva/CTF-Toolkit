@@ -1343,14 +1343,28 @@ async function handleTriage(file) {
   try {
     const res = await fetch(API.triage, {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(file.name) },
       body: file
     });
     if (res.status === 200) {
       const data = await res.json();
       if (data && data.success) {
-        $("triageReport").textContent += "\n\n--- server dispatcher ---\n" + JSON.stringify(data.data, null, 2);
-        $("triageStatus").textContent = "routed (server confirmed)";
+        const d = data.data || {};
+        const found = d.flags || [];
+        const lines = [];
+        lines.push("specimen   " + (d.filename || file.name) + "  (" + (d.size || file.size) + " bytes)");
+        lines.push("specialist " + ((d.specialists || []).join(", ") || "generic"));
+        lines.push("flags      " + (found.length ? found.join(", ") : "none recovered"));
+        lines.push("");
+        lines.push(JSON.stringify(d.findings || d, null, 2));
+        $("triageReport").textContent = lines.join("\n");
+        $("triageStatus").textContent = found.length ? "flag recovered" : "no flag";
+        if (found.length) {
+          const row2 = document.createElement("div");
+          row2.className = "tool-row";
+          row2.innerHTML = "<span style='color:var(--brass)'>" + esc(found[0]) + "</span><small>match</small>";
+          $("dispatchLog").prepend(row2);
+        }
       }
     }
   } catch (e) {
