@@ -31,6 +31,16 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             except Exception:
                 next_val = None
 
+        # 0.1 Check A1Z26 / Number sequence (e.g. 3-20-6-1-12-19)
+        if next_val is None and re.fullmatch(r"(?:\d{1,2}[ -/,\.]?)+", text) and any(sep in text for sep in ("-", " ", ",")):
+            try:
+                from ctf_toolkit.crypto.classical import a1z26_decode
+                cand_a = a1z26_decode(text)
+                if cand_a and len(cand_a) >= 4 and "?" not in cand_a and any(c in cand_a.lower() for c in "aeiou"):
+                    next_val = cand_a.encode("utf-8")
+            except Exception:
+                next_val = None
+
         # 1. Try Hex
         if len(text) >= 4 and len(text) % 2 == 0 and re.fullmatch(r"[0-9a-fA-F]+", text):
             try:

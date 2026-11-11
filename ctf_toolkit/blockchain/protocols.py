@@ -142,3 +142,52 @@ def crack_keccak256_wordlist(target_hash: str, candidates: list[str], salt: byte
         if salt and _keccak256(salt + w_bytes).hex() == target:
             return word
     return None
+
+
+def to_checksum_address(address: str) -> str:
+    """EIP-55 mixed-case checksum address encoder."""
+    clean = address.lower().replace("0x", "")
+    if len(clean) != 40:
+        raise ValueError(f"Invalid Ethereum address length: {len(clean)}")
+    addr_hash = _keccak256(clean.encode("ascii")).hex()
+    checksummed = ["0x"]
+    for i, c in enumerate(clean):
+        if c in "0123456789":
+            checksummed.append(c)
+        else:
+            checksummed.append(c.upper() if int(addr_hash[i], 16) >= 8 else c.lower())
+    return "".join(checksummed)
+
+
+def is_checksum_address(address: str) -> bool:
+    """Validate if an address complies with EIP-55 checksum."""
+    try:
+        return to_checksum_address(address) == address
+    except Exception:
+        return False
+
+
+def convert_eth_unit(value: int | float | str, from_unit: str = "wei", to_unit: str = "ether") -> str:
+    """Convert value across Ethereum denominations (wei, kwei, mwei, gwei, szabo, finney, ether)."""
+    units = {
+        "wei": 0,
+        "kwei": 3,
+        "babbage": 3,
+        "mwei": 6,
+        "lovelace": 6,
+        "gwei": 9,
+        "shannon": 9,
+        "szabo": 12,
+        "micro": 12,
+        "finney": 15,
+        "milli": 15,
+        "ether": 18,
+        "eth": 18,
+    }
+    f_exp = units.get(from_unit.lower(), 0)
+    t_exp = units.get(to_unit.lower(), 18)
+    from decimal import Decimal
+    val = Decimal(str(value))
+    in_wei = val * (Decimal(10) ** f_exp)
+    out_val = in_wei / (Decimal(10) ** t_exp)
+    return f"{out_val:f}".rstrip("0").rstrip(".") if "." in f"{out_val:f}" else f"{out_val:f}"

@@ -22,6 +22,7 @@ from ctf_toolkit.web.helpers import (
 )
 from ctf_toolkit.web.robots import parse_robots_txt
 from ctf_toolkit.web.traversal import check_lfi_disclosure, generate_traversal_payloads
+from ctf_toolkit.web.cheatsheets import WEB_CHEATSHEETS, get_web_cheatsheet, format_cheatsheet_text
 
 __all__ = [
     "generate_traversal_payloads",
@@ -45,4 +46,7 @@ __all__ = [
     "parse_swagger_spec",
     "build_jsonp_callback_url",
     "build_cors_null_origin_headers",
+    "WEB_CHEATSHEETS",
+    "get_web_cheatsheet",
+    "format_cheatsheet_text",
 ]

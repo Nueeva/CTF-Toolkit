@@ -382,6 +382,11 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("-n", "--limit", type=int, default=10, help="Jumlah challenge maksimal untuk diuji (default: 10)")
     train_parser.add_argument("--dry-run", action="store_true", help="Hanya ekstrak flag tanpa submit ke platform")
 
+    # Subcommand: cheatsheet
+    cheat_parser = subparsers.add_parser("cheatsheet", help="Tampilkan referensi cheatsheet payload web & exploitation")
+    cheat_parser.add_argument("category", nargs="?", default=None, help="Kategori cheatsheet (SQLi, LFI, SSTI, XSS, Command Injection, JWT)")
+    cheat_parser.add_argument("--json", action="store_true", help="Output cheatsheet dalam format JSON")
+
     return parser
 
 
@@ -407,6 +412,13 @@ def main() -> None:
         sys.exit(handle_call(args))
     elif args.subcommand == "train":
         sys.exit(handle_train(args))
+    elif args.subcommand == "cheatsheet":
+        from ctf_toolkit.web.cheatsheets import get_web_cheatsheet, format_cheatsheet_text
+        if args.json:
+            print(json.dumps(get_web_cheatsheet(args.category), indent=2))
+        else:
+            print(format_cheatsheet_text(args.category))
+        sys.exit(0)
     else:
         parser.print_help()
 

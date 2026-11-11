@@ -16,6 +16,9 @@ from ctf_toolkit.blockchain.evm_solver import (
 from ctf_toolkit.blockchain.protocols import (
     compute_create2_address,
     compute_create_address,
+    to_checksum_address,
+    is_checksum_address,
+    convert_eth_unit,
     hash_eip191_message,
     verify_merkle_proof,
 )
@@ -47,5 +50,8 @@ __all__ = [
     "hash_eip191_message",
     "compute_create2_address",
     "compute_create_address",
+    "to_checksum_address",
+    "is_checksum_address",
+    "convert_eth_unit",
     "verify_merkle_proof",
 ]

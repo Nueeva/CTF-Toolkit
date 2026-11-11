@@ -30,6 +30,25 @@ class TestCTFdAutoTrain(unittest.TestCase):
         self.assertEqual(client.base_url, "https://getsflag.com")
         self.assertFalse(client.logged_in)
 
+    def test_blockchain_eip55_and_units(self) -> None:
+        from ctf_toolkit.blockchain.protocols import to_checksum_address, is_checksum_address, convert_eth_unit
+        raw = "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed"
+        expected = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+        self.assertEqual(to_checksum_address(raw), expected)
+        self.assertTrue(is_checksum_address(expected))
+        self.assertFalse(is_checksum_address(raw))
+        # 1 ether = 10^18 wei = 10^9 gwei
+        self.assertEqual(convert_eth_unit(1, "ether", "wei"), "1000000000000000000")
+        self.assertEqual(convert_eth_unit("1000000000", "gwei", "ether"), "1")
+
+    def test_web_cheatsheet_registry(self) -> None:
+        from ctf_toolkit.web.cheatsheets import get_web_cheatsheet, format_cheatsheet_text
+        sqli = get_web_cheatsheet("SQLi")
+        self.assertIn("SQLi", sqli)
+        self.assertTrue(len(sqli["SQLi"]) >= 5)
+        formatted = format_cheatsheet_text("LFI")
+        self.assertIn("etc/passwd", formatted)
+
 
 def test_ctfd_auto_train_suite() -> None:
     suite = unittest.TestLoader().loadTestsFromTestCase(TestCTFdAutoTrain)
