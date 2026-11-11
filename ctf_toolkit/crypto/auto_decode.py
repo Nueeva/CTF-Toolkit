@@ -73,11 +73,33 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             except Exception:
                 next_val = None
 
-        # 5. Check ROT13 / Caesar if flag pattern emerges
-        import codecs
-        rot = codecs.decode(text, "rot_13")
-        if re.search(r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}", rot, re.IGNORECASE):
-            return rot.encode("utf-8")
+        # 5. Check all 25 Caesar / ROT shifts & ROT47 for flag pattern
+        flag_patt = r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}"
+        if any(c.isalpha() for c in text):
+            for shift in range(1, 26):
+                shifted = []
+                for ch in text:
+                    if 'a' <= ch <= 'z':
+                        shifted.append(chr((ord(ch) - 97 - shift) % 26 + 97))
+                    elif 'A' <= ch <= 'Z':
+                        shifted.append(chr((ord(ch) - 65 - shift) % 26 + 65))
+                    else:
+                        shifted.append(ch)
+                cand_caesar = "".join(shifted)
+                if re.search(flag_patt, cand_caesar, re.IGNORECASE):
+                    return cand_caesar.encode("utf-8")
+
+        # 5.1 ROT47
+        rot47_chars = []
+        for ch in text:
+            o = ord(ch)
+            if 33 <= o <= 126:
+                rot47_chars.append(chr(33 + ((o - 33 + 47) % 94)))
+            else:
+                rot47_chars.append(ch)
+        rot47_str = "".join(rot47_chars)
+        if re.search(flag_patt, rot47_str, re.IGNORECASE):
+            return rot47_str.encode("utf-8")
 
         # 6. Fallback to smart_decode
         if next_val is None:

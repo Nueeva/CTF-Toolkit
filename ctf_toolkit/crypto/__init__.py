@@ -66,6 +66,19 @@ from ctf_toolkit.crypto.stream_attacks import (
     repeating_key_xor,
     two_time_pad_decrypt,
 )
+from ctf_toolkit.crypto.dh_ecc_tool import (
+    diffie_hellman_compute,
+    ecc_point_operation,
+    is_point_on_curve,
+)
+from ctf_toolkit.crypto.auto_solver import (
+    solve_crypto_task,
+)
+from ctf_toolkit.crypto.ecc import (
+    ecc_point_add,
+    ecc_scalar_mul,
+    ecc_smarts_attack,
+)
 
 __all__ = [
     "a1z26_decode",
@@ -102,6 +115,13 @@ __all__ = [
     "morse_encode",
     "rsa_solve_pqec",
     "rsa_solve_phi_e_c",
+    "diffie_hellman_compute",
+    "ecc_point_operation",
+    "is_point_on_curve",
+    "solve_crypto_task",
+    "ecc_point_add",
+    "ecc_scalar_mul",
+    "ecc_smarts_attack",
     "bin_to_gray",
     "gray_to_bin",
     "gray_encode_bytes",
