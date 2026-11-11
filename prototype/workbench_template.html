@@ -201,6 +201,75 @@
   .toast { position: fixed; bottom: 18px; right: 18px; background: var(--bg-rail); border: 1px solid var(--seam-strong); border-left: 2px solid var(--brass); padding: 10px 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); z-index: 9500; display: none; }
   .toast.show { display: block; }
 
+  /* ---------- Intent-First Hub & Flag Sniffer ---------- */
+  .flag-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: rgba(82, 196, 138, 0.12);
+    border-bottom: 1px solid rgba(82, 196, 138, 0.35);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ok);
+  }
+  .flag-banner.show { display: flex; }
+  .flag-banner-list { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .flag-pill {
+    background: rgba(82, 196, 138, 0.18);
+    border: 1px solid rgba(82, 196, 138, 0.45);
+    padding: 2px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #b7f5d4;
+  }
+  .flag-pill:hover { background: rgba(82, 196, 138, 0.3); color: #fff; }
+
+  .hub-tabs { display: flex; gap: 18px; padding: 0 24px; border-bottom: 1px solid var(--seam); background: var(--bg-rail); }
+  .htab { padding: 10px 0; font-size: 12.5px; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
+  .htab:hover { color: var(--ink-2); }
+  .htab.active { color: var(--ink); border-bottom-color: var(--brass); font-weight: 500; }
+
+  .hub-pane { display: none; flex: 1; overflow-y: auto; padding: 20px 24px; flex-direction: column; gap: 16px; }
+  .hub-pane.active { display: flex; }
+
+  .hub-textarea {
+    width: 100%;
+    min-height: 125px;
+    background: var(--bg-well);
+    border: 1px solid var(--seam-strong);
+    border-radius: 4px;
+    padding: 12px 14px;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    resize: vertical;
+    outline: none;
+  }
+  .hub-textarea:focus { border-color: var(--brass); }
+
+  .hub-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .hub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .hub-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .hub-out {
+    background: var(--bg-well);
+    border: 1px solid var(--seam);
+    border-left: 2px solid var(--brass);
+    padding: 14px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    min-height: 100px;
+  }
+  .shift-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  .shift-table td, .shift-table th { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: left; }
+  .shift-table th { color: var(--ink-3); font-size: 10px; text-transform: uppercase; }
+  .shift-hit { background: rgba(82, 196, 138, 0.14); color: var(--ok); }
+
   @media (max-width: 1000px) {
     body { overflow: auto; }
     .shell { grid-template-columns: 1fr; height: auto; }
@@ -222,21 +291,32 @@
       <span class="kbd">⌘K</span>
     </div>
 
-    <div class="nav-group">Investigation</div>
-    <div class="nav-link active" data-page="queue" onclick="switchPage('queue','Challenge Queue','Active Operations',this)">
-      <span>Challenge Queue</span><span class="nav-count" id="navQueueCount">7</span>
+    <div class="nav-group">Intent Solvers</div>
+    <div class="nav-link active" data-page="autohub" onclick="switchPage('autohub','Auto-Solver Hub','1-Click Omni Resolver',this)">
+      <span>⚡ Auto-Solver Hub</span><span class="nav-count">AUTO</span>
     </div>
-    <div class="nav-link" data-page="workbench" onclick="switchPage('workbench','Solver Workbench','__TOOL_COUNT__ Solvers',this)">
-      <span>Solver Workbench</span><span class="nav-count">__TOOL_COUNT__</span>
+    <div class="nav-link" data-page="cryptohub" onclick="switchPage('cryptohub','Cryptography Hub','RSA · Klasik · ECC/DH',this)">
+      <span>Crypto &amp; Math</span><span class="nav-count">4</span>
+    </div>
+    <div class="nav-link" data-page="webhub" onclick="switchPage('webhub','Web &amp; JWT Hub','JWT · Hash · Payload',this)">
+      <span>Web &amp; JWT</span><span class="nav-count">3</span>
     </div>
     <div class="nav-link" data-page="triage" onclick="switchPage('triage','File Triage','Auto Dispatcher',this)">
       <span>File Triage</span><span class="nav-count">8</span>
+    </div>
+
+    <div class="nav-group">Operations</div>
+    <div class="nav-link" data-page="queue" onclick="switchPage('queue','Challenge Queue','Active Operations',this)">
+      <span>Challenge Queue</span><span class="nav-count" id="navQueueCount">7</span>
     </div>
     <div class="nav-link" data-page="studio" onclick="switchPage('studio','Writeup Studio','Solver + Report',this)">
       <span>Writeup Studio</span><span class="nav-count">GEN</span>
     </div>
 
-    <div class="nav-group">Reference</div>
+    <div class="nav-group">Advanced &amp; Config</div>
+    <div class="nav-link" data-page="workbench" onclick="switchPage('workbench','Manual Tool Catalog','__TOOL_COUNT__ Solvers',this)">
+      <span>554 Tool Catalog</span><span class="nav-count">__TOOL_COUNT__</span>
+    </div>
     <div class="nav-link" data-page="flags" onclick="switchPage('flags','Flag Formats','Priority Chain',this)">
       <span>Flag Formats</span><span class="nav-count" id="navFlagCount">13</span>
     </div>
@@ -255,8 +335,8 @@
     <header class="topbar">
       <div class="crumb">
         <span>Workspace</span><span>/</span>
-        <strong id="topTitle">Challenge Queue</strong>
-        <span class="crumb-tag" id="topTag">Active Operations</span>
+        <strong id="topTitle">Auto-Solver Hub</strong>
+        <span class="crumb-tag" id="topTag">1-Click Omni Resolver</span>
       </div>
       <div class="topbar-actions">
         <button class="btn-flat" onclick="switchPageByName('workbench')">Solver Workbench</button>
@@ -264,8 +344,151 @@
       </div>
     </header>
 
+    <!-- AUTO FLAG SNIFFER BANNER -->
+    <div class="flag-banner" id="flagBanner">
+      <div class="flag-banner-list" id="flagBannerList"></div>
+      <span style="cursor:pointer;opacity:0.7" onclick="document.getElementById('flagBanner').classList.remove('show')">✕</span>
+    </div>
+
+    <!-- ========== AUTO-SOLVER HUB (DEFAULT LANDING) ========== -->
+    <section id="page-autohub" class="view active">
+      <div class="hub-pane active">
+        <div>
+          <div class="flat-section-title">⚡ Auto-Solver <em>Hub</em></div>
+          <div class="flat-sub">Tempel apa saja (Ciphertext, RSA n/e/c, JWT, Hash MD5/SHA, Morse, A1Z26, Base64 berlapis) — sistem deteksi &amp; pecahkan otomatis tanpa pilih fungsi.</div>
+        </div>
+
+        <textarea class="hub-textarea" id="omniInput" placeholder="Tempel parameter challenge atau ciphertext mentah di sini...
+Contoh RSA:
+p = 115792089237316195423570985008687907853269984665640564039457584007913129640233
+q = 231584178474632390847141970017375815706539969331281128078915168015826259280027
+r = 463168356949264781694283940034751631413079938662562256157830336031652518559817
+e = 65537
+c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
+
+        <div class="hub-actions">
+          <button class="btn-submit" onclick="runOmniSolve()">⚡ Analisa &amp; Pecahkan Otomatis</button>
+          <button class="btn-flat" onclick="loadSample('rsa')">Sample RSA 3-Faktor</button>
+          <button class="btn-flat" onclick="loadSample('jwt')">Sample JWT HS256</button>
+          <button class="btn-flat" onclick="loadSample('morse')">Sample Morse</button>
+          <button class="btn-flat" onclick="loadSample('hash')">Sample Hash MD5</button>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-left:auto" id="omniStatus">ready</span>
+        </div>
+
+        <div>
+          <div class="arg-label" style="margin-bottom:6px">HASIL RESOLUSI &amp; JEJAK PIPELINE</div>
+          <pre class="hub-out" id="omniOut">Klik "Analisa &amp; Pecahkan Otomatis" untuk mengeksekusi pipeline multi-tahap.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== CRYPTOGRAPHY HUB (INTENT-FIRST) ========== -->
+    <section id="page-cryptohub" class="view">
+      <div class="hub-tabs" id="cryptoSubTabs">
+        <span class="htab active" data-sub="rsa">RSA Auto-Detect</span>
+        <span class="htab" data-sub="classical">Cipher Klasik (1-Click Brute)</span>
+        <span class="htab" data-sub="eccdh">ECC &amp; Diffie-Hellman</span>
+      </div>
+
+      <!-- Subtab: RSA -->
+      <div class="hub-pane active" id="csub-rsa">
+        <div class="flat-sub" style="margin-bottom:0">Paste deskripsi soal mentah (<code>n = ...</code>, <code>p, q, r</code>, <code>phi</code>, <code>d</code>) ATAU isi field di kanan. Engine memilih Multi-Prime, Wiener, Fermat, Small-e secara otomatis.</div>
+        <div class="hub-grid-2">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="arg-label">⚡ AUTO-DETECT PASTE PARAMS</div>
+            <textarea class="hub-textarea" id="rsaRawInput" style="min-height:190px" placeholder="n = ...&#10;e = 65537&#10;c = ..."></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="arg-label">PARAMETER MANUAL (OPSIONAL)</div>
+            <div class="hub-grid-2" style="gap:8px">
+              <input class="arg-input" id="rsaN" placeholder="n (modulus)">
+              <input class="arg-input" id="rsaE" placeholder="e (default 65537)">
+              <input class="arg-input" id="rsaP" placeholder="p (prime 1)">
+              <input class="arg-input" id="rsaQ" placeholder="q (prime 2)">
+              <input class="arg-input" id="rsaPrimes" placeholder="multi-primes (p,q,r,...)">
+              <input class="arg-input" id="rsaPhi" placeholder="phi(n) / d">
+            </div>
+            <input class="arg-input" id="rsaC" placeholder="c (ciphertext integer)">
+          </div>
+        </div>
+        <div class="hub-actions">
+          <button class="btn-submit" onclick="runRsaIntent()">⚡ Auto-Detect &amp; Pecahkan RSA</button>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3)" id="rsaStatus"></span>
+        </div>
+        <pre class="hub-out" id="rsaOut">Menunggu parameter RSA.</pre>
+      </div>
+
+      <!-- Subtab: Classical Brute -->
+      <div class="hub-pane" id="csub-classical">
+        <div class="flat-sub" style="margin-bottom:0">Satu kotak teks — satu klik brute-force Caesar semua rotasi, Affine semua kunci, Vigenere, Railfence, atau XOR single-byte. Flag otomatis tersorot hijau.</div>
+        <textarea class="hub-textarea" id="clsInput" style="min-height:95px" placeholder="Tempel ciphertext klasik di sini...">WKLV LV D WHVW</textarea>
+        <div class="hub-grid-3">
+          <input class="arg-input" id="clsKey" placeholder="Key Vigenere / XOR (opsional)">
+          <input class="arg-input" id="clsRails" type="number" value="3" placeholder="Railfence rails">
+          <label style="display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:var(--ink-2)">
+            <input type="checkbox" id="clsIsHex"> Input Hex (untuk XOR)
+          </label>
+        </div>
+        <div class="hub-actions">
+          <button class="btn-submit" onclick="runClassical('caesar')">Caesar (Semua 26)</button>
+          <button class="btn-flat" onclick="runClassical('affine')">Affine Brute</button>
+          <button class="btn-flat" onclick="runClassical('xor')">XOR Brute / Key</button>
+          <button class="btn-flat" onclick="runClassical('vigenere')">Vigenere</button>
+          <button class="btn-flat" onclick="runClassical('railfence')">Rail Fence</button>
+        </div>
+        <div class="hub-out" id="clsOut" style="overflow-x:auto">Pilih salah satu serangan klasik di atas.</div>
+      </div>
+
+      <!-- Subtab: ECC / DH -->
+      <div class="hub-pane" id="csub-eccdh">
+        <div class="hub-grid-2">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="arg-label">DIFFIE-HELLMAN (DIRECT / BSGS DISCRETE LOG)</div>
+            <div class="hub-grid-2" style="gap:8px">
+              <input class="arg-input" id="dhP" placeholder="p (modulus prime)">
+              <input class="arg-input" id="dhG" placeholder="g (generator)">
+              <input class="arg-input" id="dhA" placeholder="A (public key)">
+              <input class="arg-input" id="dhB" placeholder="B (public key)">
+              <input class="arg-input" id="dhPrivA" placeholder="a (private, opsional)">
+              <input class="arg-input" id="dhPrivB" placeholder="b (private, opsional)">
+            </div>
+            <button class="btn-submit" onclick="runDhIntent()">Hitung Shared Secret / BSGS</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="arg-label">ELLIPTIC CURVE (y² ≡ x³ + ax + b mod p)</div>
+            <div class="hub-grid-3" style="gap:8px">
+              <input class="arg-input" id="eccA" placeholder="a" value="2">
+              <input class="arg-input" id="eccB" placeholder="b" value="3">
+              <input class="arg-input" id="eccP" placeholder="p" value="97">
+              <input class="arg-input" id="eccPx" placeholder="Px" value="3">
+              <input class="arg-input" id="eccPy" placeholder="Py" value="6">
+              <input class="arg-input" id="eccK" placeholder="scalar k" value="2">
+            </div>
+            <button class="btn-flat" onclick="runEccIntent()">Hitung k · P (Scalar Mul)</button>
+          </div>
+        </div>
+        <pre class="hub-out" id="eccDhOut">Hasil perhitungan DH / ECC akan tampil di sini.</pre>
+      </div>
+    </section>
+
+    <!-- ========== WEB & JWT HUB ========== -->
+    <section id="page-webhub" class="view">
+      <div class="hub-pane active">
+        <div>
+          <div class="flat-section-title">Web &amp; JWT <em>Inspector</em></div>
+          <div class="flat-sub">Decode JWT instan, generate bypass <code>alg: none</code>, dan crack secret HS256 tanpa keluar halaman.</div>
+        </div>
+        <textarea class="hub-textarea" id="jwtInput" style="min-height:85px" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+        <div class="hub-actions">
+          <input class="arg-input" id="jwtExtra" style="width:280px" placeholder="Extra wordlist (koma dipisah, opsional)">
+          <button class="btn-submit" onclick="runJwtIntent()">Decode &amp; Crack HS256</button>
+        </div>
+        <pre class="hub-out" id="jwtOut">Tempel JWT di atas untuk melihat Header, Payload, Alg-None Forge, dan hasil HS256 cracking.</pre>
+      </div>
+    </section>
+
     <!-- ========== QUEUE ========== -->
-    <section id="page-queue" class="view active">
+    <section id="page-queue" class="view">
       <div class="ops-split">
         <div class="queue-pane">
           <div class="filter-strip">
@@ -624,7 +847,12 @@ const API = {
   cheats: "/api/cheatsheets",
   writeup: "/api/writeup/generate",
   flagAdd: "/api/flags",
-  flagVerify: "/api/flag/verify"
+  flagVerify: "/api/flag/verify",
+  hubSolve: "/api/hub/solve",
+  hubRsa: "/api/hub/rsa",
+  hubClassical: "/api/hub/classical",
+  hubJwt: "/api/hub/jwt",
+  hubEccdh: "/api/hub/eccdh" 
 };
 
 let selectedChalId = QUEUE[0].id;
@@ -1339,6 +1567,180 @@ fetch(API.tools).then(r => r.json()).then(d => {
 });
 
 restoreQueue();
+
+/* ---------- Flag Sniffer Banner ---------- */
+function sniffFlags(textOrObj) {
+  const txt = typeof textOrObj === "string" ? textOrObj : JSON.stringify(textOrObj || "");
+  const hits = new Set();
+  for (const f of flagList) {
+    try {
+      const re = new RegExp(f.pattern, "g");
+      let m;
+      while ((m = re.exec(txt)) !== null) {
+        hits.add(m[0]);
+      }
+    } catch (_) {}
+  }
+  const banner = $("flagBanner");
+  const list = $("flagBannerList");
+  if (hits.size > 0) {
+    list.innerHTML = '<span>🚩 Flag terdeteksi (' + hits.size + ') — klik untuk salin:</span>' +
+      Array.from(hits).map(fl => '<span class="flag-pill" onclick="navigator.clipboard.writeText(\'' + fl.replace(/'/g, "\\'") + '\');toast(\'Disalin: ' + esc(fl) + '\')">' + esc(fl) + '</span>').join("");
+    banner.classList.add("show");
+  }
+}
+
+/* ---------- Samples for Omni Hub ---------- */
+function loadSample(kind) {
+  if (kind === "rsa") {
+    $("omniInput").value =
+      "p = 115792089237316195423570985008687907853269984665640564039457584007913129640233\n" +
+      "q = 231584178474632390847141970017375815706539969331281128078915168015826259280027\n" +
+      "r = 463168356949264781694283940034751631413079938662562256157830336031652518559817\n" +
+      "e = 65537\n" +
+      "c = 2670817518791061513366802547849419951198604451866375003804990303003208017498154056810407824646991951643331191387851710612379079850269453262364027668255207625882781589282902833758222941999002240377891790357909636931527006936831421835";
+  } else if (kind === "jwt") {
+    $("omniInput").value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiTnVldmEiLCJyb2xlIjoiYWRtaW4ifQ.3o7H3S_gK0pY9F5lL5L_eXJqW2J_u9M5lH3n-eV3q5U";
+  } else if (kind === "morse") {
+    $("omniInput").value = "-.-. - -.--. ..-. .- .-. ..--.- .. -. ..-. .-. .- .-. . -.. -.--.-";
+  } else if (kind === "hash") {
+    $("omniInput").value = "21232f297a57a5a743894a0e4a801fc3";
+  }
+  runOmniSolve();
+}
+
+async function runOmniSolve() {
+  const text = $("omniInput").value.trim();
+  if (!text) return toast("Masukkan input dulu");
+  $("omniStatus").textContent = "solving…";
+  $("omniOut").textContent = "Menjalankan pipeline multi-tahap…";
+  try {
+    const r = await fetch(API.hubSolve, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    const d = await r.json();
+    $("omniStatus").textContent = d.type_detected || (d.success ? "done" : "error");
+    $("omniOut").textContent = JSON.stringify(d, null, 2);
+    sniffFlags(d);
+  } catch (e) {
+    $("omniOut").textContent = "[error] " + e.message;
+    $("omniStatus").textContent = "offline";
+  }
+}
+
+/* ---------- Crypto Hub Subtabs ---------- */
+$("cryptoSubTabs").querySelectorAll(".htab").forEach(t => {
+  t.addEventListener("click", () => {
+    $("cryptoSubTabs").querySelectorAll(".htab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    ["rsa", "classical", "eccdh"].forEach(k => {
+      $("csub-" + k).classList.toggle("active", k === t.dataset.sub);
+    });
+  });
+});
+
+async function runRsaIntent() {
+  $("rsaStatus").textContent = "computing…";
+  const payload = {
+    raw_desc: $("rsaRawInput").value,
+    n: $("rsaN").value,
+    e: $("rsaE").value,
+    p: $("rsaP").value,
+    q: $("rsaQ").value,
+    primes: $("rsaPrimes").value,
+    c: $("rsaC").value
+  };
+  const phiOrD = $("rsaPhi").value.trim();
+  if (phiOrD) {
+    if ($("rsaE").value.trim() || $("rsaRawInput").value.includes("e =")) payload.phi = phiOrD;
+    else payload.d = phiOrD;
+  }
+  try {
+    const r = await fetch(API.hubRsa, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    $("rsaStatus").textContent = d.method || (d.success ? "solved" : "failed");
+    $("rsaOut").textContent = JSON.stringify(d, null, 2);
+    sniffFlags(d);
+  } catch (e) {
+    $("rsaOut").textContent = "[error] " + e.message;
+  }
+}
+
+async function runClassical(op) {
+  const payload = {
+    text: $("clsInput").value,
+    operation: op,
+    key: $("clsKey").value,
+    rails: parseInt($("clsRails").value || "3", 10),
+    is_hex: $("clsIsHex").checked
+  };
+  $("clsOut").textContent = "Memproses " + op + "…";
+  try {
+    const r = await fetch(API.hubClassical, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    sniffFlags(d);
+    if (d.all_shifts) {
+      $("clsOut").innerHTML = '<table class="shift-table"><thead><tr><th>ROT</th><th>Candidate</th></tr></thead><tbody>' +
+        d.all_shifts.map(row => {
+          const hit = d.flag && row.text.includes(d.flag);
+          return '<tr class="' + (hit ? 'shift-hit' : '') + '"><td>+' + row.shift + '</td><td>' + esc(row.text) + '</td></tr>';
+        }).join("") + '</tbody></table>';
+    } else {
+      $("clsOut").textContent = JSON.stringify(d, null, 2);
+    }
+  } catch (e) {
+    $("clsOut").textContent = "[error] " + e.message;
+  }
+}
+
+async function runDhIntent() {
+  const payload = {
+    type: "dh",
+    p: $("dhP").value, g: $("dhG").value,
+    A: $("dhA").value, B: $("dhB").value,
+    a: $("dhPrivA").value, b: $("dhPrivB").value
+  };
+  const r = await fetch(API.hubEccdh, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  $("eccDhOut").textContent = JSON.stringify(d, null, 2);
+  sniffFlags(d);
+}
+
+async function runEccIntent() {
+  const payload = {
+    type: "ecc", mode: "mul",
+    a: $("eccA").value, b: $("eccB").value, p: $("eccP").value,
+    Px: $("eccPx").value, Py: $("eccPy").value, k: $("eccK").value
+  };
+  const r = await fetch(API.hubEccdh, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  $("eccDhOut").textContent = JSON.stringify(d, null, 2);
+}
+
+async function runJwtIntent() {
+  const payload = { token: $("jwtInput").value.trim(), extra_secret: $("jwtExtra").value };
+  const r = await fetch(API.hubJwt, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  $("jwtOut").textContent = JSON.stringify(d, null, 2);
+  sniffFlags(d);
+}
+
 selectChallenge(selectedChalId);
 renderCatalog();
 renderFlagsTable();
