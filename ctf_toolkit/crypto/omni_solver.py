@@ -134,7 +134,13 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         res["steps_taken"].append("Detected hexadecimal digest matching common hash algorithms.")
         h_info = identify_hash_format(text)
         res["hash_analysis"] = h_info
-        res["type_detected"] = f"Hash ({h_info.get('format', 'Hex Hash')})"
+        if isinstance(h_info, list):
+            fmt_label = ", ".join(str(x.get("name", x) if isinstance(x, dict) else x) for x in h_info[:3])
+        elif isinstance(h_info, dict):
+            fmt_label = str(h_info.get("format", "Hex Hash"))
+        else:
+            fmt_label = str(h_info)
+        res["type_detected"] = f"Hash ({fmt_label})"
         # Attempt instant cracking
         algo = "md5" if len(text) == 32 else ("sha1" if len(text) == 40 else ("sha256" if len(text) == 64 else "sha512"))
         cracked = crack_wordlist_hash(text, COMMON_SECRETS, algorithm=algo)
