@@ -174,10 +174,30 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            summary = [
-                {"name": t["name"], "category": t["category"], "module": t["module"], "doc": (t.get("doc") or "").strip()}
-                for t in catalog
-            ]
+            summary = []
+            for t in catalog:
+                try:
+                    sig = inspect.signature(t["func"])
+                    params = [
+                        {
+                            "n": prm.name,
+                            "d": "" if prm.default is inspect.Parameter.empty else repr(prm.default)[:40],
+                            "req": prm.default is inspect.Parameter.empty,
+                        }
+                        for prm in sig.parameters.values()
+                        if prm.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+                    ]
+                except (ValueError, TypeError):
+                    params = []
+                summary.append(
+                    {
+                        "name": t["name"],
+                        "category": t["category"],
+                        "module": t["module"],
+                        "doc": (t.get("doc") or "").strip(),
+                        "params": params,
+                    }
+                )
             self.wfile.write(json.dumps(summary).encode("utf-8"))
         elif self.path == "/api/cheatsheets":
             self.send_response(200)
@@ -185,17 +205,18 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(get_web_cheatsheet()).encode("utf-8"))
         elif self.path == "/api/queue":
-            queue_file = Path("/home/agentuser/output/queue_live.json")
-            if queue_file.exists():
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(queue_file.read_bytes())
-            else:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b"[]")
+            from ctf_toolkit.ui.palette import build_tool_catalog
+            by_cat: dict[str, list[str]] = {}
+            for t in build_tool_catalog():
+                top = t["category"].split(".")[0]
+                by_cat.setdefault(top, []).append(t["name"])
+            payload = {
+                "categories": [
+                    {"name": k, "tools": sorted(v), "count": len(v)}
+                    for k, v in sorted(by_cat.items())
+                ]
+            }
+            self._send_json(payload)
         else:
             self.send_error(404, "Not Found")
 
