@@ -1,0 +1,21 @@
+[package]
+name = "ctf-toolkit-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.38", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+regex = "1.10"
+base64 = "0.22"
+hex = "0.4"
+sha2 = "0.10"
+md-5 = "0.10"
+num-bigint = "0.4"
+num-traits = "0.2"
+num-integer = "0.1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
