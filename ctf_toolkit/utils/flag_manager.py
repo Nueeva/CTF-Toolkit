@@ -10,14 +10,17 @@ from typing import Any
 DEFAULT_FLAG_TEMPLATES: list[dict[str, Any]] = [
     {"name": "GETSFLAG", "pattern": r"GETSFLAG\{[^}\n]+\}", "priority": 100, "builtin": True},
     {"name": "picoCTF", "pattern": r"picoCTF\{[^}\n]+\}", "priority": 95, "builtin": True},
+    {"name": "HTB Academy", "pattern": r"academy\{[^}\n]+\}", "priority": 92, "builtin": True},
     {"name": "HTB / CHTB", "pattern": r"(?:HTB|CHTB)\{[^}\n]+\}", "priority": 90, "builtin": True},
+    {"name": "LKS Jakarta Timur", "pattern": r"LKSJAKTIM\{[^}\n]+\}", "priority": 88, "builtin": True},
+    {"name": "LKS Nasional / Wilayah", "pattern": r"LKS\{[^}\n]+\}", "priority": 87, "builtin": True},
     {"name": "THM", "pattern": r"THM\{[^}\n]+\}", "priority": 85, "builtin": True},
     {"name": "Standard FLAG", "pattern": r"FLAG\{[^}\n]+\}", "priority": 80, "builtin": True},
     {"name": "Standard CTF", "pattern": r"CTF\{[^}\n]+\}", "priority": 75, "builtin": True},
     {"name": "Short CT", "pattern": r"CT\{[^}\n]+\}", "priority": 70, "builtin": True},
     {"name": "CTFlearn", "pattern": r"CTFlearn\{[^}\n]+\}", "priority": 65, "builtin": True},
     {"name": "Major Recurring (DICE, ASIS, SEKAI, etc.)", "pattern": r"(?:DICE|HOPE|ASIS|SEKAI|OOO|ARKAV|LACTF|ACTF)\{[^}\n]+\}", "priority": 60, "builtin": True},
-    {"name": "Indonesian Editions (COMPFEST, GEMASTIK, etc.)", "pattern": r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|HIDC\d*|ARA\d*|LKS)\{[^}\n]+\}", "priority": 55, "builtin": True},
+    {"name": "Indonesian Editions (COMPFEST, GEMASTIK, etc.)", "pattern": r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|HIDC\d*|ARA\d*)\{[^}\n]+\}", "priority": 55, "builtin": True},
 ]
 
 CONFIG_FILE_PATH = Path.home() / ".ctf_toolkit_flags.json"
