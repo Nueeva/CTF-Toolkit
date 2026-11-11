@@ -199,6 +199,22 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
                     }
                 )
             self.wfile.write(json.dumps(summary).encode("utf-8"))
+        elif self.path == "/api/patterns":
+            payload = {
+                "identify": [
+                    {"name": n, "doc": ""}
+                    for n in (
+                        "identify_cipher_text",
+                        "identify_hash_format",
+                        "auto_decode_layers",
+                        "caesar_bruteforce",
+                        "xor_bruteforce_single",
+                        "triage_data",
+                        "solve_crypto_task",
+                    )
+                ]
+            }
+            self._send_json(payload)
         elif self.path == "/api/cheatsheets":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -302,6 +318,53 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": True, "function": func_name, "result": res_val})
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/flags":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                mgr = get_flag_manager()
+                action = payload.get("action", "add")
+
+                if action == "add":
+                    name = (payload.get("name") or "").strip()
+                    pattern = (payload.get("pattern") or "").strip()
+                    priority = int(payload.get("priority", 50))
+                    if not name or not pattern:
+                        self._send_json({"success": False, "error": "name and pattern are required"})
+                        return
+                    import re as _re
+                    _re.compile(pattern)
+                    mgr.add_template(name, pattern, priority)
+                    self._send_json({"success": True, "templates": mgr.templates})
+                elif action == "remove":
+                    name = (payload.get("name") or "").strip()
+                    removed = mgr.remove_template(name)
+                    self._send_json({"success": removed, "templates": mgr.templates})
+                elif action == "reset":
+                    mgr.reset_to_defaults()
+                    self._send_json({"success": True, "templates": mgr.templates})
+                else:
+                    self._send_json({"success": False, "error": f"unknown action {action!r}"})
+            except Exception as exc:  # noqa: BLE001
+                self._send_json({"success": False, "error": str(exc)})
+
+        elif self.path == "/api/flag/verify":
+            try:
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                candidate = (payload.get("candidate") or "").strip()
+                mgr = get_flag_manager()
+                hits = mgr.extract_flags(candidate)
+                first = mgr.find_first_flag(candidate)
+                self._send_json(
+                    {
+                        "success": True,
+                        "accepted": bool(first),
+                        "match": first,
+                        "all_matches": hits,
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._send_json({"success": False, "error": str(exc)})
 
         elif self.path == "/api/writeup/generate":
             try:
