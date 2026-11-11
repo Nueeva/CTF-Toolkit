@@ -1,15 +1,13 @@
 use axum::{
     extract::Json,
-    http::StatusCode,
-    response::{Html, IntoResponse, Response},
+    response::Html,
     routing::{get, post},
     Router,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::process::Command;
-use std::sync::Arc;
 use tracing::{error, info};
 
 static PROTOTYPE_HTML: &str = include_str!("../../prototype/prototype.html");
@@ -247,7 +245,7 @@ elif mode == "ecc":
     )
     print(json.dumps({{"success": True, "result": res}}))
 else:
-    print(json.dumps({{"success": False, "error": f"Unknown mode {mode}"}}))
+    print(json.dumps({{"success": False, "error": f"Unknown mode {{mode}}"}}))
 "#,
         payload.to_string()
     );
