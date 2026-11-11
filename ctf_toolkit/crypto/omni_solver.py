@@ -135,7 +135,7 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         h_info = identify_hash_format(text)
         res["hash_analysis"] = h_info
         if isinstance(h_info, list):
-            fmt_label = ", ".join(str(x.get("name", x) if isinstance(x, dict) else x) for x in h_info[:3])
+            fmt_label = ", ".join(str(x.get("algorithm", x.get("name", x)) if isinstance(x, dict) else x) for x in h_info[:3])
         elif isinstance(h_info, dict):
             fmt_label = str(h_info.get("format", "Hex Hash"))
         else:
