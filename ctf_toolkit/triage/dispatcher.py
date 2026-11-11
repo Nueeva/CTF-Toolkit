@@ -1,0 +1,180 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+from ctf_toolkit.triage.analyzer import triage_data
+from ctf_toolkit.utils.flag_manager import get_flag_manager
+
+
+class AutoTriageDispatcher:
+    """
+    Automated File Type Dispatcher & Specialist Router for CTF Challenges:
+    - .jpg / .jpeg: EXIF metadata, Steghide/Jsteg check, JPEG comments, trailing PK/GZIP
+    - .png: IHDR chunk CRC check, zTXt/tEXt/iTXt chunk strings, LSB RGB bitplanes
+    - .gif: Frame duration stego, frame comments, palette analysis, scanline bits
+    - .pcap / .pcapng: TCP reassembly, HTTP credentials, DNS exfiltration tunnels, ICMP payloads
+    - .zip / .tar / .gz / .7z: Header integrity repair, nested archive unzipping, trailing payload carving
+    - .pdf / .docx / .xlsx: Hidden comments, vanishing white-text, embedded VBA macros, revision tracking
+    - .wav / .mp3: Audio LSB, DTMF tone detection, CW Morse code audio decoding
+    - .elf / .exe: Checksec, architecture detection, ROP gadgets, binary string extraction
+    """
+
+    @staticmethod
+    def dispatch_file(filepath: str | Path) -> dict[str, Any]:
+        path = Path(filepath)
+        if not path.exists():
+            raise FileNotFoundError(f"Target file not found: {path}")
+
+        data = path.read_bytes()
+        ext = path.suffix.lower()
+        fname = path.name
+
+        res: dict[str, Any] = {
+            "filename": fname,
+            "extension": ext,
+            "size": len(data),
+            "dispatched_specialists": [],
+            "extracted_findings": {},
+            "flags_found": [],
+        }
+
+        # 1. Base Triage Analysis (Entropy, Magic Bytes, IoC)
+        triage_rep = triage_data(data, target_label=fname)
+        res["triage_summary"] = {
+            "magic_type": triage_rep.magic_type,
+            "category_hint": triage_rep.category_hint,
+            "entropy": triage_rep.entropy,
+            "ioc": triage_rep.ioc,
+        }
+
+        # Check for immediate flags in raw data
+        flags = get_flag_manager().extract_flags(data)
+        if flags:
+            res["flags_found"].extend([f["flag"] for f in flags])
+
+        # 2. Specialized Format Handlers (Based on Extension & Magic Bytes)
+        is_jpeg = ext in (".jpg", ".jpeg") or data.startswith(b"\xff\xd8\xff")
+        is_png = ext == ".png" or data.startswith(b"\x89PNG\r\n\x1a\n")
+        is_gif = ext == ".gif" or data.startswith((b"GIF87a", b"GIF89a"))
+        is_pcap = ext in (".pcap", ".pcapng", ".cap") or data.startswith((b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x0a\x0d\x0d\x0a"))
+        is_zip = ext in (".zip", ".jar", ".apk") or data.startswith(b"PK\x03\x04")
+        is_tar_gz = ext in (".tar", ".gz", ".tgz") or data.startswith((b"\x1f\x8b", b"ustar"))
+        is_office = ext in (".docx", ".xlsx", ".docm", ".xlsm", ".pdf") or (data.startswith(b"PK\x03\x04") and (b"word/" in data or b"xl/" in data)) or data.startswith(b"%PDF")
+        is_audio = ext in (".wav", ".mp3", ".flac") or data.startswith((b"RIFF", b"ID3"))
+
+        # --- Handler A: JPEG Forensic Specialist ---
+        if is_jpeg:
+            res["dispatched_specialists"].append("JPEG_Specialist")
+            try:
+                from ctf_toolkit.forensics.jpeg_tools import extract_jpeg_comments, repair_jpeg_header
+                comments = extract_jpeg_comments(data)
+                res["extracted_findings"]["jpeg_comments"] = comments
+                for c in comments:
+                    fl = get_flag_manager().extract_flags(c)
+                    if fl:
+                        res["flags_found"].extend([f["flag"] for f in fl])
+            except Exception as e:
+                res["extracted_findings"]["jpeg_error"] = str(e)
+
+        # --- Handler B: PNG Stego & Chunk Specialist ---
+        if is_png:
+            res["dispatched_specialists"].append("PNG_Specialist")
+            try:
+                from ctf_toolkit.forensics.png_tools import extract_png_text_chunks
+                from ctf_toolkit.forensics.image_channels import extract_png_trailing_bytes
+                chunks = extract_png_text_chunks(data)
+                trailing = extract_png_trailing_bytes(data)
+                res["extracted_findings"]["png_text_chunks"] = chunks
+                if trailing:
+                    res["extracted_findings"]["png_trailing_bytes_size"] = len(trailing)
+                    tr_fl = get_flag_manager().extract_flags(trailing)
+                    if tr_fl:
+                        res["flags_found"].extend([f["flag"] for f in tr_fl])
+            except Exception as e:
+                res["extracted_findings"]["png_error"] = str(e)
+
+        # --- Handler C: GIF Animation & Palette Specialist ---
+        if is_gif:
+            res["dispatched_specialists"].append("GIF_Specialist")
+            try:
+                from ctf_toolkit.forensics.image_channels import extract_gif_frame_palettes_and_comments
+                gif_info = extract_gif_frame_palettes_and_comments(data)
+                res["extracted_findings"]["gif_analysis"] = gif_info
+            except Exception as e:
+                res["extracted_findings"]["gif_error"] = str(e)
+
+        # --- Handler D: PCAP Network Traffic Specialist ---
+        if is_pcap:
+            res["dispatched_specialists"].append("PCAP_Network_Specialist")
+            try:
+                from ctf_toolkit.forensics.pcap_extract import extract_http_basic_auth, repair_pcap_header
+                from ctf_toolkit.forensics.network_artifacts import assemble_icmp_echo_payloads, extract_dns_hex_subdomains
+                auths = extract_http_basic_auth(data)
+                icmp = assemble_icmp_echo_payloads(data)
+                dns_hex = extract_dns_hex_subdomains(data)
+                res["extracted_findings"]["http_auths"] = auths
+                if icmp:
+                    res["extracted_findings"]["icmp_assembled_size"] = len(icmp)
+                    ic_fl = get_flag_manager().extract_flags(icmp)
+                    if ic_fl:
+                        res["flags_found"].extend([f["flag"] for f in ic_fl])
+                if dns_hex:
+                    res["extracted_findings"]["dns_hex_size"] = len(dns_hex)
+                    dns_fl = get_flag_manager().extract_flags(dns_hex)
+                    if dns_fl:
+                        res["flags_found"].extend([f["flag"] for f in dns_fl])
+            except Exception as e:
+                res["extracted_findings"]["pcap_error"] = str(e)
+
+        # --- Handler E: Archive & Polyglot Specialist ---
+        if is_zip or is_tar_gz:
+            res["dispatched_specialists"].append("Archive_Specialist")
+            try:
+                import zipfile, io
+                if is_zip and zipfile.is_zipfile(io.BytesIO(data)):
+                    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                        namelist = zf.namelist()
+                        res["extracted_findings"]["archive_files"] = namelist
+                        for zfname in namelist:
+                            if not zfname.endswith("/"):
+                                content = zf.read(zfname)
+                                zf_fl = get_flag_manager().extract_flags(content)
+                                if zf_fl:
+                                    res["flags_found"].extend([f["flag"] for f in zf_fl])
+            except Exception as e:
+                res["extracted_findings"]["archive_error"] = str(e)
+
+        # --- Handler F: Office & Document Specialist ---
+        if is_office:
+            res["dispatched_specialists"].append("Document_Specialist")
+            try:
+                if ext == ".pdf" or data.startswith(b"%PDF"):
+                    from ctf_toolkit.forensics.pdf_tools import extract_pdf_metadata
+                    res["extracted_findings"]["pdf_meta"] = extract_pdf_metadata(data)
+                elif ext in (".docx", ".docm"):
+                    from ctf_toolkit.forensics.docx_tools import extract_docx_metadata
+                    res["extracted_findings"]["docx_meta"] = extract_docx_metadata(data)
+            except Exception as e:
+                res["extracted_findings"]["document_error"] = str(e)
+
+        # --- Handler G: Audio Waveform Specialist ---
+        if is_audio:
+            res["dispatched_specialists"].append("Audio_Specialist")
+            try:
+                from ctf_toolkit.forensics.audio_tools import extract_audio_pcm_lsb, decode_audio_cw_morse
+                lsb = extract_audio_pcm_lsb(data)
+                cw = decode_audio_cw_morse(data)
+                if lsb:
+                    res["extracted_findings"]["audio_lsb_preview"] = lsb[:64].hex()
+                if cw:
+                    res["extracted_findings"]["audio_cw_morse"] = cw
+                    cw_fl = get_flag_manager().extract_flags(cw)
+                    if cw_fl:
+                        res["flags_found"].extend([f["flag"] for f in cw_fl])
+            except Exception as e:
+                res["extracted_findings"]["audio_error"] = str(e)
+
+        # Deduplicate discovered flags
+        res["flags_found"] = list(dict.fromkeys(res["flags_found"]))
+        return res

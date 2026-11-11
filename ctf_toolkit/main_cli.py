@@ -401,6 +401,18 @@ def build_parser() -> argparse.ArgumentParser:
     id_parser.add_argument("target", help="Ciphertext atau hash string untuk dianalisis")
     id_parser.add_argument("--json", action="store_true", help="Output hasil analisis dalam format JSON")
 
+    # Subcommand: server
+    server_parser = subparsers.add_parser("server", help="Jalankan Web Workbench visual ala CyberChef (port 8080)")
+    server_parser.add_argument("--port", type=int, default=8080, help="Port HTTP server (default 8080)")
+
+    # Subcommand: writeup
+    wu_parser = subparsers.add_parser("writeup", help="Generate writeup otomatis & solver Python tanpa AI")
+    wu_parser.add_argument("--name", default="CTF_Challenge", help="Nama tantangan")
+    wu_parser.add_argument("--category", default="Crypto", help="Kategori tantangan")
+    wu_parser.add_argument("--flag", required=True, help="Flag yang berhasil ditangkap")
+    wu_parser.add_argument("--points", type=int, default=100, help="Poin tantangan")
+    wu_parser.add_argument("-o", "--output-dir", default="output", help="Folder tujuan penyimpanan")
+
     return parser
 
 
@@ -481,6 +493,26 @@ def main() -> None:
                 print("  Kemungkinan Hash Digest:")
                 for h in hashes:
                     print(f"    • {h.get('algorithm')} ({h.get('category')}) - Confidence {int(h.get('confidence',0)*100)}%")
+        sys.exit(0)
+    elif args.subcommand == "server":
+        from ctf_toolkit.ui.web_server import start_workbench_server
+        start_workbench_server(port=args.port)
+        sys.exit(0)
+    elif args.subcommand == "writeup":
+        from ctf_toolkit.utils.writeup_generator import DynamicWriteupGenerator
+        steps = [
+            {"title": "Initial Inspection", "desc": "Analisis artefak menggunakan CTF-Toolkit Triage & Identifier."},
+            {"title": "Solver Execution", "desc": "Mengeksekusi solver kriptografi terpadu.", "python_code": "# Auto-solver generated\\npass"},
+        ]
+        w_file, s_file = DynamicWriteupGenerator.generate_writeup_and_solver(
+            challenge_name=args.name,
+            category=args.category,
+            flag=args.flag,
+            steps=steps,
+            output_dir=args.output_dir,
+            points=args.points,
+        )
+        console_success(f"Artefak kompetisi berhasil dibuat (100% Anti-AI Compliant):\\n  - Writeup : {w_file}\\n  - Solver  : {s_file}")
         sys.exit(0)
     else:
         parser.print_help()

@@ -48,6 +48,45 @@ class TestFullAuditEnhancements(unittest.TestCase):
         self.assertIsNone(fm.find_first_flag("NUEVA{state_of_the_art_toolkit}"))
 
 
+    # Test dynamic writeup & python solver generation
+    def test_writeup_and_solver_generation(self) -> None:
+        from ctf_toolkit.utils.writeup_generator import DynamicWriteupGenerator
+        import tempfile
+        from pathlib import Path
+        tmp_dir = Path(tempfile.gettempdir()) / "ctf_wu_test"
+        steps = [
+            {"title": "Triage", "desc": "Checked RSA params", "cmd": "python main.py identify ..."},
+            {"title": "Decrypt", "desc": "Solved using RSA math", "python_code": "val = 42\nprint(val)"},
+        ]
+        wf, sf = DynamicWriteupGenerator.generate_writeup_and_solver(
+            "TestChallenge", "Crypto", "LKSJAKTIM{writeup_ready}", steps, output_dir=tmp_dir, points=150
+        )
+        self.assertTrue(wf.exists())
+        self.assertTrue(sf.exists())
+        self.assertIn("LKSJAKTIM{writeup_ready}", wf.read_text(encoding="utf-8"))
+        self.assertIn("val = 42", sf.read_text(encoding="utf-8"))
+
+    # Test AutoTriageDispatcher
+    def test_auto_triage_dispatcher_formats(self) -> None:
+        from ctf_toolkit.triage.dispatcher import AutoTriageDispatcher
+        import tempfile
+        from pathlib import Path
+        # Test synthetic PNG
+        png_file = Path(tempfile.gettempdir()) / "test_art.png"
+        png_file.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"GETSFLAG{png_magic_test}")
+        res_png = AutoTriageDispatcher.dispatch_file(png_file)
+        self.assertIn("PNG_Specialist", res_png["dispatched_specialists"])
+        self.assertIn("GETSFLAG{png_magic_test}", res_png["flags_found"])
+
+        # Test synthetic ZIP
+        import zipfile
+        zip_file = Path(tempfile.gettempdir()) / "test_art.zip"
+        with zipfile.ZipFile(zip_file, "w") as zf:
+            zf.writestr("secret.txt", "Flag: academy{zip_dispatcher_ok}")
+        res_zip = AutoTriageDispatcher.dispatch_file(zip_file)
+        self.assertIn("Archive_Specialist", res_zip["dispatched_specialists"])
+        self.assertIn("academy{zip_dispatcher_ok}", res_zip["flags_found"])
+
 def test_full_audit_enhancements_suite() -> None:
     suite = unittest.TestLoader().loadTestsFromTestCase(TestFullAuditEnhancements)
     res = unittest.TextTestRunner(verbosity=1).run(suite)
