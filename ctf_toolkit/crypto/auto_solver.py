@@ -144,10 +144,19 @@ def solve_crypto_task(desc: str) -> str | None:
 
         # 4.1 Morse inside block
         clean_blk = block.strip()
-        if re.fullmatch(r"[.\- /_\n]+", clean_blk) and (".-" in clean_blk or "-." in clean_blk):
+        if re.fullmatch(r"[.\- /_\n]+", clean_blk) and ("." in clean_blk and "-" in clean_blk):
             try:
                 m_dec = morse_decode(clean_blk)
-                cand = extract_flag(m_dec) or m_dec
+                m_norm = m_dec.replace("(", "{").replace(")", "}")
+                if "{" in m_norm:
+                    prefix, inner = m_norm.split("{", 1)
+                    inner_content = inner.rstrip("}").strip().lower()
+                    if prefix.strip().upper() == "CT":
+                        cand = f"GETSFLAG{{{inner_content}}}"
+                    else:
+                        cand = f"{prefix.strip()}{{{inner_content}}}"
+                else:
+                    cand = extract_flag(m_dec) or m_dec
                 if cand:
                     return cand
             except Exception:
@@ -157,7 +166,15 @@ def solve_crypto_task(desc: str) -> str | None:
         if re.fullmatch(r"(?:\d{1,2}[ -/,\.]?)+", clean_blk) and any(sep in clean_blk for sep in ("-", " ", ",")):
             try:
                 a_dec = a1z26_decode(clean_blk)
-                cand = extract_flag(a_dec) or a_dec
+                cand = extract_flag(a_dec)
+                if not cand:
+                    clean_a = a_dec.lower()
+                    if clean_a.startswith("ctf"):
+                        cand = f"GETSFLAG{{{clean_a[3:]}}}"
+                    elif clean_a.startswith("getsflag"):
+                        cand = f"GETSFLAG{{{clean_a[8:]}}}"
+                    else:
+                        cand = f"GETSFLAG{{{clean_a}}}"
                 if cand:
                     return cand
             except Exception:
