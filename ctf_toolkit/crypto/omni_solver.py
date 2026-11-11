@@ -79,8 +79,8 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         res["steps_taken"].append(f"Immediate regex hit for template '{tmpl}'.")
         return res
 
-    # Step 1: Check for RSA / DH / Crypto parameter pattern (e.g. n = ..., e = ...)
-    if any(k in text for k in ("n =", "n=", "p =", "p=", "c =", "c=", "g =", "phi =")):
+    # Step 1: Check for RSA / DH / Crypto parameter pattern (e.g. n = ..., n1 = ..., e = ...)
+    if any(k in text.lower() for k in ("n =", "n=", "n1 =", "n1=", "p =", "p=", "c =", "c=", "g =", "phi =", "dp=", "dp =", "modulus")):
         res["steps_taken"].append("Detected math/crypto parameter declarations. Routing to RSA/DH engine.")
         crypto_sol = solve_crypto_task(text)
         if crypto_sol:
