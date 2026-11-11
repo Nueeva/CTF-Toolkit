@@ -275,8 +275,14 @@ def solve_crypto_task(desc: str) -> str | None:
     xor_1byte_m = re.search(r"(?:kunci|key)\s*(?:1-byte)?\s*=\s*0x([0-9a-fA-F]{1,2})", desc, re.IGNORECASE)
 
     if hex_ct_m:
-        raw_ct = binascii.unhexlify(hex_ct_m.group(1).strip())
-        if key_ascii_m:
+        hex_str = hex_ct_m.group(1).strip()
+        if len(hex_str) % 2 != 0:
+            hex_str = "0" + hex_str
+        try:
+            raw_ct = binascii.unhexlify(hex_str)
+        except Exception:
+            raw_ct = b""
+        if raw_ct and key_ascii_m:
             try:
                 from ctf_toolkit.crypto.classical import repeating_key_xor
                 k_b = key_ascii_m.group(1).strip().encode("utf-8")
@@ -310,6 +316,276 @@ def solve_crypto_task(desc: str) -> str | None:
                 return f"GETSFLAG{{{cracked}}}"
         except Exception:
             pass
+
+    # 3.5 Modern & Classical Expanded Cipher Decoders
+    from ctf_toolkit.crypto import expanded_ciphers as ec
+
+    # 3.5.0 Rabin Cryptosystem (e=2, p, q, c)
+    if "rabin" in desc.lower() and p_m and q_m and c_m:
+        try:
+            p_rabin = int(p_m.group(1))
+            q_rabin = int(q_m.group(1))
+            c_rabin = int(c_m.group(1))
+            roots = ec.decrypt_rabin_roots(c_rabin, p_rabin, q_rabin)
+            for r in roots:
+                cand = extract_flag(r)
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 3.5.0b Chinese Remainder Theorem (x = a mod m)
+    if "sisa china" in desc.lower() or "sisa cina" in desc.lower() or "crt" in desc.lower():
+        congruences = re.findall(r"x\s*[≡=]\s*(\d+)\s*\(\s*mod\s*(\d+)\s*\)", desc)
+        if len(congruences) >= 2:
+            try:
+                rem_list = [int(a) for a, _ in congruences]
+                mod_list = [int(m) for _, m in congruences]
+                x_val = ec.solve_crt_congruences(rem_list, mod_list)
+                x_bytes = x_val.to_bytes((x_val.bit_length() + 7) // 8, "big")
+                cand = extract_flag(x_bytes) or x_bytes.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.0c XTEA Decryption
+    if "xtea" in desc.lower():
+        key_words_m = re.search(r"key\(32-bit words\)\s*=\s*\[(.*?)\]", desc)
+        if key_words_m and ct_hex_m:
+            try:
+                kw = [int(x.strip()) for x in key_words_m.group(1).split(",")]
+                ct_bytes = binascii.unhexlify(ct_hex_m.group(1).strip())
+                dec_xtea = ec.decrypt_xtea(ct_bytes, kw)
+                cand = extract_flag(dec_xtea) or dec_xtea.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.0d Gray Code (x ^ x>>1)
+    if "gray" in desc.lower():
+        gray_hex_m = re.search(r"gray(?:\(hex\))?:\s*([0-9a-fA-F]+)", desc)
+        if gray_hex_m:
+            try:
+                from ctf_toolkit.crypto.classical import gray_decode_bytes
+                raw_gray = binascii.unhexlify(gray_hex_m.group(1).strip())
+                dec_gray = gray_decode_bytes(raw_gray)
+                cand = extract_flag(dec_gray) or dec_gray.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.0e Baudot / ITA2
+    if "baudot" in desc.lower() or "ita2" in desc.lower():
+        baudot_m = re.search(r"baudot[^\n:]*:\s*([01\s]+)", desc)
+        if baudot_m:
+            try:
+                from ctf_toolkit.crypto.encoding import baudot_ita2_decode
+                bits = baudot_m.group(1).strip().split()
+                dec_b = baudot_ita2_decode(bits)
+                cand = extract_flag(dec_b) or f"GETSFLAG{{{dec_b.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.0f UUdecode
+    if "uuencode" in desc.lower() or "uu sandi" in desc.lower():
+        uu_line = re.search(r"uuencoded line:\s*([^\n\r]+)", desc)
+        if uu_line:
+            try:
+                dec_uu = binascii.a2b_uu(uu_line.group(1).strip())
+                cand = extract_flag(dec_uu) or dec_uu.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.0g Beaufort / Autokey / Porta
+    if "beaufort" in desc.lower():
+        c_bf = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        k_bf = re.search(r"key:\s*([A-Za-z]+)", desc)
+        if c_bf and k_bf:
+            try:
+                from ctf_toolkit.crypto.classical import beaufort_decrypt
+                dec_bft = beaufort_decrypt(c_bf.group(1).strip(), k_bf.group(1).strip())
+                cand = extract_flag(dec_bft) or f"GETSFLAG{{{dec_bft.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    if "autokey" in desc.lower():
+        c_ak = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        p_ak = re.search(r"primer(?:\s*key)?:\s*([A-Za-z]+)", desc)
+        if c_ak and p_ak:
+            try:
+                from ctf_toolkit.crypto.classical import autokey_decrypt
+                dec_ak = autokey_decrypt(c_ak.group(1).strip(), p_ak.group(1).strip())
+                cand = extract_flag(dec_ak) or f"GETSFLAG{{{dec_ak.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    if "porta" in desc.lower():
+        c_pt = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        k_pt = re.search(r"key:\s*([A-Za-z]+)", desc)
+        if c_pt and k_pt:
+            try:
+                from ctf_toolkit.crypto.classical import porta_decrypt
+                dec_pt = porta_decrypt(c_pt.group(1).strip(), k_pt.group(1).strip())
+                cand = extract_flag(dec_pt) or f"GETSFLAG{{{dec_pt.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.1 AES Variants (ECB, CBC, CTR, GCM)
+    key_hex_m = re.search(r"key(?:\(hex\))?\s*=\s*([0-9a-fA-F]+)", desc)
+    iv_hex_m = re.search(r"iv(?:\(hex\))?\s*=\s*([0-9a-fA-F]+)", desc)
+    nonce_hex_m = re.search(r"nonce(?:\(hex\))?\s*=\s*([0-9a-fA-F]+)", desc)
+    tag_hex_m = re.search(r"tag(?:\(hex\))?\s*=\s*([0-9a-fA-F]+)", desc)
+    ct_hex_m = re.search(r"(?:ct(?:\(hex\))?|ciphertext(?:\(hex\))?)\s*=\s*([0-9a-fA-F]+)", desc)
+
+    if key_hex_m and ct_hex_m:
+        try:
+            k_bytes = binascii.unhexlify(key_hex_m.group(1).strip())
+            c_bytes = binascii.unhexlify(ct_hex_m.group(1).strip())
+            cand_pt = None
+            if "aes-gcm" in desc.lower() or "galois" in desc.lower():
+                n_b = binascii.unhexlify(nonce_hex_m.group(1).strip()) if nonce_hex_m else b""
+                t_b = binascii.unhexlify(tag_hex_m.group(1).strip()) if tag_hex_m else None
+                cand_pt = ec.decrypt_aes_gcm(c_bytes, k_bytes, n_b, t_b)
+            elif "aes-ctr" in desc.lower() or "hitung" in desc.lower():
+                n_b = binascii.unhexlify(nonce_hex_m.group(1).strip()) if nonce_hex_m else b""
+                if len(n_b) == 8:
+                    cand_pt = ec.decrypt_aes_ctr(c_bytes, k_bytes, nonce=n_b)
+                else:
+                    cand_pt = ec.decrypt_aes_ctr(c_bytes, k_bytes, nonce=n_b[:8] if len(n_b) > 8 else n_b)
+            elif "aes-cbc" in desc.lower() or "rantai" in desc.lower():
+                iv_b = binascii.unhexlify(iv_hex_m.group(1).strip()) if iv_hex_m else b"\x00"*16
+                cand_pt = ec.decrypt_aes_cbc(c_bytes, k_bytes, iv=iv_b)
+            elif "chacha" in desc.lower():
+                n_b = binascii.unhexlify(nonce_hex_m.group(1).strip()) if nonce_hex_m else b""
+                cand_pt = ec.decrypt_chacha20(c_bytes, k_bytes, n_b)
+            elif "salsa" in desc.lower():
+                n_b = binascii.unhexlify(nonce_hex_m.group(1).strip()) if nonce_hex_m else b""
+                cand_pt = ec.decrypt_salsa20(c_bytes, k_bytes, n_b)
+            elif "triple des" in desc.lower() or "3des" in desc.lower():
+                iv_b = binascii.unhexlify(iv_hex_m.group(1).strip()) if iv_hex_m else b"\x00"*8
+                cand_pt = ec.decrypt_3des_cbc(c_bytes, k_bytes, iv_b)
+            elif "blowfish" in desc.lower():
+                cand_pt = ec.decrypt_blowfish_ecb(c_bytes, k_bytes)
+            elif "rc4" in desc.lower():
+                cand_pt = ec.decrypt_rc4(c_bytes, k_bytes)
+            else:
+                # Default AES-ECB
+                cand_pt = ec.decrypt_aes_ecb(c_bytes, k_bytes)
+
+            if cand_pt:
+                cand = extract_flag(cand_pt) or cand_pt.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 3.5.2 Playfair, Bifid, Columnar Transposition, QWERTY Shift
+    if "playfair" in desc.lower():
+        k_pf = re.search(r"key:\s*([A-Za-z]+)", desc)
+        c_pf = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        if c_pf:
+            try:
+                dec_pf = ec.decrypt_playfair_5x5(c_pf.group(1).strip(), k_pf.group(1).strip() if k_pf else "MONARCHY")
+                cand = extract_flag(dec_pf) or f"GETSFLAG{{{dec_pf.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    if "bifid" in desc.lower():
+        c_bf = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        if c_bf:
+            try:
+                dec_bf = ec.decrypt_bifid(c_bf.group(1).strip())
+                cand = extract_flag(dec_bf) or f"GETSFLAG{{{dec_bf.lower()}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    if "kolom" in desc.lower() or "columnar" in desc.lower():
+        k_col = re.search(r"key:\s*([A-Za-z]+)", desc)
+        c_col = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        if k_col and c_col:
+            try:
+                dec_col = ec.decrypt_columnar_transposition(c_col.group(1).strip(), k_col.group(1).strip())
+                cand = extract_flag(dec_col) or f"GETSFLAG{{{dec_col.rstrip('x')}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    if "qwerty" in desc.lower() or "keyboard" in desc.lower():
+        c_qw = re.search(r"ciphertext:\s*([A-Za-z]+)", desc)
+        if c_qw:
+            try:
+                dec_qw = ec.decrypt_qwerty_shift(c_qw.group(1).strip(), shift_left=True)
+                cand = extract_flag(dec_qw) or f"GETSFLAG{{{dec_qw}}}"
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.3 Brainfuck interpreter
+    if "brainfuck" in desc.lower() and ("++" in desc or "--" in desc or ">>" in desc):
+        bf_code = re.search(r"brainfuck:\s*([+\-<>.,\[\]\s]+)", desc)
+        if not bf_code:
+            bf_code = re.search(r"```[^\n]*\n([+\-<>.,\[\]\s]+)```", desc)
+        if bf_code:
+            try:
+                from ctf_toolkit.osint_misc.esolang import brainfuck_eval
+                raw_bf = bf_code.group(1).strip()
+                dec_bf = brainfuck_eval(raw_bf)
+                cand = extract_flag(dec_bf)
+                if not cand and "{" in dec_bf:
+                    cand = dec_bf.strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.4 Octal numbers
+    if "oktal" in desc.lower() or "octal" in desc.lower():
+        oct_code = re.findall(r"\b[0-7]{3}\b", desc)
+        if len(oct_code) >= 5:
+            try:
+                dec_oct = bytes(int(x, 8) for x in oct_code).decode("utf-8", errors="ignore")
+                cand = extract_flag(dec_oct) or dec_oct
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.5.5 ElGamal (c1, c2, p, x)
+    if "elgamal" in desc.lower() and p_m:
+        x_m = re.search(r"\bx\s*=\s*(\d+)", desc)
+        c1_m = re.search(r"\bc1\s*=\s*(\d+)", desc)
+        c2_m = re.search(r"\bc2\s*=\s*(\d+)", desc)
+        if x_m and c1_m and c2_m:
+            try:
+                p_v = int(p_m.group(1))
+                x_v = int(x_m.group(1))
+                c1_v = int(c1_m.group(1))
+                c2_v = int(c2_m.group(1))
+                dec_eg = ec.decrypt_elgamal(c1_v, c2_v, p_v, x_v)
+                cand = extract_flag(dec_eg) or dec_eg.decode("utf-8", errors="ignore").strip()
+                if cand:
+                    return cand
+            except Exception:
+                pass
 
     # 4. Code block extraction / cipher text peeling
     code_blocks = re.findall(r"```(?:\w+)?\n?(.*?)```", desc, re.DOTALL)

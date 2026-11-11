@@ -152,3 +152,16 @@ class CTFdClient:
             return json.loads(body.decode("utf-8"))
         except Exception:
             return {"success": False, "status": status, "raw": body.decode("utf-8", errors="ignore")}
+
+    def download_file(self, file_url_or_path: str) -> bytes:
+        """Download challenge attachment file directly into memory."""
+        rel_path = file_url_or_path
+        if rel_path.startswith("http"):
+            rel_path = re.sub(r"^https?://[^/]+", "", rel_path)
+        status, body, _ = self._request(
+            rel_path,
+            headers={"Referer": f"{self.base_url}/challenges"},
+        )
+        if status == 200:
+            return body
+        return b""

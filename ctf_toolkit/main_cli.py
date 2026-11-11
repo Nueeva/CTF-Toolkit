@@ -308,6 +308,20 @@ def handle_train(args: argparse.Namespace) -> int:
         console_info(f"Analyzing [{cat}] #{cid} '{cname}'...")
         cand_flag = solve_challenge_text(desc)
 
+        # If not resolved from description and challenge has files, inspect attachment
+        if not cand_flag and detail.get("files"):
+            for f_url in detail["files"]:
+                try:
+                    f_bytes = client.download_file(f_url)
+                    if f_bytes:
+                        # Try decoding as text or triage
+                        f_text = f_bytes.decode("utf-8", errors="ignore")
+                        cand_flag = solve_challenge_text(f_text) or solve_challenge_text(f"{desc}\n\n{f_text}")
+                        if cand_flag:
+                            break
+                except Exception:
+                    pass
+
         if cand_flag:
             console_info(f"  -> Candidate flag discovered: {cand_flag}")
             if not args.dry_run:
