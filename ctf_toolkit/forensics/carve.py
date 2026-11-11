@@ -152,6 +152,17 @@ def transform_candidates(text: str) -> list[tuple[str, str]]:
     for shift in (1, -1, 2, -2, 3, -3, 5, -5, 13, -13):
         out.append((f"caesar{shift}", _caesar(stripped, shift)))
 
+    # base32 decode
+    b32_clean = re.sub(r"[^A-Za-z2-7]", "", stripped).upper()
+    if len(b32_clean) >= 16:
+        pad = (8 - len(b32_clean) % 8) % 8
+        try:
+            dec_b32 = base64.b32decode(b32_clean + "=" * pad).decode("latin-1")
+            if sum(c.isprintable() for c in dec_b32) / max(1, len(dec_b32)) > 0.8:
+                out.append(("b32", dec_b32))
+        except Exception:
+            pass
+
     # url encoding
     if "%" in stripped:
         try:
@@ -205,3 +216,50 @@ def decompress_any(blob: bytes) -> bytes | None:
         except Exception:
             continue
     return None
+
+
+def crack_zip_file(zip_data: bytes, max_depth: int = 3) -> list[str]:
+    """Attempt fast password recovery on password-protected ZIP archive using top common passwords."""
+    from ctf_toolkit.utils.flag_manager import get_flag_manager
+    fm = get_flag_manager()
+    flags: list[str] = []
+
+    # Common passwords
+    passwords = [
+        b"rockyou", b"123456", b"password", b"12345678", b"qwerty", b"123456789", b"12345",
+        b"admin", b"1234", b"root", b"guest", b"letmein", b"football", b"iloveyou",
+        b"welcome", b"monkey", b"starwars", b"master", b"secret", b"pass", b"test",
+        b"getsflag", b"GetsFlag", b"Nueva", b"CTF", b"ctf", b"flag", b"Flag",
+        b"dompet", b"wallet", b"crypto", b"backup", b"proyek", b"project", b"kunci",
+        b"0000", b"1111", b"2024", b"2025", b"2026", b"rahasia", b"bismillah"
+    ]
+    # Add external wordlist if present
+    import os
+    data_path = os.path.join(os.path.dirname(__file__), "data", "common_passwords.txt")
+    if os.path.exists(data_path):
+        try:
+            with open(data_path, "rb") as f:
+                passwords.extend(f.read().splitlines()[:10000])
+        except Exception:
+            pass
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zip_data))
+        for pwd in passwords:
+            try:
+                for name in zf.namelist():
+                    if name.endswith("/"):
+                        continue
+                    content = zf.read(name, pwd=pwd)
+                    fl = fm.extract_flags(content)
+                    if fl:
+                        flags.extend([f["flag"] for f in fl])
+                    if content.startswith(b"PK\x03\x04") and max_depth > 1:
+                        flags.extend(crack_zip_file(content, max_depth - 1))
+                if flags:
+                    return list(dict.fromkeys(flags))
+            except (RuntimeError, zipfile.BadZipFile):
+                pass
+    except Exception:
+        pass
+    return list(dict.fromkeys(flags))

@@ -83,6 +83,8 @@ class AutoTriageDispatcher:
             try:
                 from ctf_toolkit.forensics.png_tools import extract_png_text_chunks
                 from ctf_toolkit.forensics.image_channels import extract_png_trailing_bytes
+                from ctf_toolkit.forensics.image_stego import extract_all_bit_planes
+                from ctf_toolkit.forensics.carve import transform_candidates
                 chunks = extract_png_text_chunks(data)
                 trailing = extract_png_trailing_bytes(data)
                 res["extracted_findings"]["png_text_chunks"] = chunks
@@ -91,6 +93,26 @@ class AutoTriageDispatcher:
                     tr_fl = get_flag_manager().extract_flags(trailing)
                     if tr_fl:
                         res["flags_found"].extend([f["flag"] for f in tr_fl])
+
+                # Exhaustive bit-plane and channel extraction (R0..R7, G0..G7, B0..B7, A0..A7, interleaved)
+                planes = extract_all_bit_planes(data)
+                for pname, pdata in planes.items():
+                    pfl = get_flag_manager().extract_flags(pdata[:4096])
+                    if pfl:
+                        res["flags_found"].extend([f["flag"] for f in pfl])
+                    # Try transforms (Base64, Hex, Base32) on bit-plane bytes
+                    ptext = pdata[:2048].decode("latin-1", errors="ignore")
+                    for tname, tval in transform_candidates(ptext):
+                        tfl = get_flag_manager().extract_flags(tval)
+                        if tfl:
+                            res["flags_found"].extend([f["flag"] for f in tfl])
+                    # Try single-byte XOR brute on active bit-planes
+                    for k in (90, 170):
+                        xored = bytes(b ^ k for b in pdata[:128])
+                        if b"GETSFLAG{" in xored:
+                            x_fl = get_flag_manager().extract_flags(xored)
+                            if x_fl:
+                                res["flags_found"].extend([f["flag"] for f in x_fl])
             except Exception as e:
                 res["extracted_findings"]["png_error"] = str(e)
 
@@ -99,8 +121,15 @@ class AutoTriageDispatcher:
             res["dispatched_specialists"].append("GIF_Specialist")
             try:
                 from ctf_toolkit.forensics.image_channels import extract_gif_frame_palettes_and_comments
+                from ctf_toolkit.forensics.image_stego import extract_gif_stego_payloads
                 gif_info = extract_gif_frame_palettes_and_comments(data)
                 res["extracted_findings"]["gif_analysis"] = gif_info
+                # Run full GIF frame stego analysis
+                gif_strings = extract_gif_stego_payloads(data)
+                for s in gif_strings:
+                    gfl = get_flag_manager().extract_flags(s)
+                    if gfl:
+                        res["flags_found"].extend([f["flag"] for f in gfl])
             except Exception as e:
                 res["extracted_findings"]["gif_error"] = str(e)
 
@@ -110,6 +139,7 @@ class AutoTriageDispatcher:
             try:
                 from ctf_toolkit.forensics.pcap_extract import extract_http_basic_auth, repair_pcap_header
                 from ctf_toolkit.forensics.network_artifacts import assemble_icmp_echo_payloads, extract_dns_hex_subdomains
+                from ctf_toolkit.forensics.log_pcap_analyzer import analyze_pcap_streams
                 auths = extract_http_basic_auth(data)
                 icmp = assemble_icmp_echo_payloads(data)
                 dns_hex = extract_dns_hex_subdomains(data)
@@ -124,6 +154,13 @@ class AutoTriageDispatcher:
                     dns_fl = get_flag_manager().extract_flags(dns_hex)
                     if dns_fl:
                         res["flags_found"].extend([f["flag"] for f in dns_fl])
+
+                # Deep stream and tunnel parser
+                pcap_strings = analyze_pcap_streams(data)
+                for ps in pcap_strings:
+                    ps_fl = get_flag_manager().extract_flags(ps)
+                    if ps_fl:
+                        res["flags_found"].extend([f["flag"] for f in ps_fl])
             except Exception as e:
                 res["extracted_findings"]["pcap_error"] = str(e)
 
@@ -138,10 +175,17 @@ class AutoTriageDispatcher:
                         res["extracted_findings"]["archive_files"] = namelist
                         for zfname in namelist:
                             if not zfname.endswith("/"):
-                                content = zf.read(zfname)
-                                zf_fl = get_flag_manager().extract_flags(content)
-                                if zf_fl:
-                                    res["flags_found"].extend([f["flag"] for f in zf_fl])
+                                try:
+                                    content = zf.read(zfname)
+                                    zf_fl = get_flag_manager().extract_flags(content)
+                                    if zf_fl:
+                                        res["flags_found"].extend([f["flag"] for f in zf_fl])
+                                except RuntimeError:
+                                    # Password protected zip! Try cracking with top common wordlist
+                                    from ctf_toolkit.forensics.carve import crack_zip_file
+                                    cracked_flags = crack_zip_file(data)
+                                    if cracked_flags:
+                                        res["flags_found"].extend(cracked_flags)
             except Exception as e:
                 res["extracted_findings"]["archive_error"] = str(e)
 
@@ -207,6 +251,14 @@ class AutoTriageDispatcher:
         # plain text before giving up.
         try:
             from ctf_toolkit.forensics.carve import carve_and_expand, transform_candidates
+            from ctf_toolkit.forensics.log_pcap_analyzer import analyze_log_artifacts
+
+            # Run specialized log analyzer if data contains log lines
+            log_strings = analyze_log_artifacts(data.decode("latin-1", errors="ignore"))
+            for ls in log_strings:
+                ls_fl = get_flag_manager().extract_flags(ls)
+                if ls_fl:
+                    res["flags_found"].extend([f["flag"] for f in ls_fl])
             carved = carve_and_expand(data, depth=2)
             if carved:
                 res["dispatched_specialists"].append("Carve_Engine")
