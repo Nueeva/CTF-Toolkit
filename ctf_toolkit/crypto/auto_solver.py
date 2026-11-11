@@ -38,11 +38,30 @@ def solve_crypto_task(desc: str) -> str | None:
     # 2. RSA: Check explicit parameters
     p_m = re.search(r"\bp\s*=\s*(\d+)", desc)
     q_m = re.search(r"\bq\s*=\s*(\d+)", desc)
+    r_m = re.search(r"\br\s*=\s*(\d+)", desc)
     e_m = re.search(r"\be\s*=\s*(\d+)", desc)
     c_m = re.search(r"\bc\s*=\s*(\d+)", desc)
     n_m = re.search(r"\bn\s*=\s*(\d+)", desc)
     phi_m = re.search(r"\b(?:phi|\u03c6)\s*=\s*(\d+)", desc, re.IGNORECASE)
     d_m = re.search(r"\bd\s*=\s*(\d+)", desc)
+
+    # 2.0 Multi-prime RSA (p, q, r, ...)
+    if p_m and q_m and r_m and e_m and c_m:
+        from ctf_toolkit.crypto.rsa import rsa_multiprime_decrypt
+        try:
+            factors = [int(p_m.group(1)), int(q_m.group(1)), int(r_m.group(1))]
+            # check if there are more primes like s, t
+            s_m = re.search(r"\bs\s*=\s*(\d+)", desc)
+            if s_m:
+                factors.append(int(s_m.group(1)))
+            e_val, c_val = int(e_m.group(1)), int(c_m.group(1))
+            m_val = rsa_multiprime_decrypt(factors, e_val, c_val)
+            pt_bytes = m_val.to_bytes((m_val.bit_length() + 7) // 8, "big")
+            cand = extract_flag(pt_bytes) or pt_bytes.decode("utf-8", errors="ignore").strip()
+            if cand:
+                return cand
+        except Exception:
+            pass
 
     if p_m and q_m and e_m and c_m:
         p, q, e, c = int(p_m.group(1)), int(q_m.group(1)), int(e_m.group(1)), int(c_m.group(1))
