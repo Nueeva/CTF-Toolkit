@@ -369,9 +369,12 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
         <div class="hub-actions">
           <button class="btn-submit" onclick="runOmniSolve()">⚡ Analisa &amp; Pecahkan Otomatis</button>
           <button class="btn-flat" onclick="loadSample('rsa')">Sample RSA 3-Faktor</button>
+          <button class="btn-flat" onclick="loadSample('scytale')">Sample Scytale</button>
+          <button class="btn-flat" onclick="loadSample('trithemius')">Sample Trithemius</button>
+          <button class="btn-flat" onclick="loadSample('xor')">Sample XOR Repeating</button>
           <button class="btn-flat" onclick="loadSample('jwt')">Sample JWT HS256</button>
           <button class="btn-flat" onclick="loadSample('morse')">Sample Morse</button>
-          <button class="btn-flat" onclick="loadSample('hash')">Sample Hash MD5</button>
+          <button class="btn-flat" onclick="loadSample('hash')">Sample Hash SHA256</button>
           <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-left:auto" id="omniStatus">ready</span>
         </div>
 
@@ -1599,12 +1602,18 @@ function loadSample(kind) {
       "r = 463168356949264781694283940034751631413079938662562256157830336031652518559817\n" +
       "e = 65537\n" +
       "c = 2670817518791061513366802547849419951198604451866375003804990303003208017498154056810407824646991951643331191387851710612379079850269453262364027668255207625882781589282902833758222941999002240377891790357909636931527006936831421835";
+  } else if (kind === "scytale") {
+    $("omniInput").value = "Scytale (transposisi silinder), diameter 4.\n```\nciphertext: sareucladnyeprdtwpox\nscytale diameter = 4 (pad 'x')\nflag = GETSFLAG{hasil}\n```";
+  } else if (kind === "trithemius") {
+    $("omniInput").value = "Trithemius: huruf ke-i digeser +i.\n```\nciphertext: tskwljspcbcsush\n(Trithemius: geser +posisi)\n```";
+  } else if (kind === "xor") {
+    $("omniInput").value = "Repeating-key XOR (kunci GETS).\n```\nct(hex)=00000000010915143c3d3b2118333d34222b3121221a2636372035272e2b332e\nkey(ascii)=GETS\n```";
   } else if (kind === "jwt") {
     $("omniInput").value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiTnVldmEiLCJyb2xlIjoiYWRtaW4ifQ.3o7H3S_gK0pY9F5lL5L_eXJqW2J_u9M5lH3n-eV3q5U";
   } else if (kind === "morse") {
     $("omniInput").value = "-.-. - -.--. ..-. .- .-. ..--.- .. -. ..-. .-. .- .-. . -.. -.--.-";
   } else if (kind === "hash") {
-    $("omniInput").value = "21232f297a57a5a743894a0e4a801fc3";
+    $("omniInput").value = "Crack SHA256 dengan wordlist kecil.\n```\nsha256=6ea09c25a7f1dcbd677077edaadfacdc41202e5be88e4ccf4c35207e343990bd\nwordlist: password, letmein, correcthorse, admin123, qwerty\n```";
   }
   runOmniSolve();
 }

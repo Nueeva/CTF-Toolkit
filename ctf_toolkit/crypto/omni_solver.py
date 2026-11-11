@@ -68,12 +68,15 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
 
     # Step 0: Immediate flag extraction
     mgr = get_flag_manager()
-    initial_flags = mgr.extract_flags(text)
-    if initial_flags:
-        res["flags_found"].extend(initial_flags)
-        res["best_result"] = initial_flags[0]["flag"]
-        res["type_detected"] = f"Plain Flag ({initial_flags[0]['name']})"
-        res["steps_taken"].append(f"Immediate regex hit for template '{initial_flags[0]['name']}'.")
+    # Check if raw text only mentions format placeholder like flag = GETSFLAG{hasil}
+    raw_flags = mgr.extract_flags(text)
+    real_flags = [f for f in raw_flags if not any(ph in f["flag"].lower() for ph in ("{hasil}", "{...}", "{flag}", "{string}", "{isi}"))]
+    if real_flags:
+        res["flags_found"].extend(real_flags)
+        res["best_result"] = real_flags[0]["flag"]
+        tmpl = real_flags[0].get("template", "Flag")
+        res["type_detected"] = f"Plain Flag ({tmpl})"
+        res["steps_taken"].append(f"Immediate regex hit for template '{tmpl}'.")
         return res
 
     # Step 1: Check for RSA / DH / Crypto parameter pattern (e.g. n = ..., e = ...)
@@ -99,6 +102,18 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         if jwt_res.get("cracked_secret"):
             res["steps_taken"].append(f"HS256 secret cracked: '{jwt_res['cracked_secret']}'.")
         return res
+
+    # Step 2.5: Check for Scytale / Trithemius / Inline Crypto Challenges
+    if any(k in text.lower() for k in ("scytale", "trithemius", "kunci 1-byte", "kunci = 0x", "key = 0x", "key(ascii)", "wordlist:")):
+        res["steps_taken"].append("Detected classical/CTF challenge descriptor. Routing to auto_solver.")
+        ctf_cand = solve_crypto_task(text)
+        if ctf_cand:
+            res["type_detected"] = "Classical / Stream Task"
+            res["best_result"] = ctf_cand
+            flags = mgr.extract_flags(ctf_cand)
+            if flags:
+                res["flags_found"].extend(flags)
+            return res
 
     # Step 3: Check for Morse
     if re.fullmatch(r"[.\- /_\n]+", text) and any(c in text for c in (".-", "-.", "...", "---")):
