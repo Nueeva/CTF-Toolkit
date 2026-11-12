@@ -79,6 +79,25 @@ def auto_solve_hub(raw_text: str) -> dict[str, Any]:
         res["steps_taken"].append(f"Immediate regex hit for template '{tmpl}'.")
         return res
 
+    # Step 0.5: Check for live target URL (Web Challenge Scanner)
+    url_match = re.search(r"https?://[^\s<>\"']+", text)
+    if url_match and ("http://" in text.lower() or "https://" in text.lower()):
+        target_url = url_match.group(0)
+        # Avoid external platform URLs
+        if not any(k in target_url.lower() for k in ("getsflag.com", "github.com", "google.com", "ctf.apexsions.com")):
+            res["steps_taken"].append(f"Detected target instance URL: {target_url}. Launching Web Scanner.")
+            try:
+                from ctf_toolkit.web.scanner import scan_web_target
+                web_res = scan_web_target(target_url)
+                if web_res.get("flags_found"):
+                    res["type_detected"] = "Web Target Instance"
+                    res["flags_found"].extend([{"template": "Web", "priority": 90, "flag": f} for f in web_res["flags_found"]])
+                    res["best_result"] = web_res["flags_found"][0]
+                    res["web_findings"] = web_res.get("findings")
+                    return res
+            except Exception as e:
+                res["steps_taken"].append(f"Web Scanner notice: {e}")
+
     # Step 1: Universal Auto Solver Routing (Always try solve_crypto_task first!)
     crypto_sol = solve_crypto_task(text)
     if crypto_sol:
