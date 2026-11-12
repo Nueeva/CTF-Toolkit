@@ -302,7 +302,10 @@
       <span>Web &amp; JWT</span><span class="nav-count">3</span>
     </div>
     <div class="nav-link" data-page="triage" onclick="switchPage('triage','File Triage','Auto Dispatcher',this)">
-      <span>File Triage</span><span class="nav-count">8</span>
+      <span>Forensic Triage</span><span class="nav-count">8 specs</span>
+    </div>
+    <div class="nav-link" data-page="recipe" onclick="switchPage('recipe','Recipe Pipeline','CyberChef Chaining',this)">
+      <span>Recipe Pipeline</span><span class="nav-count" style="color:var(--brass)">CyberChef</span>
     </div>
 
     <div class="nav-group">Operations</div>
@@ -707,6 +710,38 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
         <div class="flat-sub">Payload patterns for SQLi, LFI, SSTI, command injection, XSS and JWT.</div>
         <div class="filter-tabs" style="margin-bottom:14px;border-bottom:1px solid var(--seam);padding-bottom:6px" id="cheatPills"></div>
         <div id="cheatBody"></div>
+      </div>
+    </section>
+
+    <!-- ========== RECIPE PIPELINE (CYBERCHEF PARITY) ========== -->
+    <section id="page-recipe" class="view">
+      <div class="wb-split" style="height:100%">
+        <!-- Available operations palette -->
+        <div class="wb-col" style="width:260px">
+          <div class="col-head"><span>Operations</span><span style="color:var(--brass)">Palette</span></div>
+          <div style="padding:0 0 8px"><input class="flag-input" id="recipeOpFilter" placeholder="Filter operations…" oninput="filterRecipeOps(this.value)"></div>
+          <div class="tool-list" id="recipeOpList" style="max-height:calc(100vh - 210px);overflow-y:auto"></div>
+        </div>
+
+        <!-- Recipe chain builder -->
+        <div class="wb-col" style="width:340px">
+          <div class="col-head"><span>Recipe Chain</span><div><button class="btn-clear" onclick="clearRecipeChain()">Clear</button> <button class="btn-submit" style="padding:2px 8px;font-size:11px" onclick="executeRecipeChain()">Bake</button></div></div>
+          <div id="recipeChain" style="display:flex;flex-direction:column;gap:6px;padding:8px 0;max-height:calc(100vh - 210px);overflow-y:auto">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);padding:14px;text-align:center" id="recipeEmptyNote">No operations in recipe. Double-click or click '+' from Palette to chain.</div>
+          </div>
+        </div>
+
+        <!-- Input & Output split -->
+        <div class="wb-col">
+          <div class="col-head"><span>Input</span><span id="recipeInLen" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3)">0 chars</span></div>
+          <textarea class="code-area" id="recipeInput" style="height:180px;resize:none" placeholder="Paste input data here…" oninput="$('recipeInLen').textContent = this.value.length + ' chars'; if($('recipeAutoBake').checked) executeRecipeChain()"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px">
+            <label style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="checkbox" id="recipeAutoBake" checked> Auto Bake</label>
+            <span id="recipeStepTime" style="font-family:var(--font-mono);font-size:10px;color:var(--brass)"></span>
+          </div>
+          <div class="col-head" style="margin-top:8px"><span>Output</span><span id="recipeOutLen" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3)">0 chars</span></div>
+          <pre class="result-pane" id="recipeOutput" style="min-height:180px;max-height:calc(100vh - 380px);overflow-y:auto">—</pre>
+        </div>
       </div>
     </section>
   </main>
@@ -1565,6 +1600,110 @@ function searchPalette(q) {
   });
 }
 
+/* ---------- RECIPE PIPELINE (CYBERCHEF PARITY) ---------- */
+const RECIPE_OPS = [
+  { id: "to_hex", name: "To Hex", cat: "Encodings", run: s => Array.from(new TextEncoder().encode(s)).map(b => b.toString(16).padStart(2,"0")).join("") },
+  { id: "from_hex", name: "From Hex", cat: "Encodings", run: s => { const clean = s.replace(/[^0-9a-fA-F]/g, ""); const b = new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); return new TextDecoder().decode(b); } },
+  { id: "to_b64", name: "To Base64", cat: "Encodings", run: s => btoa(unescape(encodeURIComponent(s))) },
+  { id: "from_b64", name: "From Base64", cat: "Encodings", run: s => decodeURIComponent(escape(atob(s.trim()))) },
+  { id: "rot13", name: "ROT13", cat: "Ciphers", run: s => s.replace(/[a-zA-Z]/g, c => { const code = c.charCodeAt(0); const base = code >= 97 ? 97 : 65; return String.fromCharCode(((code - base + 13) % 26) + base); }) },
+  { id: "reverse", name: "Reverse", cat: "Transforms", run: s => s.split("").reverse().join("") },
+  { id: "strip_whitespace", name: "Strip Whitespace", cat: "Transforms", run: s => s.replace(/\s+/g, "") },
+  { id: "url_decode", name: "URL Decode", cat: "Encodings", run: s => decodeURIComponent(s) },
+  { id: "url_encode", name: "URL Encode", cat: "Encodings", run: s => encodeURIComponent(s) },
+  { id: "to_binary", name: "To Binary", cat: "Encodings", run: s => Array.from(new TextEncoder().encode(s)).map(b => b.toString(2).padStart(8,"0")).join(" ") },
+  { id: "from_binary", name: "From Binary", cat: "Encodings", run: s => { const clean = s.trim().split(/\s+/); return new TextDecoder().decode(new Uint8Array(clean.map(b => parseInt(b, 2)))); } },
+  { id: "xor_single", name: "XOR (Key 0x5a)", cat: "Ciphers", run: s => Array.from(new TextEncoder().encode(s)).map(b => String.fromCharCode(b ^ 0x5a)).join("") },
+  { id: "extract_flag", name: "Extract CTF Flag", cat: "Forensics", run: s => { const m = s.match(/(?:[A-Za-z0-9_]{2,15}\{[\x20-\x7d]{2,120}\})/); return m ? m[0] : "[No flag pattern matched]"; } }
+];
+
+let recipeActiveChain = [];
+
+function initRecipePipeline() {
+  filterRecipeOps("");
+}
+
+function filterRecipeOps(query) {
+  const q = (query || "").toLowerCase();
+  const list = $("recipeOpList");
+  if (!list) return;
+  const filtered = RECIPE_OPS.filter(op => !q || op.name.toLowerCase().includes(q) || op.cat.toLowerCase().includes(q));
+  list.innerHTML = filtered.map(op => `
+    <div class="tool-row" style="cursor:pointer" onclick="addRecipeStep('${op.id}')">
+      <div>
+        <div style="font-weight:500;color:var(--ink)">${esc(op.name)}</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3)">${esc(op.cat)}</div>
+      </div>
+      <button class="btn-clear" style="padding:1px 6px;font-size:12px;color:var(--brass)">+</button>
+    </div>
+  `).join("");
+}
+
+function addRecipeStep(opId) {
+  const op = RECIPE_OPS.find(x => x.id === opId);
+  if (!op) return;
+  recipeActiveChain.push(op);
+  renderRecipeChain();
+  if ($("recipeAutoBake").checked) executeRecipeChain();
+}
+
+function removeRecipeStep(index) {
+  recipeActiveChain.splice(index, 1);
+  renderRecipeChain();
+  if ($("recipeAutoBake").checked) executeRecipeChain();
+}
+
+function clearRecipeChain() {
+  recipeActiveChain = [];
+  renderRecipeChain();
+  $("recipeOutput").textContent = "—";
+  $("recipeOutLen").textContent = "0 chars";
+  $("recipeStepTime").textContent = "";
+}
+
+function renderRecipeChain() {
+  const container = $("recipeChain");
+  if (!container) return;
+  if (recipeActiveChain.length === 0) {
+    container.innerHTML = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);padding:14px;text-align:center" id="recipeEmptyNote">No operations in recipe. Click '+' from Palette to chain.</div>`;
+    return;
+  }
+  container.innerHTML = recipeActiveChain.map((op, idx) => `
+    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--seam);padding:8px 10px;border-radius:3px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--brass);width:16px">${idx + 1}.</span>
+        <span style="font-size:12px;font-weight:500">${esc(op.name)}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3)">(${esc(op.cat)})</span>
+      </div>
+      <button class="btn-clear" style="color:var(--red);font-size:12px;padding:2px 6px" onclick="removeRecipeStep(${idx})">×</button>
+    </div>
+  `).join("");
+}
+
+function executeRecipeChain() {
+  const input = $("recipeInput").value;
+  if (!input) {
+    $("recipeOutput").textContent = "—";
+    $("recipeOutLen").textContent = "0 chars";
+    $("recipeStepTime").textContent = "";
+    return;
+  }
+  const t0 = performance.now();
+  let current = input;
+  try {
+    for (let i = 0; i < recipeActiveChain.length; i++) {
+      current = recipeActiveChain[i].run(current);
+    }
+    const dt = (performance.now() - t0).toFixed(1);
+    $("recipeOutput").textContent = current;
+    $("recipeOutLen").textContent = current.length + " chars";
+    $("recipeStepTime").textContent = `${recipeActiveChain.length} ops in ${dt}ms`;
+  } catch (err) {
+    $("recipeOutput").textContent = `[Pipeline Error at step]: ${err.message}`;
+    $("recipeStepTime").textContent = "Execution failed";
+  }
+}
+
 /* ---------- boot ---------- */
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -1605,6 +1744,8 @@ fetch(API.flags).then(r => r.json()).then(d => {
     renderFlagsTable();
   }
 }).catch(() => {});
+
+initRecipePipeline();
 
 fetch(API.tools).then(r => r.json()).then(d => {
   $("apiStatus").textContent = "live · " + d.length;
