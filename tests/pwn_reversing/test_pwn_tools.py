@@ -48,3 +48,19 @@ def test_build_variable_overwrite() -> None:
 def test_calculate_oob_offset() -> None:
     offset = calculate_oob_offset(element_size=8, target_distance_bytes=32)
     assert offset == 4
+
+
+def test_elf_checksec_and_pwntools_synthesis() -> None:
+    from ctf_toolkit.pwn.checksec import checksec, generate_pwntools_script
+    import os
+    sample_elf = "/bin/ls"
+    if os.path.exists(sample_elf):
+        data = open(sample_elf, "rb").read()
+        res = checksec(data)
+        assert "ELF" in res["format"]
+        assert res["arch"] in ("x86_64", "x86")
+        assert "relro" in res
+        assert "nx" in res
+        script = generate_pwntools_script(res, binary_name="./ls")
+        assert "from pwn import *" in script
+        assert "exe = context.binary = ELF('./ls')" in script

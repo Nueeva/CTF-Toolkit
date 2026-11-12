@@ -62,6 +62,7 @@ class AutoTriageDispatcher:
         is_tar_gz = ext in (".tar", ".gz", ".tgz") or data.startswith((b"\x1f\x8b", b"ustar"))
         is_office = ext in (".docx", ".xlsx", ".docm", ".xlsm", ".pdf") or (data.startswith(b"PK\x03\x04") and (b"word/" in data or b"xl/" in data)) or data.startswith(b"%PDF")
         is_audio = ext in (".wav", ".mp3", ".flac") or data.startswith((b"RIFF", b"ID3"))
+        is_elf = ext in (".elf", "", ".bin") and data.startswith(b"\x7fELF")
 
         # --- Handler A: JPEG Forensic Specialist ---
         if is_jpeg:
@@ -243,6 +244,17 @@ class AutoTriageDispatcher:
                 res["extracted_findings"]["audio_channels"] = summary
             except Exception as e:
                 res["extracted_findings"]["audio_error"] = str(e)
+
+        # --- Handler I: ELF & Binary Triage Specialist (Checksec / Pwn) ---
+        if is_elf:
+            res["dispatched_specialists"].append("ELF_Pwn_Specialist")
+            try:
+                from ctf_toolkit.pwn.checksec import checksec, generate_pwntools_script
+                sec_info = checksec(data)
+                res["extracted_findings"]["elf_checksec"] = sec_info
+                res["extracted_findings"]["pwntools_template"] = generate_pwntools_script(sec_info, binary_name=fname)
+            except Exception as e:
+                res["extracted_findings"]["elf_error"] = str(e)
 
         # --- Handler H: Universal Carve & Transform Pass ---
         # Any specimen may hide the flag inside an appended archive, a base64
