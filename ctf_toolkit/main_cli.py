@@ -276,6 +276,86 @@ def handle_call(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_trace(args: argparse.Namespace) -> int:
+    """Static AST tracing + cascade solving for script-based CTF challenges."""
+    from ctf_toolkit.crypto.ast_tracer import format_trace, infer_params, plan_from, trace_directory, trace_file
+    from ctf_toolkit.crypto.cascade import run_cascade
+
+    target = args.target
+    if os.path.isdir(target):
+        report = trace_directory(target)
+        if args.output:
+            with open(args.output, "r", encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+            resolved = infer_params(
+                None if report.get("trace") is None else _retrace(report, target), text
+            )
+            report["output_file"] = os.path.basename(args.output)
+            report["output_path"] = os.path.abspath(args.output)
+            report["params"] = resolved["params"]
+            report["notes"] = resolved["notes"]
+            report["verified"] = resolved["verified"]
+            report["plan"] = plan_from(None, resolved["params"])
+    else:
+        trace = trace_file(target)
+        text = ""
+        if args.output:
+            with open(args.output, "r", encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+        resolved = infer_params(trace, text)
+        report = {
+            "directory": os.path.dirname(os.path.abspath(target)),
+            "script": trace.source_name,
+            "script_path": os.path.abspath(target),
+            "output_file": os.path.basename(args.output) if args.output else None,
+            "output_path": os.path.abspath(args.output) if args.output else None,
+            "trace": trace.as_dict(),
+            "params": resolved["params"],
+            "notes": resolved["notes"],
+            "verified": resolved["verified"],
+            "blobs": resolved["blobs"],
+            "plan": plan_from(trace, resolved["params"]),
+        }
+
+    pattern = args.pattern or None
+    result = run_cascade(report, flag_pattern=pattern, total_seconds=args.timeout)
+
+    if args.json:
+        payload = dict(report)
+        payload["cascade"] = result.as_dict()
+        print(json.dumps(payload, indent=2, default=str))
+        return 0 if result.ok() else 2
+
+    console_info("Static trace:")
+    print(format_trace(report))
+    print()
+    console_info("Cascade:")
+    for attempt in result.attempts:
+        status = attempt["status"]
+        marker = "ok" if status == "ok" else ("skip" if status == "unregistered" else "fail")
+        print(f"  [{marker:4s}] {attempt['solver']:<24} {attempt['seconds']:>6.3f}s  cand={attempt['candidates']}  {status}")
+    if result.ok():
+        console_success(f"FLAG: {result.flag}")
+        print(f"  via {result.matched_source}")
+    else:
+        console_warn(f"Tidak ada flag. {result.stopped_reason}")
+        top = sorted(result.candidates, key=lambda c: -len([b for b in c.data if 32 <= b < 127]))[:5]
+        if top:
+            print("  kandidat terdekat:")
+            for cand in top:
+                preview = "".join(chr(b) if 32 <= b < 127 else "." for b in cand.data[:64])
+                print(f"    {cand.source}: {preview}")
+    return 0 if result.ok() else 2
+
+
+def _retrace(report: dict, directory: str):
+    from ctf_toolkit.crypto.ast_tracer import trace_file
+    script_path = report.get("script_path")
+    if script_path:
+        return trace_file(script_path)
+    return None
+
+
 def handle_train(args: argparse.Namespace) -> int:
     """Connect to CTFd / GetsFlag platform and train toolkit auto-solvers."""
     from ctf_toolkit.utils.ctfd_client import CTFdClient
@@ -388,6 +468,14 @@ def build_parser() -> argparse.ArgumentParser:
     call_parser.add_argument("-l", "--list", action="store_true", help="Daftar semua fungsi solver yang tersedia di katalog")
     call_parser.add_argument("--json", action="store_true", help="Output hasil dalam format JSON")
 
+    # Subcommand: trace (Static AST Analysis & Cascade Solver)
+    trace_parser = subparsers.add_parser("trace", help="Static AST analysis & cascade solver untuk script CTF (chall.py + output.txt)")
+    trace_parser.add_argument("target", help="Path direktori challenge atau file script Python (chall.py)")
+    trace_parser.add_argument("-o", "--output", default="", help="Path file output/ciphertext jika target berupa script terpisah")
+    trace_parser.add_argument("-p", "--pattern", default="", help="Regex format flag (default: auto)")
+    trace_parser.add_argument("-t", "--timeout", type=float, default=30.0, help="Batas waktu eksekusi cascade (detik)")
+    trace_parser.add_argument("--json", action="store_true", help="Output hasil dalam format JSON")
+
     # Subcommand: train
     train_parser = subparsers.add_parser("train", help="Automated CTFd / GetsFlag challenge solver & training engine")
     train_parser.add_argument("--url", default="https://getsflag.com", help="Base URL CTFd instance (default: https://getsflag.com)")
@@ -450,6 +538,8 @@ def main() -> None:
         sys.exit(handle_magic(args))
     elif args.subcommand == "call":
         sys.exit(handle_call(args))
+    elif args.subcommand == "trace":
+        sys.exit(handle_trace(args))
     elif args.subcommand == "train":
         sys.exit(handle_train(args))
     elif args.subcommand == "cheatsheet":
