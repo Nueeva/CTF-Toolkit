@@ -81,6 +81,15 @@ def triage_bytes(data: bytes, filename: str) -> dict:
             for hit in get_flag_manager().extract_flags(value):
                 if hit["flag"] not in flags:
                     flags.append(hit["flag"])
+        # Generate visual bit-planes if image format
+        visual_planes = {}
+        if ext in (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif"):
+            try:
+                from ctf_toolkit.forensics.image_stego import render_visual_bit_planes
+                visual_planes = render_visual_bit_planes(data)
+            except Exception:
+                pass
+
         return {
             "ok": True,
             "filename": filename,
@@ -88,6 +97,7 @@ def triage_bytes(data: bytes, filename: str) -> dict:
             "specialists": res.get("dispatched_specialists", []),
             "flags": flags,
             "findings": _trim(findings),
+            "visual_bit_planes": visual_planes,
         }
     finally:
         try:

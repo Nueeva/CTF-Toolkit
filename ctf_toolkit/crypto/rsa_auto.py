@@ -90,7 +90,27 @@ def solve_rsa_auto(
     # Small prime factor check
     small_res = rsa_factor_small(n, e, c, limit=200_000)
     if isinstance(small_res, bytes):
-        return {"attack": "small_prime_factor", "plaintext": small_res}
+        return {"observed_attack": "small_prime_factor", "plaintext": small_res}
+
+    # FactorDB online oracle check
+    try:
+        from ctf_toolkit.crypto.factordb import factordb_factor
+        fdb_factors = factordb_factor(n, timeout=4.0)
+        if fdb_factors and len(fdb_factors) >= 2:
+            phi_fdb = 1
+            for f_item in fdb_factors:
+                phi_fdb *= (f_item - 1)
+            if gcd(e, phi_fdb) == 1:
+                d_cand = modinv(e, phi_fdb)
+                pt_fdb = int_to_bytes(pow(c, d_cand, n))
+                return {
+                    "observed_attack": "factordb_lookup",
+                    "plaintext": pt_fdb,
+                    "d": d_cand,
+                    "factors": fdb_factors,
+                }
+    except Exception:
+        pass
 
     # Wiener's attack
     w_d = wiener_attack(e, n)

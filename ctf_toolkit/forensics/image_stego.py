@@ -72,6 +72,34 @@ def extract_all_bit_planes(img_data: bytes | str) -> dict[str, bytes]:
     return res
 
 
+def render_visual_bit_planes(img_data: bytes | str) -> dict[str, str]:
+    """
+    Render 2D visual bit-planes as base64-encoded PNG data URIs for web display (AperiSolve/StegSolve parity).
+    Covers R0..R7, G0..G7, B0..B7, A0..A7.
+    """
+    import base64
+    if isinstance(img_data, str):
+        im = Image.open(img_data)
+    else:
+        im = Image.open(io.BytesIO(img_data))
+
+    arr = np.array(im.convert("RGBA"))
+    visual_planes: dict[str, str] = {}
+
+    ch_names = ["R", "G", "B", "A"]
+    for ch_idx, ch_name in enumerate(ch_names):
+        plane = arr[..., ch_idx]
+        for bp in range(8):
+            bits = ((plane >> bp) & 1).astype(np.uint8) * 255
+            plane_img = Image.fromarray(bits, mode="L")
+            buf = io.BytesIO()
+            plane_img.save(buf, format="PNG")
+            b64_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+            visual_planes[f"{ch_name}{bp}"] = b64_uri
+
+    return visual_planes
+
+
 def extract_gif_stego_payloads(gif_data: bytes | str) -> list[str]:
     """
     Extract hidden payloads and flags from animated GIF files across:

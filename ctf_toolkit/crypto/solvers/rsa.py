@@ -125,6 +125,29 @@ def solve_factor_auto(ctx: SolveContext) -> list[Candidate]:
     if not t:
         return []
     n, e, c = t
+
+    # 1. Try FactorDB online oracle first (0.1s instant hit on public challenges)
+    try:
+        from ..factordb import factordb_factor
+        fdb_factors = factordb_factor(n, timeout=4.0)
+        if fdb_factors and len(fdb_factors) >= 2:
+            p = fdb_factors[0]
+            # Multiply remaining factors into q
+            q = 1
+            for factor_val in fdb_factors[1:]:
+                q *= factor_val
+            if p * q == n:
+                ctx.log.append(f"  FactorDB hit: {len(fdb_factors)} prime factors")
+                # Calculate phi for multi-prime or two-prime
+                phi = 1
+                for f_item in fdb_factors:
+                    phi *= (f_item - 1)
+                d = modinv(e, phi)
+                return _decrypt_variants(n, d, c, "factordb")
+    except Exception as exc:
+        ctx.log.append(f"  FactorDB query skipped: {exc}")
+
+    # 2. Local fallback cascade
     p, q = factor_integer(n, ctx.deadline)
     d = modinv(e, _phi_from_pair(p, q))
     return _decrypt_variants(n, d, c, "factor-auto")

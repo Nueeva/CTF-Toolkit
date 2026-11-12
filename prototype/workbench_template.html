@@ -633,6 +633,10 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
         <div class="wb-col">
           <div class="col-head"><span>Triage Report</span><span style="color:var(--brass)" id="triageStatus">idle</span></div>
           <pre class="result-pane" id="triageReport">No specimen submitted. Drop a capture, image, archive or document to route it through the format specialist.</pre>
+          <div id="stegoVisualBox" style="display:none;margin-top:12px;border-top:1px solid var(--seam);padding-top:12px">
+            <div class="col-head"><span>AperiSolve Visual Bit-Planes (R0..R7, G0..G7, B0..B7, A0..A7)</span><span id="stegoPlaneCount" style="color:var(--brass)"></span></div>
+            <div id="stegoPlaneGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:8px;max-height:360px;overflow-y:auto;padding:8px 0"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -1364,6 +1368,27 @@ async function handleTriage(file) {
           row2.className = "tool-row";
           row2.innerHTML = "<span style='color:var(--brass)'>" + esc(found[0]) + "</span><small>match</small>";
           $("dispatchLog").prepend(row2);
+        }
+
+        // Render Visual Bit-Planes (AperiSolve parity)
+        const planes = d.visual_bit_planes || {};
+        const pKeys = Object.keys(planes);
+        const box = $("stegoVisualBox");
+        const grid = $("stegoPlaneGrid");
+        if (box && grid) {
+          grid.innerHTML = "";
+          if (pKeys.length > 0) {
+            box.style.display = "block";
+            $("stegoPlaneCount").textContent = pKeys.length + " layers rendered";
+            pKeys.forEach(pk => {
+              const card = document.createElement("div");
+              card.style.cssText = "background:rgba(255,255,255,0.02);border:1px solid var(--seam);padding:6px;text-align:center;border-radius:3px";
+              card.innerHTML = "<div style='font-family:var(--font-mono);font-size:10px;color:var(--brass);margin-bottom:4px'>" + esc(pk) + "</div><img src='" + planes[pk] + "' style='width:100%;height:auto;image-rendering:pixelated;display:block;border:1px solid rgba(255,255,255,0.05)' title='" + esc(pk) + "'>";
+              grid.appendChild(card);
+            });
+          } else {
+            box.style.display = "none";
+          }
         }
       }
     }
