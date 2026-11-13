@@ -21,6 +21,47 @@ def extract_flag(text: str | bytes) -> str | None:
 
 
 def solve_crypto_task(desc: str) -> str | None:
+    # 0.00 LKS & National Specific Solvers (Sum/Diff leak, Franklin-Reiter, CRT multi-cipher)
+    desc_low = desc.lower()
+    # LKSN: p + q and p - q leaks (e.g. p+q = ..., p-q = ...)
+    if ("p+q" in desc_low or "p + q" in desc_low) and ("p-q" in desc_low or "p - q" in desc_low):
+        r_m = re.search(r"(?:p\s*\+\s*q|r)\s*=\s*(\d+)", desc)
+        s_m = re.search(r"(?:p\s*-\s*q|s)\s*=\s*(\d+)", desc)
+        c_m_lks = re.search(r"(?:^|[^\w])c\s*=\s*(\d+)", desc)
+        e_m_lks = re.search(r"(?:^|[^\w])e\s*=\s*(\d+)", desc)
+        if r_m and s_m and c_m_lks:
+            try:
+                from ctf_toolkit.crypto.lks_national_suite import rsa_solve_sum_and_diff
+                r_val = int(r_m.group(1))
+                s_val = int(s_m.group(1))
+                c_val = int(c_m_lks.group(1))
+                e_val = int(e_m_lks.group(1)) if e_m_lks else 65537
+                res_lks = rsa_solve_sum_and_diff(r_val, s_val, e_val, c_val)
+                if res_lks:
+                    cand = extract_flag(res_lks) or res_lks.decode("utf-8", errors="ignore").strip()
+                    if cand:
+                        return cand
+            except Exception:
+                pass
+
+    # LKSN: Varian CRT Broadcast (N1..Nk, C1..Ck)
+    n_indexed = re.findall(r"(?:^|[^\w])N\d*\s*=\s*(\d+)", desc)
+    c_indexed = re.findall(r"(?:^|[^\w])C\d*\s*=\s*(\d+)", desc)
+    if len(n_indexed) >= 3 and len(c_indexed) >= 3:
+        try:
+            from ctf_toolkit.crypto.lks_national_suite import rsa_hastad_broadcast_crt
+            mods = [int(x) for x in n_indexed]
+            cts = [int(x) for x in c_indexed]
+            # Try e = 3, e = 7, e = 27
+            for e_cand in (3, 7, 27):
+                res_crt = rsa_hastad_broadcast_crt(mods, cts, e=e_cand)
+                if res_crt:
+                    cand = extract_flag(res_crt) or res_crt.decode("utf-8", errors="ignore").strip()
+                    if cand:
+                        return cand
+        except Exception:
+            pass
+
     # 0.0 Specialized Encodings & Modern Block/Stream Modes
     try:
         from ctf_toolkit.crypto.specialized_decoders import solve_specialized_crypto, solve_remaining_crypto_batch
