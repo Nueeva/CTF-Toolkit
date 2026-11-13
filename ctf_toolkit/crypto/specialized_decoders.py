@@ -15,6 +15,17 @@ Covers:
 """
 from __future__ import annotations
 
+from ctf_toolkit.utils.flag_manager import get_flag_manager as _get_flag_manager
+
+
+def _has_known_flag(data: bytes) -> bool:
+    """True when `data` contains a flag matching any known template."""
+    try:
+        return _get_flag_manager().find_first_flag(data) is not None
+    except Exception:
+        return False
+
+
 import base64
 import binascii
 import codecs
@@ -223,7 +234,7 @@ def solve_specialized_crypto(desc: str) -> str | None:
                 from ctf_toolkit.crypto.classical import vigenere_decrypt
                 b64_dec = base64.b64decode(ct_m_vg.group(1).strip()).decode("utf-8")
                 pt = vigenere_decrypt(b64_dec, k_m_vg.group(1).strip())
-                return f"GETSFLAG{{{pt}}}"
+                return pt
             except Exception:
                 pass
 
@@ -234,7 +245,7 @@ def solve_specialized_crypto(desc: str) -> str | None:
                 b64_dec = base64.b64decode(ct_m_dc.group(1).strip()).decode("utf-8")
                 rev = b64_dec[::-1]
                 pt = codecs.decode(rev, "rot13")
-                return f"GETSFLAG{{{pt}}}"
+                return pt
             except Exception:
                 pass
 
@@ -246,7 +257,7 @@ def solve_specialized_crypto(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import vigenere_decrypt
                 pt = vigenere_decrypt(ct_v.group(1).strip(), k_v.group(1).strip())
-                return pt if "{" in pt else f"GETSFLAG{{{pt}}}"
+                return pt
             except Exception:
                 pass
 
@@ -271,7 +282,7 @@ def solve_specialized_crypto(desc: str) -> str | None:
                     else:
                         res_chars.append(ch)
                 pt = "".join(res_chars)
-                return pt if "{" in pt else f"GETSFLAG{{{pt}}}"
+                return pt
             except Exception:
                 pass
 
@@ -370,7 +381,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                         out.append(chr(ord("Z") - (ord(c) - ord("A"))))
                     else:
                         out.append(c)
-                return f"GETSFLAG{{{''.join(out)}}}"
+                return ''.join(out)
             except Exception:
                 pass
 
@@ -380,7 +391,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
         if m:
             try:
                 b = base64.b32decode(m.group(1).strip()).decode("utf-8")
-                return f"GETSFLAG{{{codecs.decode(b, 'rot13')}}}"
+                return codecs.decode(b, 'rot13')
             except Exception:
                 pass
 
@@ -416,7 +427,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
         if ct_m and map_m:
             tab = str.maketrans(map_m.group(1), "abcdefghijklmnopqrstuvwxyz")
             dec = ct_m.group(1).strip().lower().translate(tab)
-            return f"GETSFLAG{{{dec}}}"
+            return dec
 
     # 9. Polybius 5x5 keyed (I=J)
     if "polybius 5x5 keyed" in desc_low:
@@ -435,7 +446,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
             for p in ct_m.group(1).strip().split():
                 r, c = int(p[0]) - 1, int(p[1]) - 1
                 out.append(grid[r * 5 + c].lower())
-            return f"GETSFLAG{{{''.join(out)}}}"
+            return ''.join(out)
 
     # 10. Francis Bacon (A/B)
     if "francis bacon" in desc_low or ("a/b" in desc_low and "aaaba" in desc_low):
@@ -482,7 +493,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
             for p2 in candidates:
                 if len(p2) >= len(c1_b):
                     m1 = bytes(c1_b[i] ^ c2_b[i] ^ p2[i] for i in range(len(c1_b)))
-                    if b"GETSFLAG{" in m1:
+                    if _has_known_flag(m1):
                         return m1.decode("utf-8", errors="ignore").strip()
 
     # 13. Rabin Akar
@@ -495,7 +506,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                 from ctf_toolkit.crypto.expanded_ciphers import decrypt_rabin_roots
                 roots = decrypt_rabin_roots(int(c_m.group(1)), int(p_m.group(1)), int(q_m.group(1)))
                 for r in roots:
-                    if b"GETSFLAG{" in r:
+                    if _has_known_flag(r):
                         return r.decode("utf-8", errors="ignore").strip()
             except Exception:
                 pass
@@ -571,7 +582,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
             morse_str = "".join(pmap.get(c, "") for c in ct_m.group(1))
             from ctf_toolkit.crypto.classical import morse_decode
             dec = morse_decode(morse_str.replace("x", " "))
-            return f"GETSFLAG{{{dec.lower().replace(' ', '')}}}"
+            return dec.lower().replace(' ', '')
 
     # 18. Hill 3x3 mod 26
     if "hill cipher 3x3" in desc_low:
@@ -596,7 +607,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                     vec = np.array([ord(c) - 97 for c in ct_s[i:i+3]])
                     dec = (K_inv @ vec) % 26
                     pt.extend(chr(int(x) + 97) for x in dec)
-                return f"GETSFLAG{{{''.join(pt).rstrip('x')}}}"
+                return ''.join(pt).rstrip('x')
             except Exception:
                 pass
 
@@ -618,7 +629,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                     for col in cols:
                         grid[row][col] = ct_s[idx]
                         idx += 1
-            return f"GETSFLAG{{{''.join(''.join(row) for row in grid).rstrip('x')}}}"
+            return ''.join(''.join(row) for row in grid).rstrip('x')
 
     # 20. Route Spiral
     if "route cipher" in desc_low or "rute spiral" in desc_low:
@@ -641,7 +652,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                 if left <= right:
                     for r in range(bottom, top - 1, -1): g[r][left] = ct_s[idx]; idx += 1
                     left += 1
-            return f"GETSFLAG{{{''.join(''.join(row) for row in g).rstrip('x')}}}"
+            return ''.join(''.join(row) for row in g).rstrip('x')
 
     # 21. EBCDIC cp037
     if "ebcdic" in desc_low:
@@ -676,7 +687,7 @@ def solve_remaining_crypto_batch(desc: str) -> str | None:
                 roots = sympy.ntheory.residue_ntheory.sqrt_mod(int(c_m.group(1)), int(p_m.group(1)), all_roots=True)
                 for r in roots:
                     b_r = int(r).to_bytes((int(r).bit_length() + 7) // 8, "big")
-                    if b"GETSFLAG{" in b_r:
+                    if _has_known_flag(b_r):
                         return b_r.decode("utf-8", errors="ignore").strip()
             except Exception:
                 pass

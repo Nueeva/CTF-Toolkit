@@ -4,9 +4,11 @@ from typing import Any
 from Crypto.PublicKey import RSA
 
 from ctf_toolkit.crypto.rsa import (
+    factor_integer_auto,
     fermat_factor,
     int_to_bytes,
     integer_nth_root,
+    phi_from_primes,
     pollard_p_minus_1,
     rsa_factor_small,
     rsa_solve_phi_e_c,
@@ -64,6 +66,8 @@ def solve_rsa_auto(
       6. Wiener continued fractions attack (large e / small d)
       7. Fermat close-primes factorization
       8. Pollard p-1 smooth totient factorization
+      9. Full offline factorization cascade (incl. Pollard rho, sympy)
+     10. FactorDB online lookup (last resort, needs network)
     """
     if d is not None:
         pt = int_to_bytes(pow(c, d, n))
@@ -92,26 +96,6 @@ def solve_rsa_auto(
     if isinstance(small_res, bytes):
         return {"observed_attack": "small_prime_factor", "plaintext": small_res}
 
-    # FactorDB online oracle check
-    try:
-        from ctf_toolkit.crypto.factordb import factordb_factor
-        fdb_factors = factordb_factor(n, timeout=4.0)
-        if fdb_factors and len(fdb_factors) >= 2:
-            phi_fdb = 1
-            for f_item in fdb_factors:
-                phi_fdb *= (f_item - 1)
-            if gcd(e, phi_fdb) == 1:
-                d_cand = modinv(e, phi_fdb)
-                pt_fdb = int_to_bytes(pow(c, d_cand, n))
-                return {
-                    "observed_attack": "factordb_lookup",
-                    "plaintext": pt_fdb,
-                    "d": d_cand,
-                    "factors": fdb_factors,
-                }
-    except Exception:
-        pass
-
     # Wiener's attack
     w_d = wiener_attack(e, n)
     if w_d is not None:
@@ -134,5 +118,50 @@ def solve_rsa_auto(
                 "p": p_pollard,
                 "q": q_pollard,
             }
+
+    # Full offline factorization cascade (trial division, Fermat, Pollard
+    # p-1, Pollard rho, sympy) — covers rho-solvable moduli the steps above miss.
+    try:
+        fac, _fac_strategy = factor_integer_auto(n)
+        flat: list[int] = []
+        if isinstance(fac, (list, tuple)):
+            for f_item in fac:
+                if isinstance(f_item, (list, tuple)):
+                    flat.extend(int(x) for x in f_item)
+                elif isinstance(f_item, int):
+                    flat.append(f_item)
+        if len(flat) >= 2:
+            phi_fac = phi_from_primes(flat)
+            if gcd(e, phi_fac) == 1:
+                d_fac = modinv(e, phi_fac)
+                return {
+                    "observed_attack": "factor_cascade",
+                    "plaintext": int_to_bytes(pow(c, d_fac, n)),
+                    "d": d_fac,
+                    "factors": flat,
+                }
+    except Exception:
+        pass
+
+    # FactorDB online oracle check — LAST resort: offline methods first, so
+    # results do not depend on network access or a third-party database.
+    try:
+        from ctf_toolkit.crypto.factordb import factordb_factor
+        fdb_factors = factordb_factor(n, timeout=4.0)
+        if fdb_factors and len(fdb_factors) >= 2:
+            phi_fdb = 1
+            for f_item in fdb_factors:
+                phi_fdb *= (f_item - 1)
+            if gcd(e, phi_fdb) == 1:
+                d_cand = modinv(e, phi_fdb)
+                pt_fdb = int_to_bytes(pow(c, d_cand, n))
+                return {
+                    "observed_attack": "factordb_lookup",
+                    "plaintext": pt_fdb,
+                    "d": d_cand,
+                    "factors": fdb_factors,
+                }
+    except Exception:
+        pass
 
     return {"attack": "unsolved", "plaintext": b""}

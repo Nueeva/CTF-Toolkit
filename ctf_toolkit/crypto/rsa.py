@@ -248,7 +248,40 @@ def hastad_unpadded(ciphertext: int, e: int = 3) -> bytes:
     return int_to_bytes(m)
 
 
-def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
+def _merge_cofactor(factor: int, cofactor: int) -> tuple[int, int] | list[int] | None:
+    """Combine one found factor with its cofactor into a full factorization.
+
+    Returns a (p, q) pair when the cofactor is prime; for a composite
+    cofactor (multi-prime modulus) recursively factors it and returns the
+    full list. Returns None when the cofactor cannot be factored, so the
+    caller falls through to the next strategy instead of reporting a
+    factor pair whose second element is secretly composite.
+    """
+    if cofactor <= 1:
+        return None
+    try:
+        import sympy
+
+        if sympy.isprime(cofactor):
+            return (min(factor, cofactor), max(factor, cofactor))
+    except Exception:
+        pass
+    try:
+        sub_factors, _sub_strategy = factor_integer_auto(cofactor)
+        flat: list[int] = []
+        if isinstance(sub_factors, (list, tuple)):
+            flat.extend(int(x) for x in sub_factors)
+        if flat and all(cofactor % f == 0 for f in flat):
+            merged = sorted([factor] + flat)
+            if len(merged) == 2:
+                return (merged[0], merged[1])
+            return merged
+    except Exception:
+        pass
+    return None
+
+
+def factor_integer_auto(n: int) -> tuple[tuple[int, int] | list[int], str]:
     """
     Attempt automated factorization of composite modulus `n` using an adaptive cascade:
     1. Small prime trial division (up to 1,000,000)
@@ -256,27 +289,51 @@ def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
     3. Pollard's p - 1 algorithm for B-smooth primes
     4. Pollard's rho algorithm for medium-sized factors
     5. SymPy factorint fallback
+
+    Returns a `(factors, strategy)` pair: `factors` is a (p, q) tuple or a
+    list of prime factors; `strategy` names the method that succeeded
+    ("trial_division", "fermat", "pollard_p_minus_1", "pollard_rho", "sympy").
     """
     if n <= 1:
-        return [n]
+        return [n], "trivial"
 
-    # 1. Trial division up to 1,000,000
-    p_small = rsa_factor_small(n, limit=1_000_000)
-    if p_small is not None:
-        q = n // p_small
-        return (min(p_small, q), max(p_small, q))
+    # 1. Trial division up to 1,000,000 (peel every small factor;
+    # rsa_factor_small returns a (factor, cofactor) pair, not a lone prime)
+    peeled: list[int] = []
+    rest = n
+    while rest > 1:
+        pair = rsa_factor_small(rest, limit=1_000_000)
+        if not isinstance(pair, tuple) or pair[0] >= rest:
+            break
+        peeled.append(pair[0])
+        rest = pair[1]
+    if peeled:
+        import sympy as _sympy
+
+        full: list[int] = []
+        if rest == 1:
+            full = peeled
+        elif _sympy.isprime(rest):
+            full = peeled + [rest]
+        if len(full) >= 2:
+            full.sort()
+            if len(full) == 2:
+                return (full[0], full[1]), "trial_division"
+            return full, "trial_division"
 
     # 2. Fermat factor
     p_fermat = fermat_factor(n, max_iter=200_000)
     if p_fermat is not None:
         p, q = p_fermat if isinstance(p_fermat, tuple) else (p_fermat, n // p_fermat)
-        return (min(p, q), max(p, q)), "fermat" 
+        return (min(p, q), max(p, q)), "fermat"
 
     # 3. Pollard p - 1
-    p_pollard = pollard_p_minus_1(n, b=500_000)
+    p_pollard = pollard_p_minus_1(n, B=500_000)
     if p_pollard is not None and 1 < p_pollard < n:
         q = n // p_pollard
-        return (min(p_pollard, q), max(p_pollard, q))
+        merged = _merge_cofactor(p_pollard, q)
+        if merged is not None:
+            return merged, "pollard_p_minus_1"
 
     # 4. Pollard's rho
     def _pollard_rho(val: int) -> int | None:
@@ -299,7 +356,9 @@ def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
     p_rho = _pollard_rho(n)
     if p_rho is not None and 1 < p_rho < n:
         q = n // p_rho
-        return (min(p_rho, q), max(p_rho, q))
+        merged = _merge_cofactor(p_rho, q)
+        if merged is not None:
+            return merged, "pollard_rho"
 
     # 5. Sympy fallback
     try:
@@ -309,8 +368,8 @@ def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
         for prime, exp in factors_dict.items():
             res.extend([prime] * exp)
         if len(res) == 2:
-            return (min(res), max(res))
-        return res
+            return (min(res), max(res)), "sympy"
+        return res, "sympy"
     except Exception:
         pass
 
@@ -319,13 +378,22 @@ def factor_integer_auto(n: int) -> tuple[int, int] | list[int]:
 
 def solve_rsa_auto(n: int, e: int, c: int) -> bytes:
     """Automatically factor modulus n and decrypt ciphertext c into plaintext bytes."""
-    factors = factor_integer_auto(n)
-    if isinstance(factors, (list, tuple)) and len(factors) == 2:
-        p, q = factors
+    factors, _strategy = factor_integer_auto(n)
+    # Normalize the factors element to a flat list of primes (it is either
+    # a (p, q) tuple or a list of prime factors).
+    flat: list[int] = []
+    if isinstance(factors, (list, tuple)):
+        for f in factors:
+            if isinstance(f, (list, tuple)):
+                flat.extend(int(x) for x in f)
+            elif isinstance(f, int):
+                flat.append(f)
+    if len(flat) == 2:
+        p, q = flat
         phi = (p - 1) * (q - 1)
         d = modinv(e, phi)
         m = pow(c, d, n)
         return int_to_bytes(m)
-    elif isinstance(factors, list) and len(factors) > 2:
-        return rsa_multiprime_decrypt(c, e, factors)
+    if len(flat) > 2:
+        return int_to_bytes(rsa_multiprime_decrypt(flat, e, c))
     raise ValueError(f"Unsupported factor shape: {factors}")
