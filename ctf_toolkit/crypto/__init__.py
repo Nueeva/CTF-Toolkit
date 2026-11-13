@@ -83,6 +83,39 @@ from ctf_toolkit.crypto.ecc import (
     ecc_scalar_mul,
     ecc_smarts_attack,
 )
+from ctf_toolkit.crypto.mt19937 import (
+    MT19937Clone,
+    clone_from_outputs,
+    predict_next,
+    untemper,
+)
+from ctf_toolkit.crypto.length_extension import (
+    glue_padding_md,
+    glue_padding_sha,
+    length_extend,
+    md5_extend,
+    sha1_extend,
+    sha256_extend,
+)
+from ctf_toolkit.crypto.signature_attacks import (
+    dsa_recover_reused_nonce,
+    ecdsa_recover_from_signatures,
+    ecdsa_recover_reused_nonce,
+    elgamal_sig_recover_reused_nonce,
+)
+from ctf_toolkit.crypto.xor_autocrack import (
+    crack_repeating_key_xor,
+    crack_single_byte_xor,
+    guess_key_lengths,
+)
+from ctf_toolkit.crypto.coppersmith import coppersmith_stereotyped
+from ctf_toolkit.crypto.oracle import (
+    cbc_padding_oracle_decrypt,
+    http_padding_oracle,
+    subprocess_query_oracle,
+    tcp_padding_oracle,
+    tcp_query_oracle,
+)
 
 __all__ = [
     "a1z26_decode",
@@ -152,4 +185,27 @@ __all__ = [
     "lcg_generate",
     "lcg_next",
     "recover_lcg_params_known_mod",
+    "MT19937Clone",
+    "clone_from_outputs",
+    "predict_next",
+    "untemper",
+    "glue_padding_md",
+    "glue_padding_sha",
+    "length_extend",
+    "md5_extend",
+    "sha1_extend",
+    "sha256_extend",
+    "dsa_recover_reused_nonce",
+    "ecdsa_recover_from_signatures",
+    "ecdsa_recover_reused_nonce",
+    "elgamal_sig_recover_reused_nonce",
+    "crack_repeating_key_xor",
+    "crack_single_byte_xor",
+    "guess_key_lengths",
+    "coppersmith_stereotyped",
+    "cbc_padding_oracle_decrypt",
+    "http_padding_oracle",
+    "subprocess_query_oracle",
+    "tcp_padding_oracle",
+    "tcp_query_oracle",
 ]

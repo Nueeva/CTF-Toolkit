@@ -9,6 +9,7 @@ from ctf_toolkit.crypto.classical import a1z26_decode
 from ctf_toolkit.crypto.rsa import rsa_solve_pqec, rsa_solve_phi_e_c
 from ctf_toolkit.crypto.rsa_auto import solve_rsa_auto
 from ctf_toolkit.crypto.dh_ecc_tool import diffie_hellman_compute, ecc_point_operation
+from ctf_toolkit.crypto.candidate import accept_candidate, flag_prefixes
 from ctf_toolkit.utils.flag_manager import get_flag_manager
 
 
@@ -91,13 +92,6 @@ def solve_crypto_task(desc: str) -> str | None:
                 return extract_flag(pt_bytes) or pt_bytes.decode("utf-8", errors="ignore").strip()
             except Exception:
                 pass
-    if ("tema platform" in desc_low or "kunci panas" in desc_low) and "va{" in desc_low:
-        try:
-            from ctf_toolkit.crypto.classical import vigenere_decrypt
-            return vigenere_decrypt("VA{fcmcvuvhp}", "THERMAL")
-        except Exception:
-            pass
-
     if "xor satu byte" in desc_low or "byte rahasia" in desc_low:
         m_hex_xor = re.search(r"```\s*([0-9a-fA-F]{16,})\s*```", desc)
         if m_hex_xor:
@@ -110,12 +104,6 @@ def solve_crypto_task(desc: str) -> str | None:
                         return fl
             except Exception:
                 pass
-        if "190e213f" in desc:
-            try:
-                return bytes(b ^ 90 for b in bytes.fromhex("190e213f37332929332c332e2327")).decode()
-            except Exception:
-                pass
-
     if ("terbalik base" in desc_low or "base64 yang dibalik" in desc_low) and "```" in desc:
         m_b64 = re.search(r"```\s*([A-Za-z0-9+/=]+)\s*```", desc)
         if m_b64:
@@ -139,13 +127,6 @@ def solve_crypto_task(desc: str) -> str | None:
                     return fl
             except Exception:
                 pass
-        if "co_ntfclpae" in desc_low:
-            try:
-                from ctf_toolkit.crypto.classical import rail_fence_decrypt
-                return rail_fence_decrypt("Co_nTfclpae{al}", rails=3)
-            except Exception:
-                pass
-
     if "oktal" in desc_low or "octal" in desc_low or "basis 8" in desc_low:
         octs = re.findall(r"\b[0-7]{3}\b", desc)
         if len(octs) >= 5:
@@ -161,7 +142,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if hex_m:
             try:
                 ct_bytes = binascii.unhexlify(hex_m.group(1).strip())
-                crib = b"GETSFLAG{"
+                crib = flag_prefixes()[0].encode()
                 keystream = bytes(ct_bytes[i] ^ crib[i] for i in range(len(crib)))
                 for plen in range(1, len(keystream) + 1):
                     k_cand = keystream[:plen]
@@ -232,7 +213,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 b_words = book_m.group(1).strip().split()
                 c_pairs = coords_m.group(1).strip().split()
                 dec_bk = "".join(b_words[int(cd.split('.')[0])-1][int(cd.split('.')[1])-1] for cd in c_pairs)
-                return f"GETSFLAG{{{dec_bk}}}"
+                return accept_candidate(dec_bk)
             except Exception:
                 pass
 
@@ -240,6 +221,17 @@ def solve_crypto_task(desc: str) -> str | None:
     flag = extract_flag(desc)
     if flag:
         return flag
+
+    # 1.5 Normalize parameter formatting (= / : / JSON / hex / indexed names)
+    # into canonical "name = value" lines so the regex branches below fire
+    # regardless of how the challenge text was written.
+    try:
+        from ctf_toolkit.crypto.param_parse import canonical_prelude
+        _prelude = canonical_prelude(desc)
+        if _prelude:
+            desc = _prelude + desc
+    except Exception:
+        pass
 
     # 2. RSA: Check explicit parameters
     p_m = re.search(r"(?:\b|^)p\s*=\s*(\d+)", desc, re.MULTILINE)
@@ -441,9 +433,8 @@ def solve_crypto_task(desc: str) -> str | None:
             dec_scytale = scytale_decrypt(ct_text, diam)
             cand = extract_flag(dec_scytale)
             if not cand:
-                # Wrap as GETSFLAG{hasil} if prompted by challenge
                 dec_clean = dec_scytale.rstrip("x")
-                cand = f"GETSFLAG{{{dec_clean}}}"
+                cand = accept_candidate(dec_clean)
             if cand:
                 return cand
         except Exception:
@@ -461,7 +452,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import trithemius_decrypt
                 dec_tri = trithemius_decrypt(ct_tri)
-                cand = extract_flag(dec_tri) or f"GETSFLAG{{{dec_tri}}}"
+                cand = accept_candidate(dec_tri)
                 if cand:
                     return cand
             except Exception:
@@ -503,6 +494,16 @@ def solve_crypto_task(desc: str) -> str | None:
                     return cand
             except Exception:
                 pass
+        if raw_ct and len(raw_ct) >= 32 and not key_ascii_m:
+            # No key given: statistical repeating-key XOR auto-crack.
+            try:
+                from ctf_toolkit.crypto.xor_autocrack import crack_repeating_key_xor
+                _key, _pt, _score = crack_repeating_key_xor(raw_ct)
+                cand = accept_candidate(_pt)
+                if cand:
+                    return cand
+            except Exception:
+                pass
 
     # 3.4 SHA256 / MD5 with small wordlist declared inline
     hash_inline_m = re.search(r"(?:sha256|md5)=([0-9a-fA-F]{32,64})", desc, re.IGNORECASE)
@@ -517,13 +518,11 @@ def solve_crypto_task(desc: str) -> str | None:
             w_candidates = []
             for w in w_list:
                 w_candidates.append(w)
-                w_candidates.append(f"GETSFLAG{{{w}}}")
-                w_candidates.append(f"FLAG{{{w}}}")
-                w_candidates.append(f"CTF{{{w}}}")
-                w_candidates.append(f"CT{{{w}}}")
+                for _pfx in flag_prefixes():
+                    w_candidates.append(f"{_pfx}{w}}}")
             cracked = crack_wordlist_hash(h_val, w_candidates, algorithm=h_algo)
             if cracked:
-                return extract_flag(cracked) or (f"GETSFLAG{{{cracked}}}" if not cracked.startswith(("GETSFLAG{", "FLAG{", "CTF{")) else cracked)
+                return accept_candidate(cracked)
         except Exception:
             pass
 
@@ -596,7 +595,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 from ctf_toolkit.crypto.encoding import baudot_ita2_decode
                 bits = baudot_m.group(1).strip().split()
                 dec_b = baudot_ita2_decode(bits)
-                cand = extract_flag(dec_b) or f"GETSFLAG{{{dec_b.lower()}}}"
+                cand = accept_candidate(dec_b.lower())
                 if cand:
                     return cand
             except Exception:
@@ -622,7 +621,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import beaufort_decrypt
                 dec_bft = beaufort_decrypt(c_bf.group(1).strip(), k_bf.group(1).strip())
-                cand = extract_flag(dec_bft) or f"GETSFLAG{{{dec_bft.lower()}}}"
+                cand = accept_candidate(dec_bft.lower())
                 if cand:
                     return cand
             except Exception:
@@ -635,7 +634,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import autokey_decrypt
                 dec_ak = autokey_decrypt(c_ak.group(1).strip(), p_ak.group(1).strip())
-                cand = extract_flag(dec_ak) or f"GETSFLAG{{{dec_ak.lower()}}}"
+                cand = accept_candidate(dec_ak.lower())
                 if cand:
                     return cand
             except Exception:
@@ -648,7 +647,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import porta_decrypt
                 dec_pt = porta_decrypt(c_pt.group(1).strip(), k_pt.group(1).strip())
-                cand = extract_flag(dec_pt) or f"GETSFLAG{{{dec_pt.lower()}}}"
+                cand = accept_candidate(dec_pt.lower())
                 if cand:
                     return cand
             except Exception:
@@ -665,7 +664,7 @@ def solve_crypto_task(desc: str) -> str | None:
     if "crib" in desc.lower() and "repeating" in desc.lower() and ct_hex_m:
         try:
             ct_bytes = binascii.unhexlify(ct_hex_m.group(1).strip())
-            cribs = [b"GETSFLAG{", b"CT{", b"FLAG{"]
+            cribs = [p.encode() for p in flag_prefixes()]
             for cr in cribs:
                 if len(ct_bytes) >= len(cr):
                     keystream = bytes(ct_bytes[i] ^ cr[i] for i in range(len(cr)))
@@ -704,7 +703,7 @@ def solve_crypto_task(desc: str) -> str | None:
             if key_alpha_m:
                 tab = str.maketrans(key_alpha_m.group(1).strip().lower(), plain_alpha)
                 dec = ct_val.lower().translate(tab)
-                return extract_flag(dec) or f"GETSFLAG{{{dec}}}"
+                return accept_candidate(dec)
             elif keyword_m:
                 seen = set()
                 keyed = []
@@ -718,7 +717,7 @@ def solve_crypto_task(desc: str) -> str | None:
                         keyed.append(c)
                 tab = str.maketrans("".join(keyed), plain_alpha)
                 dec = ct_val.lower().translate(tab)
-                return extract_flag(dec) or f"GETSFLAG{{{dec}}}"
+                return accept_candidate(dec)
 
     # 3.5.0m Rail Fence & QWERTY & Book & Braille & Polybius
     if "rail fence" in desc.lower() or "pagar rel" in desc.lower() or "pagar empat" in desc.lower():
@@ -730,7 +729,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import rail_fence_decrypt
                 dec_rf = rail_fence_decrypt(ct_s, rails=r_num)
-                return extract_flag(dec_rf) or f"GETSFLAG{{{dec_rf}}}"
+                return accept_candidate(dec_rf)
             except Exception:
                 pass
 
@@ -740,7 +739,7 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import qwerty_shift_decrypt
                 dec_qw = qwerty_shift_decrypt(qw_ct.group(1).strip(), steps=-1)
-                return extract_flag(dec_qw) or f"GETSFLAG{{{dec_qw}}}"
+                return accept_candidate(dec_qw)
             except Exception:
                 pass
 
@@ -754,7 +753,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 '⠽': 'y', '⠵': 'z'
             }
             dec_br = "".join(BRAILLE_MAP.get(c, c) for c in br_m.group(1).strip())
-            return f"GETSFLAG{{{dec_br}}}"
+            return accept_candidate(dec_br)
 
     if "book cipher" in desc.lower() or "sandi buku" in desc.lower():
         coords_m = re.search(r"ciphertext:\s*([0-9.\s]+)", desc)
@@ -764,7 +763,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 b_words = book_m.group(1).strip().split()
                 c_pairs = coords_m.group(1).strip().split()
                 dec_bk = "".join(b_words[int(cd.split('.')[0])-1][int(cd.split('.')[1])-1] for cd in c_pairs)
-                return f"GETSFLAG{{{dec_bk}}}"
+                return accept_candidate(dec_bk)
             except Exception:
                 pass
 
@@ -775,7 +774,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 grid_6x6 = "abcdefghijklmnopqrstuvwxyz0123456789"
                 p_pairs = poly_m.group(1).strip().split()
                 dec_poly = "".join(grid_6x6[(int(p[0])-1)*6 + (int(p[1])-1)] for p in p_pairs)
-                return f"GETSFLAG{{{dec_poly}}}"
+                return accept_candidate(dec_poly)
             except Exception:
                 pass
 
@@ -786,18 +785,11 @@ def solve_crypto_task(desc: str) -> str | None:
             try:
                 from ctf_toolkit.crypto.classical import columnar_transposition_decrypt
                 dec_col = columnar_transposition_decrypt(col_ct.group(1).strip(), col_k.group(1).strip())
-                return extract_flag(dec_col) or f"GETSFLAG{{{dec_col}}}"
+                return accept_candidate(dec_col)
             except Exception:
                 pass
 
     # 3.5.0n Special event ciphers (thermal optics theme: Kunci Panas, Terbalik Base, etc.)
-    if "kunci panas" in desc.lower() and "va{" in desc.lower():
-        try:
-            from ctf_toolkit.crypto.classical import vigenere_decrypt
-            return vigenere_decrypt("VA{fcmcvuvhp}", "THERMAL")
-        except Exception:
-            pass
-
     if "terbalik base" in desc.lower() and "```" in desc:
         m_b64 = re.search(r"```\s*([A-Za-z0-9+/=]+)\s*```", desc)
         if m_b64:
@@ -806,12 +798,6 @@ def solve_crypto_task(desc: str) -> str | None:
                 return base64.b64decode(m_b64.group(1).strip()[::-1]).decode("latin-1")
             except Exception:
                 pass
-
-    if "xor satu byte" in desc.lower() and "190e21" in desc:
-        try:
-            return bytes(b ^ 90 for b in bytes.fromhex("190e213f37332929332c332e2327")).decode()
-        except Exception:
-            pass
 
     if key_hex_m and ct_hex_m:
         try:
@@ -862,7 +848,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if c_pf:
             try:
                 dec_pf = ec.decrypt_playfair_5x5(c_pf.group(1).strip(), k_pf.group(1).strip() if k_pf else "MONARCHY")
-                cand = extract_flag(dec_pf) or f"GETSFLAG{{{dec_pf.lower()}}}"
+                cand = accept_candidate(dec_pf.lower())
                 if cand:
                     return cand
             except Exception:
@@ -873,7 +859,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if c_bf:
             try:
                 dec_bf = ec.decrypt_bifid(c_bf.group(1).strip())
-                cand = extract_flag(dec_bf) or f"GETSFLAG{{{dec_bf.lower()}}}"
+                cand = accept_candidate(dec_bf.lower())
                 if cand:
                     return cand
             except Exception:
@@ -885,7 +871,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if k_col and c_col:
             try:
                 dec_col = ec.decrypt_columnar_transposition(c_col.group(1).strip(), k_col.group(1).strip())
-                cand = extract_flag(dec_col) or f"GETSFLAG{{{dec_col.rstrip('x')}}}"
+                cand = accept_candidate(dec_col.rstrip('x'))
                 if cand:
                     return cand
             except Exception:
@@ -896,7 +882,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if c_qw:
             try:
                 dec_qw = ec.decrypt_qwerty_shift(c_qw.group(1).strip(), shift_left=True)
-                cand = extract_flag(dec_qw) or f"GETSFLAG{{{dec_qw}}}"
+                cand = accept_candidate(dec_qw)
                 if cand:
                     return cand
             except Exception:
@@ -968,10 +954,7 @@ def solve_crypto_task(desc: str) -> str | None:
                 if "{" in m_norm:
                     prefix, inner = m_norm.split("{", 1)
                     inner_content = inner.rstrip("}").strip().lower()
-                    if prefix.strip().upper() == "CT":
-                        cand = f"GETSFLAG{{{inner_content}}}"
-                    else:
-                        cand = f"{prefix.strip()}{{{inner_content}}}"
+                    cand = f"{prefix.strip()}{{{inner_content}}}"
                 else:
                     cand = extract_flag(m_dec) or m_dec
                 if cand:
@@ -983,15 +966,7 @@ def solve_crypto_task(desc: str) -> str | None:
         if re.fullmatch(r"(?:\d{1,2}[ -/,\.]?)+", clean_blk) and any(sep in clean_blk for sep in ("-", " ", ",")):
             try:
                 a_dec = a1z26_decode(clean_blk)
-                cand = extract_flag(a_dec)
-                if not cand:
-                    clean_a = a_dec.lower()
-                    if clean_a.startswith("ctf"):
-                        cand = f"GETSFLAG{{{clean_a[3:]}}}"
-                    elif clean_a.startswith("getsflag"):
-                        cand = f"GETSFLAG{{{clean_a[8:]}}}"
-                    else:
-                        cand = f"GETSFLAG{{{clean_a}}}"
+                cand = accept_candidate(a_dec)
                 if cand:
                     return cand
             except Exception:
