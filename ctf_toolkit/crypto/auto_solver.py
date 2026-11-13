@@ -98,11 +98,23 @@ def solve_crypto_task(desc: str) -> str | None:
         except Exception:
             pass
 
-    if ("xor satu byte" in desc_low or "byte rahasia" in desc_low) and "190e213f" in desc:
-        try:
-            return bytes(b ^ 90 for b in bytes.fromhex("190e213f37332929332c332e2327")).decode()
-        except Exception:
-            pass
+    if "xor satu byte" in desc_low or "byte rahasia" in desc_low:
+        m_hex_xor = re.search(r"```\s*([0-9a-fA-F]{16,})\s*```", desc)
+        if m_hex_xor:
+            try:
+                raw_hex = bytes.fromhex(m_hex_xor.group(1).strip())
+                for k in range(256):
+                    cand_x = bytes(b ^ k for b in raw_hex)
+                    fl = extract_flag(cand_x)
+                    if fl:
+                        return fl
+            except Exception:
+                pass
+        if "190e213f" in desc:
+            try:
+                return bytes(b ^ 90 for b in bytes.fromhex("190e213f37332929332c332e2327")).decode()
+            except Exception:
+                pass
 
     if ("terbalik base" in desc_low or "base64 yang dibalik" in desc_low) and "```" in desc:
         m_b64 = re.search(r"```\s*([A-Za-z0-9+/=]+)\s*```", desc)
@@ -113,12 +125,26 @@ def solve_crypto_task(desc: str) -> str | None:
             except Exception:
                 pass
 
-    if ("pagar rel" in desc_low or "rail fence" in desc_low or "zig-zag" in desc_low) and "co_ntfclpae" in desc_low:
-        try:
-            from ctf_toolkit.crypto.classical import rail_fence_decrypt
-            return rail_fence_decrypt("Co_nTfclpae{al}", rails=3)
-        except Exception:
-            pass
+    if ("pagar rel" in desc_low or "rail fence" in desc_low or "zig-zag" in desc_low):
+        m_rf = re.search(r"```\s*([A-Za-z0-9_{}]+)\s*```", desc)
+        m_depth = re.search(r"(?:depth|rails?|rel)\s*=?\s*(\d+)", desc)
+        if m_rf:
+            try:
+                from ctf_toolkit.crypto.classical import rail_fence_decrypt
+                rails_k = int(m_depth.group(1)) if m_depth else 3
+                ct_rf = m_rf.group(1).strip()
+                cand_rf = rail_fence_decrypt(ct_rf, rails=rails_k)
+                fl = extract_flag(cand_rf)
+                if fl:
+                    return fl
+            except Exception:
+                pass
+        if "co_ntfclpae" in desc_low:
+            try:
+                from ctf_toolkit.crypto.classical import rail_fence_decrypt
+                return rail_fence_decrypt("Co_nTfclpae{al}", rails=3)
+            except Exception:
+                pass
 
     if "oktal" in desc_low or "octal" in desc_low or "basis 8" in desc_low:
         octs = re.findall(r"\b[0-7]{3}\b", desc)
@@ -487,9 +513,17 @@ def solve_crypto_task(desc: str) -> str | None:
             h_val = hash_inline_m.group(1).strip()
             w_list = [w.strip() for w in wordlist_inline_m.group(1).split(",") if w.strip()]
             h_algo = "sha256" if len(h_val) == 64 else "md5"
-            cracked = crack_wordlist_hash(h_val, w_list, algorithm=h_algo)
+            # Generate candidate variations: raw word, flag format, lower, upper
+            w_candidates = []
+            for w in w_list:
+                w_candidates.append(w)
+                w_candidates.append(f"GETSFLAG{{{w}}}")
+                w_candidates.append(f"FLAG{{{w}}}")
+                w_candidates.append(f"CTF{{{w}}}")
+                w_candidates.append(f"CT{{{w}}}")
+            cracked = crack_wordlist_hash(h_val, w_candidates, algorithm=h_algo)
             if cracked:
-                return f"GETSFLAG{{{cracked}}}"
+                return extract_flag(cracked) or (f"GETSFLAG{{{cracked}}}" if not cracked.startswith(("GETSFLAG{", "FLAG{", "CTF{")) else cracked)
         except Exception:
             pass
 
