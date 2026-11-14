@@ -12,8 +12,7 @@ def digest(data: bytes, algorithm: str) -> str:
 
 LENGTH_EXTENSION_NOTE = (
     "Length extension tersedia: ctf_toolkit.crypto.length_extension"
-    " (length_extend/md5_extend) dan ctf_toolkit.crypto.length_extension_md"
-    " (length_extension dengan sweep panjang secret)."
+    " (length_extend, md5_extend, length_extension, length_extension_candidates)."
 )
 
 def crack_numeric_hash(target_hash: str, max_digits: int = 6, algorithm: str = "md5") -> str | None:

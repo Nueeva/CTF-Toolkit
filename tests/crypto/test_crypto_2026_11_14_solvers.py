@@ -30,9 +30,8 @@ from ctf_toolkit.crypto.galois import (
     rs_berlekamp_massey,
     rs_syndrome,
 )
-from ctf_toolkit.crypto.length_extension_md import (
-    _glue_pad,
-    _SPECS,
+from ctf_toolkit.crypto.length_extension import (
+    glue_padding_md,
     length_extension,
     length_extension_candidates,
     reference_digest,
@@ -88,9 +87,9 @@ def test_length_extension_candidate_sweep_hits_true_key_len():
 
 def test_md5_glue_padding_lengths():
     # padding only (message not included): 0B -> 64, 55B -> 9, 56B -> 72
-    assert len(_glue_pad(0, _SPECS["md5"])) == 64
-    assert len(_glue_pad(55, _SPECS["md5"])) == 9
-    assert len(_glue_pad(56, _SPECS["md5"])) == 72
+    assert len(glue_padding_md(0)) == 64
+    assert len(glue_padding_md(55)) == 9
+    assert len(glue_padding_md(56)) == 72
     assert (0 + 1 + 55 + 8) % 64 == 0
     assert (56 + 1 + 63 + 8) % 128 == 0
     assert reference_digest("md5", b"", b"") == hashlib.md5(b"").hexdigest()

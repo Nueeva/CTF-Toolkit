@@ -11,8 +11,25 @@ arbitrary starting state together with the number of bytes already absorbed.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import struct
+from dataclasses import dataclass, field
+from typing import Sequence
+
+__all__ = [
+    "LengthExtensionResult",
+    "glue_padding_md",
+    "glue_padding_sha",
+    "length_extend",
+    "length_extension",
+    "length_extension_candidates",
+    "md5_extend",
+    "md5_pad",
+    "reference_digest",
+    "sha1_extend",
+    "sha256_extend",
+]
 
 _MASK32 = 0xFFFFFFFF
 
@@ -38,7 +55,7 @@ def _glue_padding(total_len: int, byteorder: str) -> bytes:
     pad_len = 64 - (total_len % 64)
     if pad_len < 9:
         pad_len += 64
-    return b"\x80" + b"\x00" * (pad_len - 9) + (total_len * 8).to_bytes(8, byteorder)
+    return b"\x80" + b"\x00" * (pad_len - 9) + (total_len * 8).to_bytes(8, byteorder)  # type: ignore[arg-type]
 
 
 def glue_padding_md(message_byte_len: int) -> bytes:
@@ -49,6 +66,11 @@ def glue_padding_md(message_byte_len: int) -> bytes:
 def glue_padding_sha(message_byte_len: int) -> bytes:
     """Merkle-Damgard glue padding for SHA-1 / SHA-256 (big-endian length field)."""
     return _glue_padding(message_byte_len, "big")
+
+
+def md5_pad(message_byte_len: int) -> bytes:
+    """Alias for glue_padding_md."""
+    return glue_padding_md(message_byte_len)
 
 
 def _continue(
@@ -127,7 +149,7 @@ def md5_extend(orig_digest_hex: str, orig_total_len: int, append: bytes) -> tupl
     the new digest equals ``md5(secret || msg || glue || append)``.
     """
     glue = glue_padding_md(orig_total_len)
-    raw = bytes.fromhex(orig_digest_hex)
+    raw = bytes.fromhex(orig_digest_hex.strip())
     state = struct.unpack("<4I", raw)
     new_digest = _continue(
         _md5_compress, state, orig_total_len + len(glue), append,
@@ -174,7 +196,7 @@ def _sha1_hash(data: bytes) -> bytes:
 def sha1_extend(orig_digest_hex: str, orig_total_len: int, append: bytes) -> tuple[str, bytes]:
     """Extend a SHA-1 digest. Same contract as :func:`md5_extend`."""
     glue = glue_padding_sha(orig_total_len)
-    raw = bytes.fromhex(orig_digest_hex)
+    raw = bytes.fromhex(orig_digest_hex.strip())
     state = struct.unpack(">5I", raw)
     new_digest = _continue(
         _sha1_compress, state, orig_total_len + len(glue), append,
@@ -197,8 +219,6 @@ def _first_primes(count: int) -> list[int]:
     return primes
 
 
-# Initial state = fractional parts of sqrt(first 8 primes) * 2^32;
-# K table      = fractional parts of cbrt(first 64 primes) * 2^32.
 _SHA256_INIT = tuple(
     int((math.sqrt(p) % 1) * (1 << 32)) & _MASK32 for p in _first_primes(8)
 )
@@ -238,7 +258,7 @@ def _sha256_hash(data: bytes) -> bytes:
 def sha256_extend(orig_digest_hex: str, orig_total_len: int, append: bytes) -> tuple[str, bytes]:
     """Extend a SHA-256 digest. Same contract as :func:`md5_extend`."""
     glue = glue_padding_sha(orig_total_len)
-    raw = bytes.fromhex(orig_digest_hex)
+    raw = bytes.fromhex(orig_digest_hex.strip())
     state = struct.unpack(">8I", raw)
     new_digest = _continue(
         _sha256_compress, state, orig_total_len + len(glue), append,
@@ -248,7 +268,7 @@ def sha256_extend(orig_digest_hex: str, orig_total_len: int, append: bytes) -> t
 
 
 # ---------------------------------------------------------------------------
-# Dispatcher
+# Dispatcher & High-Level Structured API
 # ---------------------------------------------------------------------------
 
 _EXTENDERS = {
@@ -257,17 +277,118 @@ _EXTENDERS = {
     "sha256": sha256_extend,
 }
 
+_GLUE_FUNCS = {
+    "md5": glue_padding_md,
+    "sha1": glue_padding_sha,
+    "sha256": glue_padding_sha,
+}
+
 
 def length_extend(
     algorithm: str, orig_digest_hex: str, orig_total_len: int, append: bytes
 ) -> tuple[str, bytes]:
-    """Length-extension dispatcher for ``"md5"`` / ``"sha1"`` / ``"sha256"``.
+    """Length-extension dispatcher for ``\"md5\"`` / ``\"sha1\"`` / ``\"sha256\"``.
 
     Returns ``(new_digest_hex, glue + append)``; see :func:`md5_extend`.
     Raises ``ValueError`` for an unsupported algorithm.
     """
+    algo = algorithm.lower().replace("-", "")
     try:
-        extender = _EXTENDERS[algorithm.lower()]
+        extender = _EXTENDERS[algo]
     except KeyError:
         raise ValueError(f"unsupported algorithm: {algorithm!r}") from None
     return extender(orig_digest_hex, orig_total_len, append)
+
+
+@dataclass
+class LengthExtensionResult:
+    """Full structured output of a length-extension forgery."""
+
+    algorithm: str
+    message: bytes
+    digest: str
+    glue_padding: bytes
+    appended: bytes
+    secret_len: int
+    blocks_consumed: int = 0
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def forged_message(self) -> bytes:
+        return self.message
+
+    def payload(self) -> bytes:
+        """Just the bytes to put on the wire: glue padding + appended data."""
+        return self.glue_padding + self.appended
+
+    def header(self) -> str:
+        return self.digest
+
+
+def length_extension(
+    algorithm: str,
+    secret_len: int,
+    message: bytes | str,
+    append: bytes | str,
+    digest: bytes | str | None = None,
+) -> LengthExtensionResult:
+    """Forge `H(secret || message || glue || append)` from `H(secret || message)`.
+
+    `message` is the authenticated payload *without* the secret. `digest` must be
+    the leaked digest of `secret || message`; pass it as hex str or raw bytes.
+    `secret_len` is the guessed secret length (the glue padding depends on it).
+    """
+    if digest is None:
+        raise ValueError("digest of secret||message is required")
+    if secret_len < 0:
+        raise ValueError("secret_len must be >= 0")
+
+    algo = algorithm.lower().replace("-", "")
+    if algo not in _EXTENDERS:
+        raise ValueError(f"unsupported algorithm: {algorithm!r}")
+
+    msg_bytes = message.encode("utf-8") if isinstance(message, str) else bytes(message)
+    app_bytes = append.encode("utf-8") if isinstance(append, str) else bytes(append)
+    digest_hex = digest.hex() if isinstance(digest, bytes) else digest.strip().lower()
+
+    total_len = secret_len + len(msg_bytes)
+    glue = _GLUE_FUNCS[algo](total_len)
+    new_digest, _ = _EXTENDERS[algo](digest_hex, total_len, app_bytes)
+
+    total_blocks = (total_len + len(glue) + len(app_bytes) + len(_GLUE_FUNCS[algo](total_len + len(glue) + len(app_bytes)))) // 64
+
+    return LengthExtensionResult(
+        algorithm=algo,
+        message=msg_bytes + glue + app_bytes,
+        digest=new_digest,
+        glue_padding=glue,
+        appended=app_bytes,
+        secret_len=secret_len,
+        blocks_consumed=total_blocks,
+        notes=[
+            f"resumed from digest after {total_len} bytes",
+            f"glue padding {len(glue)}B for secret_len={secret_len}",
+        ],
+    )
+
+
+def length_extension_candidates(
+    algorithm: str,
+    digest: bytes | str,
+    message: bytes | str,
+    append: bytes | str,
+    secret_lens: Sequence[int] | range | None = None,
+) -> list[LengthExtensionResult]:
+    """Brute the unknown secret length (1..32 by default) and return every forgery."""
+    if secret_lens is None:
+        secret_lens = range(1, 33)
+    out: list[LengthExtensionResult] = []
+    for k in secret_lens:
+        out.append(length_extension(algorithm, k, message, append, digest))
+    return out
+
+
+def reference_digest(algorithm: str, secret: bytes, message: bytes) -> str:
+    """Ground truth used by tests and by self-check against hashlib."""
+    algo = algorithm.lower().replace("-", "")
+    return hashlib.new(algo, secret + message).hexdigest()

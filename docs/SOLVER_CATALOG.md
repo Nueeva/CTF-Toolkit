@@ -41,15 +41,15 @@ Includes 30+ ciphers: `rot_n`, `caesar_decrypt`, `caesar_bruteforce`, `atbash`, 
 
 ---
 
-### 1.4 Deep Primitive Solvers (`length_extension_md`, `crc_forge`, `lfsr`, `galois`, `dlog_engine`, `padic`)
+### 1.4 Deep Primitive Solvers (`length_extension`, `crc_forge`, `lfsr`, `galois`, `dlog_engine`, `padic`)
 
 Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 
 | Function | Module | Signature & Purpose |
 | :--- | :--- | :--- |
-| `length_extension` | `ctf_toolkit.crypto.length_extension_md` | `(algorithm, secret_len, message, append, digest) -> LengthExtensionResult`: resumes the Merkle–Damgård compression function from a leaked digest and returns the forged digest plus the exact wire payload plus the glue padding. Supports `md5`, `sha1`, `sha256`. The upstream module `length_extension` keeps the `md5_extend` / `sha1_extend` / `sha256_extend` / `length_extend` contract; this one adds the secret-length sweep and a structured result. |
-| `length_extension_candidates` | `ctf_toolkit.crypto.length_extension_md` | `(algorithm, digest, message, append, secret_lens=range(1,33)) -> list[...]`: brute the unknown key length; each candidate carries its own glue padding. |
-| `md5_pad` / `reference_digest` | `ctf_toolkit.crypto.length_extension_md` | Glue padding for a given message length, and a `hashlib` ground truth used by the tests. |
+| `length_extension` | `ctf_toolkit.crypto.length_extension` | `(algorithm, secret_len, message, append, digest) -> LengthExtensionResult`: resumes the Merkle–Damgård compression function from a leaked digest and returns the forged digest plus the exact wire payload plus the glue padding. Supports `md5`, `sha1`, `sha256`. |
+| `length_extension_candidates` | `ctf_toolkit.crypto.length_extension` | `(algorithm, digest, message, append, secret_lens=range(1,33)) -> list[...]`: brute the unknown secret length; each candidate carries its own glue padding. |
+| `md5_pad` / `reference_digest` | `ctf_toolkit.crypto.length_extension` | Glue padding for a given message length, and a `hashlib` ground truth used by the tests. |
 | `forge_crc32` | `ctf_toolkit.crypto.crc_forge` | `(data, target, offset=None) -> CRCForgeResult`: solves the 32×32 GF(2) system over a four-byte window so `crc32(data') == target`. Raises on an unreachable target. |
 | `forge_crc32_hex` / `crc32_value` | `ctf_toolkit.crypto.crc_forge` | Hex-target convenience wrapper and raw IEEE 802.3 checksum. |
 | `berlekamp_massey` | `ctf_toolkit.crypto.lfsr` | `(bits) -> (taps, complexity)`: shortest linear recurrence over GF(2); `lfsr_predict` then extends the stream. |

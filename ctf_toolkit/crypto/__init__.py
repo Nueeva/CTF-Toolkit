@@ -91,10 +91,15 @@ from ctf_toolkit.crypto.mt19937 import (
     untemper,
 )
 from ctf_toolkit.crypto.length_extension import (
+    LengthExtensionResult,
     glue_padding_md,
     glue_padding_sha,
     length_extend,
+    length_extension,
+    length_extension_candidates,
     md5_extend,
+    md5_pad,
+    reference_digest,
     sha1_extend,
     sha256_extend,
 )
@@ -116,13 +121,6 @@ from ctf_toolkit.crypto.oracle import (
     subprocess_query_oracle,
     tcp_padding_oracle,
     tcp_query_oracle,
-)
-
-from ctf_toolkit.crypto.length_extension_md import (
-    LengthExtensionResult,
-    length_extension,
-    length_extension_candidates,
-    md5_pad,
 )
 from ctf_toolkit.crypto.lfsr import (
     LFSRModel,
