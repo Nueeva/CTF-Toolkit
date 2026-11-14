@@ -24,8 +24,15 @@ __all__ = [
     "smoothness_bound",
     "ECPoint",
     "EllipticCurve",
+    "ec_bsgs",
     "smart_attack",
     "dsolve",
+    "curve_order_naive",
+    "ec_add",
+    "ec_mul",
+    "ec_bsgs_coords",
+    "smart_attack_coords",
+    "ec_validate_point",
 ]
 
 
@@ -334,12 +341,70 @@ def smart_attack(curve: EllipticCurve, P: ECPoint, Q: ECPoint, seed: int = 1, re
     raise ValueError(f"Smart's attack could not lift a usable curve: {last_error}")
 
 
+def ec_bsgs(
+    curve: EllipticCurve,
+    P: ECPoint,
+    Q: ECPoint,
+    order: int | None = None,
+    deadline: float | None = None,
+) -> int:
+    """Solve ECDLP Q = k*P on elliptic curve over F_p using Baby-Step Giant-Step.
+
+    Runs in O(sqrt(order)) time and space. Bounded by deadline.
+    """
+    check_deadline(deadline)
+    if P.is_identity():
+        raise ValueError("P cannot be point at infinity")
+    if Q.is_identity():
+        return 0
+    if P == Q:
+        return 1
+
+    n = order if order is not None else curve.order_naive()
+    m = int(math.isqrt(n)) + 1
+
+    table: dict[tuple[int | None, int | None] | None, int] = {}
+    cur = ECPoint.identity()
+    for j in range(m):
+        check_deadline(deadline)
+        key = (cur.x, cur.y) if not cur.is_identity() else None
+        table[key] = j
+        cur = curve.add(cur, P)
+
+    mP = cur
+    neg_mP = curve.neg(mP)
+
+    gamma = Q
+    for i in range(m):
+        check_deadline(deadline)
+        key = (gamma.x, gamma.y) if not gamma.is_identity() else None
+        if key in table:
+            k = (i * m + table[key]) % n
+            if curve.mul(k, P) == Q:
+                return k
+        gamma = curve.add(gamma, neg_mP)
+
+    raise ValueError("ECDLP discrete logarithm not found via BSGS")
+
+
 def dsolve(curve: EllipticCurve, P: ECPoint, Q: ECPoint, deadline: float | None = None) -> int:
-    """ECDLP dispatcher: anomalous -> Smart, small order -> BSGS over the group."""
+    """ECDLP dispatcher: anomalous -> Smart, general small-order curve -> BSGS."""
     check_deadline(deadline)
     if curve.is_singular():
         raise ValueError("singular curve: reduce to the multiplicative/additive group first")
-    return smart_attack(curve, P, Q)
+    if P.is_identity() or Q.is_identity():
+        return 0
+    if P == Q:
+        return 1
+
+    # Check if anomalous
+    if curve.p < 100000 and curve.order_naive() == curve.p:
+        try:
+            return smart_attack(curve, P, Q)
+        except Exception:
+            pass
+
+    return ec_bsgs(curve, P, Q, deadline=deadline)
 
 
 # --------------------------------------------------------------------------- #
@@ -370,6 +435,13 @@ def ec_mul(a: int, b: int, p: int, k: int, x: int, y: int) -> tuple[int, int]:
         raise ValueError(f"{k}*(x, y) is the point at infinity")
     assert out.x is not None and out.y is not None
     return out.x, out.y
+
+
+def ec_bsgs_coords(
+    a: int, b: int, p: int, px: int, py: int, qx: int, qy: int, order: int | None = None
+) -> int:
+    """BSGS ECDLP with flat arguments: solves Q = k*P on y^2 = x^3 + ax + b mod p."""
+    return ec_bsgs(EllipticCurve(a, b, p), ECPoint(px, py), ECPoint(qx, qy), order=order)
 
 
 def smart_attack_coords(

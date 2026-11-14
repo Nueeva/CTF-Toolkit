@@ -263,6 +263,26 @@ def solve_crypto_task(desc: str) -> str | None:
         except Exception:
             pass
 
+    # 2.0.1aa Franklin-Reiter Related Message Attack (same n, e=3, m2 = a*m1 + b mod n)
+    if n_m and len(c_all) >= 2 and (e_m is None or int(e_m.group(1)) == 3 or "franklin" in desc.lower()):
+        from ctf_toolkit.crypto.lks_national_suite import franklin_reiter_related_message
+        try:
+            n_val = int(n_m.group(1))
+            c1_val, c2_val = int(c_all[0]), int(c_all[1])
+            e_val = int(e_m.group(1)) if e_m else 3
+            b_diff_m = re.search(r"\b(?:b|diff|delta|pad)\s*=\s*(\d+)", desc, re.IGNORECASE)
+            a_rel_m = re.search(r"\ba\s*=\s*(\d+)", desc)
+            b_val = int(b_diff_m.group(1)) if b_diff_m else None
+            a_val = int(a_rel_m.group(1)) if a_rel_m else 1
+            if b_val is not None:
+                pt_fr = franklin_reiter_related_message(n_val, e_val, c1_val, c2_val, a=a_val, b=b_val)
+                if pt_fr:
+                    cand = extract_flag(pt_fr) or pt_fr.decode("utf-8", errors="ignore").strip()
+                    if cand:
+                        return cand
+        except Exception:
+            pass
+
     # 2.0.1b Hastad Broadcast (same small e, k distinct moduli n1..nk and c1..ck where k >= e)
     if len(n_all) >= 3 and len(c_all) >= 3:
         from ctf_toolkit.crypto.rsa import hastad_broadcast
@@ -581,6 +601,69 @@ def solve_crypto_task(desc: str) -> str | None:
                 cand = extract_flag(res_crc.data)
                 if cand:
                     return cand
+            except Exception:
+                pass
+
+    # 3.0.9 Paillier Cryptosystem Decryption
+    if "paillier" in desc.lower() and c_m and (n_m or (p_m and q_m)):
+        try:
+            from ctf_toolkit.crypto.paillier import paillier_auto_solve
+            c_val = int(c_m.group(1))
+            n_val = int(n_m.group(1)) if n_m else (int(p_m.group(1)) * int(q_m.group(1)))
+            p_val = int(p_m.group(1)) if p_m else None
+            q_val = int(q_m.group(1)) if q_m else None
+            g_m_pail = re.search(r"\bg\s*=\s*(\d+)", desc)
+            g_val = int(g_m_pail.group(1)) if g_m_pail else (n_val + 1)
+            dec_m = paillier_auto_solve(c_val, n_val, p_val, q_val, g_val)
+            if dec_m is not None:
+                try:
+                    dec_bytes = dec_m.to_bytes((dec_m.bit_length() + 7) // 8, "big")
+                    cand = extract_flag(dec_bytes)
+                    if cand:
+                        return cand
+                except Exception:
+                    pass
+                cand = extract_flag(str(dec_m)) or extract_flag(f"GETSFLAG{{{dec_m}}}")
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 3.0.10 Shamir's Secret Sharing Scheme
+    if ("shamir" in desc.lower() or "secret sharing" in desc.lower() or "shares" in desc.lower()) and p_m:
+        shares_tuples = re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*\)", desc)
+        if len(shares_tuples) >= 2:
+            try:
+                from ctf_toolkit.crypto.rsa import shamir_reconstruct_secret
+                p_prime = int(p_m.group(1))
+                shares = [(int(x), int(y)) for x, y in shares_tuples]
+                sec = shamir_reconstruct_secret(shares, p_prime)
+                try:
+                    sec_bytes = sec.to_bytes((sec.bit_length() + 7) // 8, "big")
+                    cand = extract_flag(sec_bytes)
+                    if cand:
+                        return cand
+                except Exception:
+                    pass
+                cand = extract_flag(str(sec)) or extract_flag(f"GETSFLAG{{{sec}}}")
+                if cand:
+                    return cand
+            except Exception:
+                pass
+
+    # 3.0.11 Bleichenbacher RSA Signature Forgery (low exponent e=3)
+    if ("bleichenbacher" in desc.lower() or "forge signature" in desc.lower()) and ("pkcs" in desc.lower() or "hash" in desc.lower() or "e = 3" in desc.lower() or "e=3" in desc.lower()):
+        msg_forge_m = re.search(r'(?:message|msg|data)\s*[:=]\s*["\']?([^"\'\n\r]+)', desc, re.IGNORECASE)
+        bits_m = re.search(r'(?:key_size|bits|key_length)\s*[:=]\s*(\d+)', desc, re.IGNORECASE)
+        hash_name_m = re.search(r'(sha256|sha1|md5)', desc, re.IGNORECASE)
+        if msg_forge_m:
+            try:
+                from ctf_toolkit.crypto.rsa import bleichenbacher_forge_signature
+                msg_raw = msg_forge_m.group(1).strip()
+                k_bits = int(bits_m.group(1)) if bits_m else 1024
+                h_name = hash_name_m.group(1).lower() if hash_name_m else "sha256"
+                forged_s = bleichenbacher_forge_signature(msg_raw, k_bits, h_name, 3)
+                return f"GETSFLAG{{{forged_s}}}"
             except Exception:
                 pass
 

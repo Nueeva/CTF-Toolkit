@@ -159,3 +159,98 @@ def test_cascade_dag_lfsr_recovery():
     assert res.ok() is True
     assert res.flag == "GETSFLAG{cascade_lfsr_pass}"
     assert "lfsr-berlekamp-massey[L=4]" in str(res.matched_source)
+
+
+def test_auto_solve_franklin_reiter():
+    import sympy
+    from ctf_toolkit.crypto.lks_national_suite import franklin_reiter_related_message
+
+    p = sympy.nextprime(2**256)
+    q = sympy.nextprime(p + 100)
+    n = p * q
+    e = 3
+
+    m1 = int.from_bytes(b"GETSFLAG{franklin_reiter_success}", "big")
+    b_diff = 42
+    m2 = m1 + b_diff
+
+    c1 = pow(m1, e, n)
+    c2 = pow(m2, e, n)
+
+    prompt = f"""
+    Franklin-Reiter Related Message Challenge:
+    n = {n}
+    e = {e}
+    c1 = {c1}
+    c2 = {c2}
+    diff = {b_diff}
+    """
+    sol = solve_crypto_task(prompt)
+    assert sol == "GETSFLAG{franklin_reiter_success}"
+
+
+def test_auto_solve_paillier():
+    import sympy
+    from ctf_toolkit.crypto.paillier import paillier_encrypt
+    p = sympy.nextprime(2**256)
+    q = sympy.nextprime(p + 100)
+    n = p * q
+    m = int.from_bytes(b"GETSFLAG{paillier_homomorphic_ok}", "big")
+    c = paillier_encrypt(m, n, r=12345)
+
+    prompt = f"""
+    Paillier Public-Key Decryption:
+    p = {p}
+    q = {q}
+    n = {n}
+    c = {c}
+    """
+    sol = solve_crypto_task(prompt)
+    assert sol == "GETSFLAG{paillier_homomorphic_ok}"
+
+
+def test_auto_solve_shamir_secret_sharing():
+    p = 1000000007
+    prompt = f"""
+    Shamir's Secret Sharing Scheme:
+    p = {p}
+    Shares:
+    (1, 804207)
+    (2, 608414)
+    (3, 412621)
+    """
+    sol = solve_crypto_task(prompt)
+    assert sol == "GETSFLAG{1000000}"
+
+
+def test_auto_solve_bleichenbacher_forge():
+    prompt = """
+    Bleichenbacher RSA Signature Forgery:
+    key_size = 2048
+    e = 3
+    hash = sha256
+    message = admin=true
+    """
+    sol = solve_crypto_task(prompt)
+    assert sol is not None and sol.startswith("GETSFLAG{")
+
+
+def test_curve_bsgs_general_curve():
+    from ctf_toolkit.crypto.dlog_engine import EllipticCurve, ECPoint, ec_bsgs, ec_bsgs_coords
+
+    # Non-anomalous curve y^2 = x^3 + x + 1 over F_23
+    c = EllipticCurve(1, 1, 23)
+    pts = [ECPoint(x, y) for x in range(23) for y in range(23) if c.on_curve(ECPoint(x, y))]
+    P = pts[0]
+    n = c.order_naive()
+    assert n == 28
+    k_priv = 17
+    Q = c.mul(k_priv, P)
+
+    recovered = ec_bsgs(c, P, Q, n)
+    assert recovered == k_priv
+    assert c.mul(recovered, P) == Q
+
+    assert P.x is not None and P.y is not None and Q.x is not None and Q.y is not None
+    recovered_coords = ec_bsgs_coords(1, 1, 23, P.x, P.y, Q.x, Q.y, n)
+    assert recovered_coords == k_priv

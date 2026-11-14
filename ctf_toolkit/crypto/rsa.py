@@ -397,3 +397,61 @@ def solve_rsa_auto(n: int, e: int, c: int) -> bytes:
     if len(flat) > 2:
         return int_to_bytes(rsa_multiprime_decrypt(flat, e, c))
     raise ValueError(f"Unsupported factor shape: {factors}")
+
+
+# --------------------------------------------------------------------------- #
+# Bleichenbacher '06 RSA Signature Forgery (low exponent e=3 PKCS#1 v1.5)
+# --------------------------------------------------------------------------- #
+
+_SHA256_ASN1 = bytes.fromhex("3031300d060960864801650304020105000420")
+_SHA1_ASN1 = bytes.fromhex("3021300906052b0e03021a05000414")
+_MD5_ASN1 = bytes.fromhex("3020300c06082a864886f70d020505000410")
+
+
+def bleichenbacher_forge_signature(
+    message: bytes | str,
+    key_size_bits: int = 1024,
+    hash_algo: str = "sha256",
+    e: int = 3,
+) -> int:
+    """Forge a PKCS#1 v1.5 RSA signature under low public exponent (e=3)
+
+    Exploits verifiers that check the prefix `00 01 FF ... 00 ASN.1 HASH` and
+    ignore trailing garbage bytes at the end of the unpadded buffer.
+    """
+    import hashlib
+
+    msg_bytes = message.encode("utf-8") if isinstance(message, str) else bytes(message)
+    algo = hash_algo.lower().replace("-", "")
+    if algo == "sha256":
+        asn1 = _SHA256_ASN1
+        h = hashlib.sha256(msg_bytes).digest()
+    elif algo == "sha1":
+        asn1 = _SHA1_ASN1
+        h = hashlib.sha1(msg_bytes).digest()
+    elif algo == "md5":
+        asn1 = _MD5_ASN1
+        h = hashlib.md5(msg_bytes).digest()
+    else:
+        raise ValueError(f"unsupported hash algorithm: {hash_algo!r}")
+
+    key_bytes = key_size_bits // 8
+
+    # Try variable padding lengths to ensure the cube root prefix matches
+    for pad_len in range(1, 24):
+        prefix = b"\x00\x01" + b"\xff" * pad_len + b"\x00" + asn1 + h
+        garbage_len = key_bytes - len(prefix)
+        if garbage_len < 0:
+            continue
+        D = int.from_bytes(prefix, "big") << (garbage_len * 8)
+        root, exact = integer_nthroot(D, e)
+        s = root if exact else root + 1
+        s_cubed = pow(s, e)
+        try:
+            sb = s_cubed.to_bytes(key_bytes, "big")
+            if sb.startswith(prefix):
+                return s
+        except OverflowError:
+            pass
+
+    raise ValueError("could not find valid cube root for forged PKCS#1 v1.5 signature")

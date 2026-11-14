@@ -64,10 +64,17 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `bsgs` | `ctf_toolkit.crypto.dlog_engine` | `(g, h, p, order=None) -> x`: baby-step giant-step in O(√order) with a monotonic deadline. |
 | `pohlig_hellman_dlog` | `ctf_toolkit.crypto.dlog_engine` | `(g, h, p) -> (x, factors)`: digit-by-digit recovery per prime power, CRT recombination, self-verifying. |
 | `EllipticCurve` / `ECPoint` | `ctf_toolkit.crypto.dlog_engine` | Affine group law over F_p with `add`, `mul`, `neg`, `on_curve`, and a correct `order_naive` (two points per quadratic residue). |
-| `smart_attack_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy) -> k`: flat-argument twin for the web API / CLI, where JSON cannot carry an `EllipticCurve`.
+| `smart_attack_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy) -> k`: flat-argument twin for the web API / CLI, where JSON cannot carry an `EllipticCurve`. |
+| `ec_bsgs` / `ec_bsgs_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy, order=None) -> k`: Baby-Step Giant-Step discrete logarithm solver on general elliptic curves over $\mathbb{F}_p$. |
 | `ec_add` / `ec_mul` / `curve_order_naive` / `ec_validate_point` | `ctf_toolkit.crypto.dlog_engine` | Scalar-only curve helpers for the same dispatcher path. |
 | `smart_attack` | `ctf_toolkit.crypto.dlog_engine` | `(curve, P, Q) -> k`: anomalous-curve ECDLP via Q_p lift, elliptic logarithm `-x/y`, with random-lift retries and a verification gate on `k·P == Q`. |
 | `QpContext` / `Qp` | `ctf_toolkit.crypto.padic` | Fixed-precision p-adics with explicit valuation, exact division of non-units, and Hensel square roots. |
+| `paillier_keygen` / `paillier_encrypt` / `paillier_decrypt` | `ctf_toolkit.crypto.paillier` | Key generation, encryption ($c = g^m \cdot r^n \pmod{n^2}$), and decryption ($m = L(c^\lambda) \cdot \mu \pmod n$) for Paillier cryptosystem. |
+| `paillier_homomorphic_add` / `paillier_homomorphic_mul` | `ctf_toolkit.crypto.paillier` | Additive homomorphism ($c_1 \cdot c_2 \pmod{n^2}$) and scalar multiplication ($c^k \pmod{n^2}$). |
+| `paillier_auto_solve` | `ctf_toolkit.crypto.paillier` | `(c, n, p=None, q=None) -> int`: Automated Paillier challenge solver with factor recovery. |
+| `bleichenbacher_forge_signature` | `ctf_toolkit.crypto.rsa` | `(message, key_size_bits=1024, hash_algo='sha256', e=3) -> int`: Forges PKCS#1 v1.5 RSA signature under low exponent $e=3$ exploiting trailing garbage parser flaws. |
+| `shamir_reconstruct_secret` | `ctf_toolkit.crypto.rsa` | `(shares: list[tuple[int, int]], p: int) -> int`: Lagrange polynomial interpolation to reconstruct secret at $x=0$ over $\mathbb{F}_p$. |
+| `franklin_reiter_related_message` | `ctf_toolkit.crypto.lks_national_suite` | `(n, e, c1, c2, a=1, b=0) -> bytes`: Recovers message $m_1$ from related ciphertexts $c_1 = m_1^3, c_2 = (a \cdot m_1 + b)^3 \pmod n$. |
 
 ## 2. Binary Exploitation / Pwn (`ctf_toolkit.pwn` & `ctf_toolkit.binex`)
 

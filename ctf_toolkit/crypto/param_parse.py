@@ -23,7 +23,7 @@ _INT_PAIR = re.compile(
 # Well-known parameter names may legitimately hold single-digit values (e.g. e = 3).
 _SMALL_VALUE_NAMES = {"p", "q", "n", "e", "c", "d", "r", "s", "g", "a", "b", "x", "y", "k", "A", "B", "P", "Q"}
 _INT_PAIR_SMALL = re.compile(
-    r'"?(' + _NAME + r'")?\s*[:=]\s*(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9])\b'
+    r'"?(' + _NAME + r')"?\s*[:=]\s*(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9])\b'
 )
 _HEX_LABELS = {"key", "iv", "nonce", "tag", "ct", "ciphertext", "c"}
 _HEX_PAIR = re.compile(

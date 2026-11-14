@@ -61,6 +61,8 @@ from ctf_toolkit.crypto.rsa import (
     common_modulus_attack,
     rsa_solve_pqec,
     rsa_solve_phi_e_c,
+    bleichenbacher_forge_signature,
+    shamir_reconstruct_secret,
 )
 from ctf_toolkit.crypto.stream_attacks import (
     repeating_key_xor,
@@ -154,6 +156,8 @@ from ctf_toolkit.crypto.dlog_engine import (
     bsgs,
     curve_order_naive,
     ec_add,
+    ec_bsgs,
+    ec_bsgs_coords,
     ec_mul,
     ec_validate_point,
     pohlig_hellman_dlog,
@@ -162,6 +166,17 @@ from ctf_toolkit.crypto.dlog_engine import (
     smoothness_bound,
 )
 from ctf_toolkit.crypto.padic import Qp, QpContext
+from ctf_toolkit.crypto.paillier import (
+    PaillierPrivateKey,
+    PaillierPublicKey,
+    paillier_auto_solve,
+    paillier_decrypt,
+    paillier_encrypt,
+    paillier_homomorphic_add,
+    paillier_homomorphic_mul,
+    paillier_keygen,
+    paillier_solve_known_factors,
+)
 
 
 __all__ = [
@@ -290,6 +305,19 @@ __all__ = [
     "curve_order_naive",
     "ec_add",
     "ec_mul",
+    "ec_bsgs",
+    "ec_bsgs_coords",
     "ec_validate_point",
     "smart_attack_coords",
+    "bleichenbacher_forge_signature",
+    "shamir_reconstruct_secret",
+    "PaillierPublicKey",
+    "PaillierPrivateKey",
+    "paillier_keygen",
+    "paillier_encrypt",
+    "paillier_decrypt",
+    "paillier_homomorphic_add",
+    "paillier_homomorphic_mul",
+    "paillier_solve_known_factors",
+    "paillier_auto_solve",
 ]
