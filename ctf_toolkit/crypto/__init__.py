@@ -165,6 +165,7 @@ from ctf_toolkit.crypto.dlog_engine import (
     smart_attack_coords,
     smoothness_bound,
 )
+from ctf_toolkit.crypto.hnp import ecdsa_biased_nonce_recover
 from ctf_toolkit.crypto.padic import Qp, QpContext
 from ctf_toolkit.crypto.paillier import (
     PaillierPrivateKey,
@@ -320,4 +321,5 @@ __all__ = [
     "paillier_homomorphic_mul",
     "paillier_solve_known_factors",
     "paillier_auto_solve",
+    "ecdsa_biased_nonce_recover",
 ]

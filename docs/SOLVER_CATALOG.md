@@ -75,6 +75,7 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `bleichenbacher_forge_signature` | `ctf_toolkit.crypto.rsa` | `(message, key_size_bits=1024, hash_algo='sha256', e=3) -> int`: Forges PKCS#1 v1.5 RSA signature under low exponent $e=3$ exploiting trailing garbage parser flaws. |
 | `shamir_reconstruct_secret` | `ctf_toolkit.crypto.rsa` | `(shares: list[tuple[int, int]], p: int) -> int`: Lagrange polynomial interpolation to reconstruct secret at $x=0$ over $\mathbb{F}_p$. |
 | `franklin_reiter_related_message` | `ctf_toolkit.crypto.lks_national_suite` | `(n, e, c1, c2, a=1, b=0) -> bytes`: Recovers message $m_1$ from related ciphertexts $c_1 = m_1^3, c_2 = (a \cdot m_1 + b)^3 \pmod n$. |
+| `ecdsa_biased_nonce_recover` | `ctf_toolkit.crypto.hnp` | `(signatures, n, nonce_bits) -> int | None`: Solves Hidden Number Problem (HNP) via LLL lattice reduction to recover ECDSA/DSA private key $d$ when nonces $k < 2^B$ leak. |
 
 ## 2. Binary Exploitation / Pwn (`ctf_toolkit.pwn` & `ctf_toolkit.binex`)
 
@@ -83,6 +84,11 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `build_ret2win_payload` | `ctf_toolkit.pwn` | Construct buffer padding + packed 32/64-bit return address override. |
 | `build_variable_overwrite` | `ctf_toolkit.pwn` | Construct stack local variable corruption payload. |
 | `build_rop_chain` | `ctf_toolkit.pwn` | Assemble padding + sequence of little-endian ROP gadget addresses and arguments. |
+| `build_sigreturn_frame_x86_64` | `ctf_toolkit.pwn.rop` | Construct a 256-byte Linux x86_64 Sigreturn Oriented Programming (SROP) frame (`sys_rt_sigreturn`). |
+| `fmtstr_payload` | `ctf_toolkit.pwn.format_string` | Construct arbitrary memory write format string payload (`%hhn` positional writes) with 32/64-bit stack alignment. |
+| `sh_x86_64` / `sh_x86` | `ctf_toolkit.pwn.shellcraft` | Pure-Python null-free Linux `execve("/bin/sh")` shellcode generators for x86_64 and x86 architectures. |
+| `cat_flag_x86_64` | `ctf_toolkit.pwn.shellcraft` | Linux x86_64 shellcode to open, read, and write `flag.txt` to stdout. |
+| `encode_xor` | `ctf_toolkit.pwn.shellcraft` | 1-byte XOR shellcode encoder with self-contained relative RIP decoder stub to bypass badchars. |
 | `leak_stack_offsets` / `build_format_string_probe` | `ctf_toolkit.pwn` | Generate `%k$p` format string probes and parse leaked hex words into ASCII. |
 | `calculate_oob_offset` | `ctf_toolkit.pwn` | Compute negative/positive array index offset `(target_addr - base_addr) // stride`. |
 | `cyclic_create` / `cyclic_find` | `ctf_toolkit.pwn` | De Bruijn non-repeating pattern generator and crash offset calculator. |
@@ -121,6 +127,8 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `extract_xlsx_metadata` | `ctf_toolkit.forensics.xlsx_tools` | Extract `veryHidden` worksheets, sharedStrings, and cell comments. |
 | `extract_pdf_metadata` / `scan_pdf_raw_objects` | `ctf_toolkit.forensics.pdf_tools` | Decompress PDF `/FlateDecode` streams, off-page text, attachments, and raw object tokens. |
 | `extract_png_trailing_bytes` / `repair_png_header` | `ctf_toolkit.forensics.png_tools` | Carve payloads after `IEND`, extract text chunks, and repair corrupted magic/CRC headers. |
+| `repair_png_dimensions_from_crc` | `ctf_toolkit.forensics.png_tools` | Brute-forces and restores true PNG width/height from IHDR CRC32 checksum when dimensions were tampered with. |
+| `decode_usb_hid_packets` / `decode_usb_hid_from_text` | `ctf_toolkit.forensics.usb_hid` | Decodes 8-byte USB HID keyboard report packets, PCAP captures, and tshark text dumps into typed keystrokes/flags. |
 | `extract_channel_lsb` / `decode_qr_image` | `ctf_toolkit.forensics.image_channels` | Extract R/G/B/A bitplanes, LSB steganography payloads, and rotated QR codes. |
 | `extract_audio_pcm_lsb` / `decode_dtmf_tones` / `demodulate_audio_fsk` | `ctf_toolkit.forensics.audio_tools` | Recover WAV LSB bits, DTMF keypad digits, and FSK/MFSK audio modems. |
 | `extract_pcap_artifacts` / `extract_dns_subdomain_exfiltration` | `ctf_toolkit.forensics.pcap_extract` | Reassemble HTTP auth, DNS exfiltration chunks, and USB HID/serial captures. |

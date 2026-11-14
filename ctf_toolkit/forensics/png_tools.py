@@ -138,3 +138,66 @@ def extract_png_corrupted_crc_chunks(png_data: bytes) -> list[tuple[bytes, bytes
 
     return chunks
 
+
+def repair_png_dimensions_from_crc(
+    png_data: bytes,
+    max_dim: int = 4096,
+) -> tuple[bytes, int, int]:
+    """Recover and restore true PNG image dimensions (width, height) using the IHDR CRC32.
+
+    Frequently needed in CTF challenges where the image height is modified to 0 or 1
+    to truncate image display and hide flags, but the original IHDR CRC is preserved.
+
+    Returns:
+        (repaired_png_bytes, recovered_width, recovered_height)
+    """
+    # Auto-decode if passed hex string encoded as bytes
+    if png_data.startswith(b"89504e47") or png_data.startswith(b"89504E47"):
+        try:
+            png_data = bytes.fromhex(png_data.decode("ascii"))
+        except ValueError:
+            pass
+
+    idx = png_data.find(b"IHDR")
+    if idx == -1 or idx + 4 + 13 + 4 > len(png_data):
+        raise ValueError("Valid IHDR chunk not found in PNG data")
+
+    ihdr_payload = png_data[idx + 4 : idx + 4 + 13]
+    orig_crc = struct.unpack(">I", png_data[idx + 4 + 13 : idx + 4 + 13 + 4])[0]
+
+    w_cur, h_cur, depth, coltype, comp, filt, interlace = struct.unpack(">II5B", ihdr_payload)
+
+    # Check if dimensions already match CRC
+    if zlib.crc32(b"IHDR" + ihdr_payload) & 0xFFFFFFFF == orig_crc:
+        return png_data, w_cur, h_cur
+
+    tail = bytes([depth, coltype, comp, filt, interlace])
+
+    # Strategy 1: width is intact, height was corrupted (most common in CTF)
+    for h in range(1, max_dim + 1):
+        cand_payload = struct.pack(">II", w_cur, h) + tail
+        if zlib.crc32(b"IHDR" + cand_payload) & 0xFFFFFFFF == orig_crc:
+            patched = bytearray(png_data)
+            patched[idx + 4 : idx + 4 + 13] = cand_payload
+            return bytes(patched), w_cur, h
+
+    # Strategy 2: height is intact, width was corrupted
+    for w in range(1, max_dim + 1):
+        cand_payload = struct.pack(">II", w, h_cur) + tail
+        if zlib.crc32(b"IHDR" + cand_payload) & 0xFFFFFFFF == orig_crc:
+            patched = bytearray(png_data)
+            patched[idx + 4 : idx + 4 + 13] = cand_payload
+            return bytes(patched), w, h_cur
+
+    # Strategy 3: both width and height were corrupted (search 2D space up to 2048)
+    search_limit = min(max_dim, 2048)
+    for w in range(1, search_limit + 1):
+        for h in range(1, search_limit + 1):
+            cand_payload = struct.pack(">II", w, h) + tail
+            if zlib.crc32(b"IHDR" + cand_payload) & 0xFFFFFFFF == orig_crc:
+                patched = bytearray(png_data)
+                patched[idx + 4 : idx + 4 + 13] = cand_payload
+                return bytes(patched), w, h
+
+    raise ValueError("Could not find matching dimensions for IHDR CRC32")
+

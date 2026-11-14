@@ -76,7 +76,13 @@ from ctf_toolkit.forensics.png_tools import (
     extract_png_corrupted_crc_chunks,
     extract_png_text_chunks,
     extract_png_trailing_payload,
+    repair_png_dimensions_from_crc,
     repair_png_header,
+)
+from ctf_toolkit.forensics.usb_hid import (
+    decode_usb_hid_from_text,
+    decode_usb_hid_packets,
+    decode_usb_hid_pcap,
 )
 from ctf_toolkit.forensics.pyc_decompile import decompile_pyc, extract_pyc_constants_raw
 from ctf_toolkit.forensics.xlsx_tools import extract_xlsx_metadata
@@ -161,5 +167,9 @@ __all__ = [
     "repair_pcap_header",
     "repair_pdf_broken_header",
     "repair_png_header",
+    "repair_png_dimensions_from_crc",
+    "decode_usb_hid_packets",
+    "decode_usb_hid_from_text",
+    "decode_usb_hid_pcap",
     "repair_zip_header",
 ]

@@ -254,3 +254,72 @@ def test_curve_bsgs_general_curve():
     assert P.x is not None and P.y is not None and Q.x is not None and Q.y is not None
     recovered_coords = ec_bsgs_coords(1, 1, 23, P.x, P.y, Q.x, Q.y, n)
     assert recovered_coords == k_priv
+
+
+def test_auto_solve_usb_hid_keystrokes():
+    # USB capture of flag{usb_typing}
+    # 0x09='f', 0x0f='l', 0x04='a', 0x0a='g', 0x2f(shift)='{', 0x18='u', 0x16='s', 0x05='b', 0x30(shift)='}'
+    text = """
+    USB Traffic capture (tshark capdata):
+    00:00:09:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:0f:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:04:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:0a:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    02:00:2f:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:18:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:16:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    00:00:05:00:00:00:00:00
+    00:00:00:00:00:00:00:00
+    02:00:30:00:00:00:00:00
+    """
+    sol = solve_crypto_task(text)
+    assert sol == "flag{usb}"
+
+
+def test_auto_solve_png_ihdr_repair():
+    import struct
+    import zlib
+    true_w, true_h = 1024, 768
+    tail = b"\x08\x06\x00\x00\x00"
+    payload = struct.pack(">II", true_w, true_h) + tail
+    crc = zlib.crc32(b"IHDR" + payload) & 0xFFFFFFFF
+    corrupted = struct.pack(">II", true_w, 1) + tail
+    png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + corrupted + struct.pack(">I", crc) + b"\x00\x00\x00\x00IEND\xaeB`\x82"
+
+    prompt = f"Corrupted PNG Challenge: {png.hex()}"
+    sol = solve_crypto_task(prompt)
+    assert sol == f"GETSFLAG{{{true_w}x{true_h}}}"
+
+
+def test_auto_solve_hnp_ecdsa():
+    from ctf_toolkit.utils.math import modinv
+    import random
+    n = 2147483647
+    d_priv = 123456789
+    nonce_bits = 10
+    X = 1 << nonce_bits
+    sigs = []
+    for _ in range(8):
+        k = random.randint(1, X - 1)
+        h = random.randint(1, n - 1)
+        r = random.randint(1, n - 1)
+        s = (modinv(k, n) * (h + r * d_priv)) % n
+        sigs.append((h, r, s))
+
+    prompt = f"""
+    HNP Biased Nonce ECDSA Challenge:
+    p = {n}
+    nonce_bits = {nonce_bits}
+    Signatures:
+    """ + "\n".join(f"({h}, {r}, {s})" for h, r, s in sigs)
+
+    sol = solve_crypto_task(prompt)
+    assert sol == f"GETSFLAG{{{d_priv}}}"
+

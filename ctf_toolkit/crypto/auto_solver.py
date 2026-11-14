@@ -667,6 +667,62 @@ def solve_crypto_task(desc: str) -> str | None:
             except Exception:
                 pass
 
+    # 3.0.12 USB HID Keystroke Traffic Detection
+    if any(k in desc.lower() for k in ("usb", "hid", "keystroke", "capdata")) or re.search(r"(?:[0-9a-fA-F]{2}[:\s]){7}[0-9a-fA-F]{2}", desc):
+        try:
+            from ctf_toolkit.forensics.usb_hid import decode_usb_hid_from_text
+            typed_text = decode_usb_hid_from_text(desc)
+            if typed_text and len(typed_text) >= 4:
+                cand = extract_flag(typed_text) or typed_text.strip()
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 3.0.13 PNG IHDR Dimension Corrupted CRC Repair
+    if "ihdr" in desc.lower() or "89504e47" in desc.lower() or "ivborw0kggo" in desc.lower():
+        try:
+            from ctf_toolkit.forensics.png_tools import repair_png_dimensions_from_crc
+            import base64
+            png_bytes = None
+            hex_match = re.search(r"89504e47[0-9a-fA-F]+", desc, re.IGNORECASE)
+            if hex_match:
+                png_bytes = bytes.fromhex(hex_match.group(0))
+            else:
+                b64_match = re.search(r"iVBORw0KGgo[A-Za-z0-9+/=]+", desc)
+                if b64_match:
+                    png_bytes = base64.b64decode(b64_match.group(0))
+            if png_bytes and len(png_bytes) >= 33:
+                _, w_rep, h_rep = repair_png_dimensions_from_crc(png_bytes)
+                cand = extract_flag(png_bytes) or f"GETSFLAG{{{w_rep}x{h_rep}}}"
+                if cand:
+                    return cand
+        except Exception:
+            pass
+
+    # 3.0.14 HNP / Biased Nonce ECDSA Private Key Recovery
+    if ("hnp" in desc.lower() or "biased nonce" in desc.lower() or "hidden number" in desc.lower()) and p_m:
+        sig_matches = re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", desc)
+        bits_leak_m = re.search(r"(?:bits|nonce_bits|leak|bound)\s*[:=]\s*(\d+)", desc, re.IGNORECASE)
+        if len(sig_matches) >= 3:
+            try:
+                from ctf_toolkit.crypto.hnp import ecdsa_biased_nonce_recover
+                n_curve = int(p_m.group(1))
+                b_bits = int(bits_leak_m.group(1)) if bits_leak_m else 16
+                sigs_tuples = [(int(h), int(r), int(s)) for h, r, s in sig_matches]
+                d_rec = ecdsa_biased_nonce_recover(sigs_tuples, n_curve, b_bits)
+                if d_rec is not None:
+                    try:
+                        d_bytes = d_rec.to_bytes((d_rec.bit_length() + 7) // 8, "big")
+                        cand = extract_flag(d_bytes)
+                        if cand:
+                            return cand
+                    except Exception:
+                        pass
+                    return f"GETSFLAG{{{d_rec}}}"
+            except Exception:
+                pass
+
     # 3.1 Scytale detection in text / code block
     scytale_m = re.search(r"scytale.*?diameter.*?(\d+)", desc, re.IGNORECASE)
     ct_m = re.search(r"(?:ciphertext|ct):\s*([a-zA-Z0-9_]+)", desc, re.IGNORECASE)
