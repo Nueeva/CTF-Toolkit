@@ -49,6 +49,27 @@ EXCLUDED_MODULE_SUFFIXES: tuple[str, ...] = (
 
 _CACHED_CATALOG: list[dict[str, Any]] | None = None
 
+# Solvers whose required parameters are one of these can never be driven from
+# a JSON request or the palette's argument prompt — they need a live object.
+_OBJECT_ANNOTATIONS: tuple[str, ...] = ("SolveContext", "EllipticCurve", "ECPoint", "QpContext")
+
+
+def _palette_dispatchable(fn: Any) -> bool:
+    """False when a required parameter needs a Python object, not a scalar."""
+    try:
+        sig = inspect.signature(fn)
+    except (ValueError, TypeError):
+        return False
+    for param in sig.parameters.values():
+        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            continue
+        if param.default is not inspect.Parameter.empty:
+            continue
+        ann = str(param.annotation)
+        if any(ann.startswith(name) for name in _OBJECT_ANNOTATIONS):
+            return False
+    return True
+
 
 def _discover_engine_modules() -> list[str]:
     """Discover all non-UI engine modules across ctf_toolkit."""
@@ -100,6 +121,11 @@ def build_tool_catalog(force_refresh: bool = False) -> list[dict[str, Any]]:
             if ".ui." in obj_mod:
                 continue
             if attr_name in seen_funcs:
+                continue
+            # The palette and /api/call both build arguments from scalars, so a
+            # solver that needs a live SolveContext/EllipticCurve stays reachable
+            # through the cascade but must not advertise itself here.
+            if not _palette_dispatchable(obj):
                 continue
 
             seen_funcs.add(attr_name)
