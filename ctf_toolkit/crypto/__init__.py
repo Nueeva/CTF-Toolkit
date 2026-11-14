@@ -83,6 +83,7 @@ from ctf_toolkit.crypto.ecc import (
     ecc_scalar_mul,
     ecc_smarts_attack,
 )
+
 from ctf_toolkit.crypto.mt19937 import (
     MT19937Clone,
     clone_from_outputs,
@@ -116,6 +117,54 @@ from ctf_toolkit.crypto.oracle import (
     tcp_padding_oracle,
     tcp_query_oracle,
 )
+
+from ctf_toolkit.crypto.length_extension_md import (
+    LengthExtensionResult,
+    length_extension,
+    length_extension_candidates,
+    md5_pad,
+)
+from ctf_toolkit.crypto.lfsr import (
+    LFSRModel,
+    berlekamp_massey,
+    bits_from_bytes,
+    bits_to_bytes,
+    lfsr_generate,
+    lfsr_predict,
+    recover_from_bytes,
+)
+from ctf_toolkit.crypto.crc_forge import (
+    CRCForgeResult,
+    crc32_value,
+    forge_crc32,
+    forge_crc32_hex,
+)
+from ctf_toolkit.crypto.galois import (
+    crt,
+    crt_combine,
+    gf256_inv,
+    gf256_mul,
+    gf256_pow,
+    poly2_gcd,
+    rs_berlekamp_massey,
+    rs_chien_search,
+    rs_syndrome,
+)
+from ctf_toolkit.crypto.dlog_engine import (
+    ECPoint,
+    EllipticCurve,
+    bsgs,
+    curve_order_naive,
+    ec_add,
+    ec_mul,
+    ec_validate_point,
+    pohlig_hellman_dlog,
+    smart_attack,
+    smart_attack_coords,
+    smoothness_bound,
+)
+from ctf_toolkit.crypto.padic import Qp, QpContext
+
 
 __all__ = [
     "a1z26_decode",
@@ -208,4 +257,41 @@ __all__ = [
     "subprocess_query_oracle",
     "tcp_padding_oracle",
     "tcp_query_oracle",
+    "LengthExtensionResult",
+    "length_extension",
+    "length_extension_candidates",
+    "md5_pad",
+    "LFSRModel",
+    "berlekamp_massey",
+    "bits_from_bytes",
+    "bits_to_bytes",
+    "lfsr_generate",
+    "lfsr_predict",
+    "recover_from_bytes",
+    "CRCForgeResult",
+    "crc32_value",
+    "forge_crc32",
+    "forge_crc32_hex",
+    "crt",
+    "crt_combine",
+    "gf256_inv",
+    "gf256_mul",
+    "gf256_pow",
+    "poly2_gcd",
+    "rs_berlekamp_massey",
+    "rs_chien_search",
+    "rs_syndrome",
+    "ECPoint",
+    "EllipticCurve",
+    "bsgs",
+    "pohlig_hellman_dlog",
+    "smart_attack",
+    "smoothness_bound",
+    "Qp",
+    "QpContext",
+    "curve_order_naive",
+    "ec_add",
+    "ec_mul",
+    "ec_validate_point",
+    "smart_attack_coords",
 ]

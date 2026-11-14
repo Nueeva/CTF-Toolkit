@@ -41,6 +41,32 @@ Includes 30+ ciphers: `rot_n`, `caesar_decrypt`, `caesar_bruteforce`, `atbash`, 
 
 ---
 
+### 1.4 Deep Primitive Solvers (`length_extension_md`, `crc_forge`, `lfsr`, `galois`, `dlog_engine`, `padic`)
+
+Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
+
+| Function | Module | Signature & Purpose |
+| :--- | :--- | :--- |
+| `length_extension` | `ctf_toolkit.crypto.length_extension_md` | `(algorithm, secret_len, message, append, digest) -> LengthExtensionResult`: resumes the Merkle–Damgård compression function from a leaked digest and returns the forged digest plus the exact wire payload plus the glue padding. Supports `md5`, `sha1`, `sha256`. The upstream module `length_extension` keeps the `md5_extend` / `sha1_extend` / `sha256_extend` / `length_extend` contract; this one adds the secret-length sweep and a structured result. |
+| `length_extension_candidates` | `ctf_toolkit.crypto.length_extension_md` | `(algorithm, digest, message, append, secret_lens=range(1,33)) -> list[...]`: brute the unknown key length; each candidate carries its own glue padding. |
+| `md5_pad` / `reference_digest` | `ctf_toolkit.crypto.length_extension_md` | Glue padding for a given message length, and a `hashlib` ground truth used by the tests. |
+| `forge_crc32` | `ctf_toolkit.crypto.crc_forge` | `(data, target, offset=None) -> CRCForgeResult`: solves the 32×32 GF(2) system over a four-byte window so `crc32(data') == target`. Raises on an unreachable target. |
+| `forge_crc32_hex` / `crc32_value` | `ctf_toolkit.crypto.crc_forge` | Hex-target convenience wrapper and raw IEEE 802.3 checksum. |
+| `berlekamp_massey` | `ctf_toolkit.crypto.lfsr` | `(bits) -> (taps, complexity)`: shortest linear recurrence over GF(2); `lfsr_predict` then extends the stream. |
+| `lfsr_generate` / `recover_from_bytes` | `ctf_toolkit.crypto.lfsr` | Forward generation from an explicit seed, and bytes-in → `LFSRModel` recovery. |
+| `bits_from_bytes` / `bits_to_bytes` / `bits_from_int` | `ctf_toolkit.crypto.lfsr` | Bit-packing helpers with MSB-first and LSB-first order. |
+| `gf256_mul` / `gf256_inv` / `gf256_pow` / `gf_find_generator` | `ctf_toolkit.crypto.galois` | GF(2^8) arithmetic under the AES reduction polynomial `0x11B`; verified against the `0x57·0x83 = 0xC1` vector. |
+| `rs_syndrome` / `rs_berlekamp_massey` / `rs_chien_search` / `rs_forney_roots` | `ctf_toolkit.crypto.galois` | Reed-Solomon decode chain over GF(2^8). |
+| `crt` / `crt_combine` | `ctf_toolkit.crypto.galois` | Integer CRT with inconsistency detection (returns `(x, lcm)`). |
+| `poly2_gcd` / `poly2_mul` / `poly2_divmod` / `poly2_mod` | `ctf_toolkit.crypto.galois` | GF(2) polynomial arithmetic on integer bitmasks — used by CRC/linear-algebra paths. |
+| `bsgs` | `ctf_toolkit.crypto.dlog_engine` | `(g, h, p, order=None) -> x`: baby-step giant-step in O(√order) with a monotonic deadline. |
+| `pohlig_hellman_dlog` | `ctf_toolkit.crypto.dlog_engine` | `(g, h, p) -> (x, factors)`: digit-by-digit recovery per prime power, CRT recombination, self-verifying. |
+| `EllipticCurve` / `ECPoint` | `ctf_toolkit.crypto.dlog_engine` | Affine group law over F_p with `add`, `mul`, `neg`, `on_curve`, and a correct `order_naive` (two points per quadratic residue). |
+| `smart_attack_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy) -> k`: flat-argument twin for the web API / CLI, where JSON cannot carry an `EllipticCurve`.
+| `ec_add` / `ec_mul` / `curve_order_naive` / `ec_validate_point` | `ctf_toolkit.crypto.dlog_engine` | Scalar-only curve helpers for the same dispatcher path. |
+| `smart_attack` | `ctf_toolkit.crypto.dlog_engine` | `(curve, P, Q) -> k`: anomalous-curve ECDLP via Q_p lift, elliptic logarithm `-x/y`, with random-lift retries and a verification gate on `k·P == Q`. |
+| `QpContext` / `Qp` | `ctf_toolkit.crypto.padic` | Fixed-precision p-adics with explicit valuation, exact division of non-units, and Hensel square roots. |
+
 ## 2. Binary Exploitation / Pwn (`ctf_toolkit.pwn` & `ctf_toolkit.binex`)
 
 | Function | Module | Purpose |

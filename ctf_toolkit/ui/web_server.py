@@ -152,6 +152,33 @@ def _coerce_param(raw: Any, param: inspect.Parameter) -> Any:
             return raw.lower() in ("1", "true", "yes", "y", "on")
         return bool(raw)
 
+    # `from __future__ import annotations` makes every annotation a string, so
+    # `append: bytes` arrives as ann_str == "bytes" and a JSON string would stay
+    # str — the solver then crashes on `str + bytes`. Encode explicitly.
+    if ann is bytes or ann_str in ("bytes", "bytearray"):
+        if isinstance(raw, str):
+            return raw.encode("utf-8")
+        if isinstance(raw, bytearray):
+            return bytes(raw)
+        return raw
+
+    if ann_str.startswith("list") or ann_str.startswith("List"):
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                return [item.strip() for item in raw.split(",") if item.strip()]
+            return parsed if isinstance(parsed, list) else [parsed]
+        return raw
+
+    if ann_str.startswith("dict") or ann_str.startswith("Dict"):
+        if isinstance(raw, str):
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return raw
+        return raw
+
     return raw
 
 
@@ -517,7 +544,21 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
+
+        def _encode(value: Any) -> Any:
+            """bytes/dataclass returns from solvers must survive the JSON boundary."""
+            if isinstance(value, (bytes, bytearray)):
+                raw = bytes(value)
+                return {"hex": raw.hex(), "utf8": raw.decode("utf-8", errors="replace")}
+            if isinstance(value, dict):
+                return {str(k): _encode(v) for k, v in value.items()}
+            if isinstance(value, (list, tuple, set)):
+                return [_encode(v) for v in value]
+            if hasattr(value, "__dataclass_fields__"):
+                return {k: _encode(getattr(value, k)) for k in value.__dataclass_fields__}
+            return value
+
+        self.wfile.write(json.dumps(_encode(data), indent=2).encode("utf-8"))
 
 
 def start_workbench_server(port: int = 8080) -> None:

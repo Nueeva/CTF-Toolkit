@@ -439,6 +439,7 @@ def custom_menu() -> None:
 
 def menu() -> None:
     from ctf_toolkit.ui.crypto.dh_ecc_menu import dh_ecc_interactive_menu, cipher_identification_menu
+    from ctf_toolkit.ui.crypto.deep_menu import deep_crypto_menu
     run_menu(
         "Crypto",
         {
@@ -451,5 +452,6 @@ def menu() -> None:
             "7": ("Diffie-Hellman & ECC", dh_ecc_interactive_menu),
             "8": ("Cipher & Hash Identification", cipher_identification_menu),
             "9": ("Custom Alphabet", custom_menu),
+            "10": ("Deep Solvers (len-ext / CRC forge / LFSR / GF / dlog)", deep_crypto_menu),
         },
     )
