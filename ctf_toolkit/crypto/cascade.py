@@ -157,20 +157,21 @@ def _load_output(ctx: SolveContext) -> bytes:
 
 def build_context(report: dict, flag_pattern: str | None = None, total_seconds: float = 90.0) -> SolveContext:
     src_path = report.get("script_path")
-    src = ""
-    if src_path:
+    src = report.get("source_text") or report.get("source") or ""
+    if not src and src_path:
         try:
             src = Path(src_path).read_text(encoding="utf-8", errors="replace")
         except OSError:
             src = ""
+    out_text = report.get("_output_text") or report.get("output_text") or ""
     ctx = SolveContext(
         report=report,
         deadline=time.monotonic() + max(5.0, total_seconds),
         flag_pattern=flag_pattern or DEFAULT_FLAG_PATTERN,
         source_text=src,
-        output_text=report.get("_output_text", "") or "",
+        output_text=out_text,
     )
-    ctx.output_bytes = _load_output(ctx)
+    ctx.output_bytes = report.get("output_bytes") or _load_output(ctx)
     if not ctx.output_text and ctx.output_bytes:
         ctx.output_text = ctx.output_bytes.decode("latin-1")
     return ctx

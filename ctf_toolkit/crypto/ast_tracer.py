@@ -343,10 +343,11 @@ class _Collector(ast.NodeVisitor):
         # Hand-rolled generators declared as a function call in the script
         for marker, cat in (
             ("rc4", "stream_cipher"), ("xorshift", "prng"), ("mt19937", "prng"),
-            ("mersenne", "prng"), ("lcg", "prng"), ("aes_encrypt", "aes"),
+            ("mersenne", "prng"), ("lcg", "prng"), ("lfsr", "stream_cipher"),
+            ("berlekamp", "stream_cipher"), ("aes_encrypt", "aes"),
             ("aes_decrypt", "aes"), ("chacha", "stream_cipher"), ("salsa", "stream_cipher"),
             ("hill", "hill"), ("elgamal", "elgamal"), ("vigenere", "classical"),
-            ("affine", "affine"), ("rail", "classical"),
+            ("affine", "affine"), ("rail", "classical"), ("crc", "hash"),
         ):
             if marker in low:
                 self.hit(cat, 0.7, f"call {fname}", node.lineno)
@@ -796,9 +797,9 @@ def plan_from(trace: ChallengeTrace | None = None, params: dict[str, int] | None
         elif cat == "hill":
             add("hill_matrix_inverse")
         elif cat == "stream_cipher":
-            add("stream_known_key", "stream_keystream_reuse")
+            add("stream_known_key", "stream_keystream_reuse", "stream_lfsr")
         elif cat == "prng":
-            add("prng_mt_clone", "prng_lcg_solve")
+            add("prng_mt_clone", "prng_lcg_solve", "stream_lfsr")
         elif cat == "xor":
             add("xor_single_byte", "xor_repeating_key")
         elif cat == "affine":

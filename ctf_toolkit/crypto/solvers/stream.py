@@ -273,9 +273,41 @@ class _MT:
         self.index = 0
 
 
+def solve_lfsr(ctx: SolveContext) -> list[Candidate]:
+    """Recover LFSR recurrence from observed bitstream via Berlekamp-Massey."""
+    from ..lfsr import berlekamp_massey, lfsr_predict, bits_to_bytes
+    # Look for bit sequences in output or source
+    raw_candidates = re.findall(r"\b[01]{16,}\b", ctx.output_text + " " + ctx.source_text)
+    if not raw_candidates:
+        return []
+    ct = _payload(ctx)
+    out: list[Candidate] = []
+    for bit_str in raw_candidates[:3]:
+        try:
+            taps, L = berlekamp_massey(bit_str)
+            if L == 0 or 2 * L > len(bit_str) + 4:
+                continue
+            # If ciphertext exists, predict enough bits and XOR
+            if ct:
+                needed = len(ct) * 8 - len(bit_str)
+                pred = lfsr_predict(bit_str, max(0, needed), taps) if needed > 0 else []
+                full_bits = [int(b) for b in bit_str] + pred
+                ks = bits_to_bytes(full_bits)
+                plain = bytes(c ^ k for c, k in zip(ct, ks[:len(ct)]))
+                out.append(Candidate(plain, f"lfsr-berlekamp-massey[L={L}]"))
+            # Also emit keystream as bytes
+            ks_only = bits_to_bytes([int(b) for b in bit_str])
+            if ks_only:
+                out.append(Candidate(ks_only, f"lfsr-keystream[L={L}]"))
+        except Exception:
+            continue
+    return out
+
+
 SOLVERS = {
     "stream_known_key": solve_stream_known_key,
     "stream_keystream_reuse": solve_keystream_reuse,
+    "stream_lfsr": solve_lfsr,
     "prng_lcg_solve": solve_lcg,
     "prng_mt_clone": solve_mt_clone,
 }

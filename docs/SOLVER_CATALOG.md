@@ -34,6 +34,8 @@ All solver modules in `ctf_toolkit` are dynamically indexed in the **Command Pal
 | `aes_ecb_decrypt` / `aes_cbc_decrypt` / `aes_ctr_decrypt` | `ctf_toolkit.crypto.aes` | Standard AES decryption primitives and `pkcs7_unpad`. |
 | `des_ecb_decrypt` / `triple_des_ecb_decrypt` | `ctf_toolkit.crypto.des` | PyCryptodome-backed DES and 3DES ECB/CBC encryption and decryption. |
 | `crack_crc32_4byte` | `ctf_toolkit.crypto.hashes` | Algebraically inverts the IEEE 802.3 CRC32 state machine to recover 4-byte ASCII preimages. |
+| `solve_lfsr` | `ctf_toolkit.crypto.solvers.stream` | Recovers linear feedback shift register taps via Berlekamp-Massey from observed bits and decrypts ciphertext. |
+| `coppersmith_stereotyped` | `ctf_toolkit.crypto.coppersmith` | Recovers small roots of $(known + x)^e - c \equiv 0 \pmod n$ using Howgrave-Graham LLL reduction. |
 | `auto_decode_layers` | `ctf_toolkit.crypto.auto_decode` | Greedy iterative multi-hop decoder across Hex, Base64/32/58/85, URL, zlib/gzip, and ROT13. |
 
 ### 1.3 Classical & Polyalphabetic Ciphers (`ctf_toolkit.crypto.classical`)

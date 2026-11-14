@@ -20,23 +20,25 @@ _NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 _INT_PAIR = re.compile(
     r'"?(' + _NAME + r')"?\s*[:=]\s*(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]{2,})'
 )
-# Well-known parameter names may legitimately hold single-digit values (e = 3).
-_SMALL_VALUE_NAMES = {"p", "q", "n", "e", "c", "d", "r", "s", "g", "a", "b", "x", "y", "k"}
+# Well-known parameter names may legitimately hold single-digit values (e.g. e = 3).
+_SMALL_VALUE_NAMES = {"p", "q", "n", "e", "c", "d", "r", "s", "g", "a", "b", "x", "y", "k", "A", "B", "P", "Q"}
 _INT_PAIR_SMALL = re.compile(
-    r'"?(' + _NAME + r')"?\s*[:=]\s*(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9])\b'
+    r'"?(' + _NAME + r'")?\s*[:=]\s*(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9])\b'
 )
 _HEX_LABELS = {"key", "iv", "nonce", "tag", "ct", "ciphertext", "c"}
 _HEX_PAIR = re.compile(
-    r'"?(' + _NAME + r')(?:\(hex\))?"?\s*[:=]\s*(?:0[xX])?([0-9a-fA-F]{8,})'
+    r'"?(' + _NAME + r')(?:\\(hex\\))?"?\s*[:=]\s*(?:0[xX])?([0-9a-fA-F]{8,})'
 )
 _INDEXED = re.compile(r"^(.*?)[_ ]?(\d+)$")
 
 
 def _base_and_index(name: str) -> tuple[str, int]:
     m = _INDEXED.match(name)
-    if m and m.group(1):
-        return m.group(1).lower(), int(m.group(2))
-    return name.lower(), 0
+    base = m.group(1) if m and m.group(1) else name
+    idx = int(m.group(2)) if m and m.group(2) else 0
+    if base in ("A", "B", "P", "Q"):
+        return base, idx
+    return base.lower(), idx
 
 
 def parse_int_params(text: str) -> dict[str, list[int]]:

@@ -392,7 +392,31 @@ def solve_crypto_task(desc: str) -> str | None:
         except Exception:
             pass
 
-    # 3. Diffie-Hellman Key Exchange parameters
+        # 2.0.4 Coppersmith Stereotyped Message
+        if e <= 5 and any(k in desc.lower() for k in ("known", "prefix", "flag", "getsflag{", "picoctf{")):
+            try:
+                from ctf_toolkit.crypto.coppersmith import coppersmith_stereotyped
+                pref_match = re.search(r'(?:known|prefix|flag)\s*=\s*["\']?([a-zA-Z0-9_{]+)', desc, re.IGNORECASE)
+                known_str = pref_match.group(1) if pref_match else "GETSFLAG{"
+                if not any(known_str.startswith(k) for k in ("GETSFLAG{", "flag{", "picoCTF{", "LKS{")):
+                    if "GETSFLAG{" in desc:
+                        known_str = "GETSFLAG{"
+                    elif "flag{" in desc:
+                        known_str = "flag{"
+                for unknown_len in (4, 5, 6, 7, 8, 9, 10):
+                    shift = unknown_len * 8
+                    known_int = int.from_bytes(known_str.encode(), "big") << shift
+                    x_bound = 1 << shift
+                    rec = coppersmith_stereotyped(n, e, c, known_int, x_bound, m=1)
+                    if rec:
+                        rec_bytes = int(rec).to_bytes((int(rec).bit_length() + 7) // 8, "big")
+                        cand = extract_flag(rec_bytes)
+                        if cand:
+                            return cand
+            except Exception:
+                pass
+
+    # 3. Diffie-Hellman Key Exchange parameters & Discrete Log
     g_m = re.search(r"\bg\s*=\s*(\d+)", desc)
     A_m = re.search(r"\bA\s*=\s*(\d+)", desc)
     B_m = re.search(r"\bB\s*=\s*(\d+)", desc)
@@ -401,26 +425,164 @@ def solve_crypto_task(desc: str) -> str | None:
 
     if p_m and g_m and (A_m or B_m or a_m or b_m):
         try:
+            p_val = int(p_m.group(1))
+            g_val = int(g_m.group(1))
+            A_val = int(A_m.group(1)) if A_m else None
+            B_val = int(B_m.group(1)) if B_m else None
+            a_val = int(a_m.group(1)) if a_m else None
+            b_val = int(b_m.group(1)) if b_m else None
+
+            # Discrete log recovery if private exponent missing
+            if a_val is None and b_val is None and A_val is not None:
+                try:
+                    from ctf_toolkit.crypto.dlog_engine import smoothness_bound, pohlig_hellman_dlog, bsgs
+                    order = p_val - 1
+                    if smoothness_bound(order, limit=1000000) > 0:
+                        a_val, _ = pohlig_hellman_dlog(g_val, A_val, p_val)
+                    elif p_val <= 10000000:
+                        a_val = bsgs(g_val, A_val, p_val)
+                except Exception:
+                    pass
+
             dh_res = diffie_hellman_compute(
-                p=int(p_m.group(1)),
-                g=int(g_m.group(1)),
-                A=int(A_m.group(1)) if A_m else None,
-                B=int(B_m.group(1)) if B_m else None,
-                a=int(a_m.group(1)) if a_m else None,
-                b=int(b_m.group(1)) if b_m else None,
+                p=p_val,
+                g=g_val,
+                A=A_val,
+                B=B_val,
+                a=a_val,
+                b=b_val,
             )
             s = dh_res.get("shared_secret")
             if s is not None and isinstance(s, int):
-                # Try decoding shared secret as flag
                 try:
                     s_bytes = s.to_bytes((s.bit_length() + 7) // 8, "big")
                     cand = extract_flag(s_bytes)
+                    if cand:
+                        return cand
+                    cand = extract_flag(f"GETSFLAG{{{s}}}") or extract_flag(f"flag{{{s}}}")
                     if cand:
                         return cand
                 except Exception:
                     pass
         except Exception:
             pass
+
+    # 3.0.5 ECC Anomalous Curve / Smart's attack
+    if any(k in desc.lower() for k in ("anomalous", "smart", "elliptic", "y^2", "y**2")):
+        p_ecc_m = re.search(r"\bp\s*=\s*(\d+)", desc)
+        a_ecc_m = re.search(r"\ba\s*=\s*(-?\d+)", desc)
+        b_ecc_m = re.search(r"\bb\s*=\s*(-?\d+)", desc)
+        # Also parse algebraic curve format: y^2 = x^3 + a*x + b (mod p)
+        if not (p_ecc_m and a_ecc_m and b_ecc_m):
+            m_eq = re.search(r"y\^?2\s*=\s*x\^?3\s*(?:([+-]?\s*\d+)\s*\*?\s*x)?\s*(?:([+-]?\s*\d+))?\s*(?:\(?mod\s*(\d+)\)?)?", desc, re.IGNORECASE)
+            if m_eq and m_eq.group(3):
+                p_val_str = m_eq.group(3)
+                a_val_str = (m_eq.group(1) or "0").replace(" ", "").replace("+", "")
+                b_val_str = (m_eq.group(2) or "0").replace(" ", "").replace("+", "")
+                p_ecc_m = re.match(r"(\d+)", p_val_str)
+                a_ecc_m = re.match(r"(-?\d+)", a_val_str)
+                b_ecc_m = re.match(r"(-?\d+)", b_val_str)
+
+        P_m = re.search(r"[PG]\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", desc)
+        Q_m = re.search(r"Q\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", desc)
+        if p_ecc_m and a_ecc_m and b_ecc_m and P_m and Q_m:
+            try:
+                from ctf_toolkit.crypto.dlog_engine import smart_attack_coords, curve_order_naive
+                p_e = int(p_ecc_m.group(1))
+                a_e = int(a_ecc_m.group(1)) % p_e
+                b_e = int(b_ecc_m.group(1)) % p_e
+                px, py = int(P_m.group(1)), int(P_m.group(2))
+                qx, qy = int(Q_m.group(1)), int(Q_m.group(2))
+                is_anom = "anomalous" in desc.lower() or "smart" in desc.lower()
+                if not is_anom and p_e < 10000:
+                    is_anom = (curve_order_naive(a_e, b_e, p_e) == p_e)
+                if is_anom:
+                    k_rec = smart_attack_coords(a_e, b_e, p_e, px, py, qx, qy)
+                    cand = extract_flag(str(k_rec)) or extract_flag(f"GETSFLAG{{{k_rec}}}") or extract_flag(f"flag{{{k_rec}}}")
+                    if cand:
+                        return cand
+                    try:
+                        k_bytes = int(k_rec).to_bytes((int(k_rec).bit_length() + 7) // 8, "big")
+                        cand = extract_flag(k_bytes)
+                        if cand:
+                            return cand
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    # 3.0.6 Hash Length Extension
+    if ("length extension" in desc.lower() or "secret-prefix" in desc.lower() or "h(secret" in desc.lower()) and re.search(r"\b[0-9a-fA-F]{32,64}\b", desc):
+        try:
+            from ctf_toolkit.crypto.length_extension import length_extension, length_extension_candidates
+            hash_m = re.search(r"(?:hash|digest|leaked_hash|leaked)\s*=\s*([0-9a-fA-F]{32,64})", desc, re.IGNORECASE)
+            if not hash_m:
+                hash_m = re.search(r"\b([0-9a-fA-F]{64}|[0-9a-fA-F]{40}|[0-9a-fA-F]{32})\b", desc)
+            msg_m = re.search(r"(?:message|msg|data)\s*=\s*[\"']?([^\"'\n\r]+)", desc, re.IGNORECASE)
+            app_m = re.search(r"(?:append|payload)\s*=\s*[\"']?([^\"'\n\r]+)", desc, re.IGNORECASE)
+            sec_len_m = re.search(r"(?:secret_len(?:gth)?|key_len(?:gth)?|len\(secret\))\s*=\s*(\d+)", desc, re.IGNORECASE)
+
+            if hash_m and (msg_m or app_m):
+                leaked_hex = hash_m.group(1).strip()
+                orig_msg = msg_m.group(1).strip() if msg_m else "user=guest"
+                app_payload = app_m.group(1).strip() if app_m else "&role=admin"
+                algo = "sha256" if len(leaked_hex) == 64 else ("sha1" if len(leaked_hex) == 40 else "md5")
+
+                if sec_len_m:
+                    slen = int(sec_len_m.group(1))
+                    res_le = length_extension(algo, slen, orig_msg, app_payload, leaked_hex)
+                    cand = extract_flag(res_le.digest) or extract_flag(res_le.payload().hex())
+                    if cand:
+                        return cand
+                    return f"GETSFLAG{{{res_le.digest}}}"
+                else:
+                    cands = length_extension_candidates(algo, leaked_hex, orig_msg, app_payload, range(1, 33))
+                    for c_res in cands:
+                        cand = extract_flag(c_res.digest)
+                        if cand:
+                            return cand
+        except Exception:
+            pass
+
+    # 3.0.7 LFSR / Berlekamp-Massey bitstream
+    if ("lfsr" in desc.lower() or "keystream" in desc.lower() or re.search(r"\b[01]{20,}\b", desc)):
+        bit_match = re.search(r"\b([01]{20,})\b", desc)
+        ct_hex_m = re.search(r"(?:ciphertext|ct|cipher|enc)(?:\s*\(hex\))?\s*[:=]\s*([0-9a-fA-F]{16,})", desc, re.IGNORECASE)
+        if bit_match and ct_hex_m:
+            try:
+                from ctf_toolkit.crypto.lfsr import berlekamp_massey, lfsr_predict, bits_to_bytes
+                bit_str = bit_match.group(1)
+                ct_bytes = bytes.fromhex(ct_hex_m.group(1))
+                taps, L = berlekamp_massey(bit_str)
+                if L > 0:
+                    needed = len(ct_bytes) * 8 - len(bit_str)
+                    pred = lfsr_predict(bit_str, max(0, needed), taps) if needed > 0 else []
+                    full_bits = [int(b) for b in bit_str] + pred
+                    ks = bits_to_bytes(full_bits)
+                    plain = bytes(c ^ k for c, k in zip(ct_bytes, ks[:len(ct_bytes)]))
+                    cand = extract_flag(plain)
+                    if cand:
+                        return cand
+            except Exception:
+                pass
+
+    # 3.0.8 CRC32 Forgery
+    if "crc32" in desc.lower() and ("target" in desc.lower() or "patch" in desc.lower() or "forge" in desc.lower()):
+        tgt_m = re.search(r"(?:target|wanted|crc32)\s*[:=]\s*(?:0x)?([0-9a-fA-F]{8})\b", desc, re.IGNORECASE)
+        data_m = re.search(r"(?:data|prefix|msg)\s*[:=]\s*[\"']?([^\"'\n\r]+)", desc, re.IGNORECASE)
+        if tgt_m:
+            try:
+                from ctf_toolkit.crypto.crc_forge import forge_crc32
+                tgt_crc = int(tgt_m.group(1), 16)
+                data_bytes = data_m.group(1).encode() if data_m else b"user=guest&role=admin"
+                if len(data_bytes) < 4:
+                    data_bytes = data_bytes + b"\x00" * (4 - len(data_bytes))
+                res_crc = forge_crc32(data_bytes, tgt_crc)
+                cand = extract_flag(res_crc.data)
+                if cand:
+                    return cand
+            except Exception:
+                pass
 
     # 3.1 Scytale detection in text / code block
     scytale_m = re.search(r"scytale.*?diameter.*?(\d+)", desc, re.IGNORECASE)

@@ -50,14 +50,28 @@ def solve_dh(ctx: SolveContext) -> list[Candidate]:
 
     secret = None
     try:
-        import sympy  # optional accelerant
-        a = int(sympy.ntheory.discrete_log(p, A, g))
-        secret = pow(B, a, p)
-        ctx.log.append(f"  dh discrete log via sympy: a={a}")
+        from ..dlog_engine import smoothness_bound, pohlig_hellman_dlog, bsgs as dlog_bsgs
+        if smoothness_bound(p - 1, limit=1000000) > 0:
+            a, _ = pohlig_hellman_dlog(g, A, p)
+            secret = pow(B, a, p)
+            ctx.log.append(f"  dh discrete log via pohlig-hellman: a={a}")
+        elif p <= 10000000:
+            a = dlog_bsgs(g, A, p)
+            secret = pow(B, a, p)
+            ctx.log.append(f"  dh discrete log via bsgs: a={a}")
     except Exception:
-        secret = _bsgs(g, A, p, ctx)
-        if secret is not None:
-            secret = pow(B, secret, p)
+        pass
+
+    if secret is None:
+        try:
+            import sympy  # optional accelerant
+            a = int(sympy.ntheory.discrete_log(p, A, g))
+            secret = pow(B, a, p)
+            ctx.log.append(f"  dh discrete log via sympy: a={a}")
+        except Exception:
+            secret = _bsgs(g, A, p, ctx)
+            if secret is not None:
+                secret = pow(B, secret, p)
 
     if secret is None:
         return []
