@@ -114,16 +114,21 @@ def interactive_menu() -> None:
 
 
 def handle_triage(args: argparse.Namespace) -> int:
-    target = args.target or args.file
-    if args.string is not None:
-        report = triage_data(args.string.encode(), target_label="cli_arg")
-    elif target:
-        if os.path.exists(target):
-            report = triage_file(target)
+    target = args.target
+    try:
+        if args.string is not None:
+            report = triage_data(args.string.encode(), target_label="cli_arg")
+        elif args.file is not None:
+            if not os.path.isfile(args.file):
+                raise ValueError(f"Expected a readable file: {args.file}")
+            report = triage_file(args.file)
+        elif target is not None:
+            report = (triage_file(target) if os.path.exists(target)
+                      else triage_data(target.encode(), target_label="cli_raw"))
         else:
-            report = triage_data(target.encode(), target_label="cli_raw")
-    else:
-        warn("Error: Harap berikan target file (-f / target) atau string (-s).")
+            raise ValueError("Berikan satu input file (-f / target) atau string (-s).")
+    except (ValueError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     if args.json:
@@ -442,9 +447,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Subcommand: triage
     triage_parser = subparsers.add_parser("triage", help="Auto-triage & heuristic fingerprinter")
-    triage_parser.add_argument("target", nargs="?", default=None, help="File path atau string target untuk ditriage")
-    triage_parser.add_argument("-f", "--file", dest="file", help="Path ke file target")
-    triage_parser.add_argument("-s", "--string", dest="string", help="Raw string target")
+    source = triage_parser.add_mutually_exclusive_group()
+    source.add_argument("target", nargs="?", default=None, help="File path atau string target untuk ditriage")
+    source.add_argument("-f", "--file", dest="file", help="Path ke file target")
+    source.add_argument("-s", "--string", dest="string", help="Raw string target")
     triage_parser.add_argument("--json", action="store_true", help="Output dalam format JSON")
 
     # Subcommand: recipe
@@ -515,6 +521,8 @@ def build_parser() -> argparse.ArgumentParser:
     wu_parser.add_argument("--points", type=int, default=100, help="Poin tantangan")
     wu_parser.add_argument("-o", "--output-dir", default="output", help="Folder tujuan penyimpanan")
 
+    from ctf_toolkit.cases.cli import configure as configure_cases
+    configure_cases(subparsers)
     return parser
 
 
@@ -530,6 +538,9 @@ def main() -> None:
 
     if args.subcommand is None or args.subcommand == "interactive":
         interactive_menu()
+    elif args.subcommand in {"case", "doctor", "team"}:
+        from ctf_toolkit.cases.cli import execute as execute_cases
+        sys.exit(execute_cases(args))
     elif args.subcommand == "triage":
         sys.exit(handle_triage(args))
     elif args.subcommand == "recipe":

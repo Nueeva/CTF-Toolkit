@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ctf-toolkit"
-version = "4.1.0"
-description = "CTF Toolkit v4.1 Apex - Multi-domain exploitation workbench, A* Magic Solver, CyberChef pipeline studio, and 560+ callable CTF solver functions."
+version = "5.0.0"
+description = "CTF Toolkit with a persistent evidence Workbench, deterministic recipe replay, and offline and live team cases."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -30,10 +30,10 @@ classifiers = [
   "Topic :: Security :: Cryptography",
 ]
 dependencies = [
-  "requests>=2.31.0",
-  "pycryptodome>=3.20.0",
-  "dpkt>=1.9.8",
-  "rich>=13.0.0",
+  "requests>=2.31.0,<3",
+  "pycryptodome>=3.20.0,<4",
+  "dpkt>=1.9.8,<2",
+  "rich>=13.0.0,<15",
   "numpy>=1.24.0",
   "Pillow>=10.0.0",
   "opencv-python-headless>=4.8.0",
@@ -45,6 +45,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+team = ["Django>=5.2,<5.3", "uvicorn>=0.30,<1"]
+qa = ["bagit>=1.8,<2", "playwright>=1.51,<2"]
 dev = [
   "pytest>=8.0",
   "shiv>=1.0",
@@ -60,3 +62,6 @@ package-dir = {"" = "."}
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ctf_toolkit*"]
+
+[tool.setuptools.package-data]
+"ctf_toolkit.cases" = ["assets/*.html", "assets/*.css", "assets/*.js"]

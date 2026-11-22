@@ -563,10 +563,10 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
 
 def start_workbench_server(port: int = 8080) -> None:
     """Start local standalone CyberChef-style web interface."""
-    server = HTTPServer(("0.0.0.0", port), WorkbenchHTTPHandler)
-    print(f"[*] CTF-Toolkit Web Workbench running at http://127.0.0.1:{port}")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("[!] Stopping web server...")
-        server.server_close()
+    with HTTPServer(("127.0.0.1", port), WorkbenchHTTPHandler) as server:
+        host, actual_port = server.server_address
+        print(f"[*] CTF-Toolkit Web Workbench running at http://{host}:{actual_port}", flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("[!] Stopping web server...")

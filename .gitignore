@@ -9,3 +9,4 @@ venv/
 .ctf_session.json
 solve_*.py
 WRITEUP_*.md
+graphify-out/

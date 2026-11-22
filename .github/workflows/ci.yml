@@ -42,3 +42,35 @@ jobs:
       - name: Run full test suite (1,228+ tests)
         run: |
           python run_tests.py
+
+  evidence-workbench:
+    name: Evidence Workbench (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Workbench and test dependencies
+        run: python -m pip install -e ".[dev,team,qa]"
+      - name: Install Chromium on Linux
+        if: runner.os == 'Linux'
+        run: python -m playwright install --with-deps chromium
+      - name: Install Chromium on Windows and macOS
+        if: runner.os != 'Linux'
+        run: python -m playwright install chromium
+      - name: Verify case lifecycle, packages, and private host
+        run: python -m pytest -q -s -ra tests/cases
+      - name: Measure fixed corpus
+        run: |
+          python scripts/case_benchmark.py --engine legacy
+          python scripts/case_benchmark.py --engine v5
+      - name: Smoke-test evidence Workbench from the portable bundle
+        run: |
+          python scripts/build_portable.py
+          python scripts/smoke_case_bundle.py dist/ctf-toolkit.pyz

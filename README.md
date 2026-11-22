@@ -1,9 +1,9 @@
-# CTF Toolkit v4.0 Apex
+# CTF Toolkit v5
 
 > **Multi-Domain CTF Exploitation Workbench, Autonomous A\* Magic Solver, CyberChef Pipeline Studio, and 560+ Callable Solver Functions.**  
 > Engineered for rapid exploitation and analysis across **Windows (PowerShell/CMD)**, **Linux (Kali/Ubuntu/WSL2)**, **macOS**, **Docker**, and **Single-File `.pyz` Jumpboxes**.
 
-![Version](https://img.shields.io/badge/Version-4.1.0%20Apex-0ea5e9)
+![Version](https://img.shields.io/badge/Version-5.0.0-0ea5e9)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white)
 ![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-22c55e)
 ![Tests](https://img.shields.io/badge/Tests-1%2C238%2B%20Passing-brightgreen)
@@ -18,6 +18,17 @@
 │ Buffer $last: <empty>   [/] Search  [:m] Magic  [:s] Studio  [:f] Flags  [0] │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
+## Evidence Workbench
+
+Version 5 adds persistent artifact cases, reproducible recipes, byte-level provenance, and a timeline for offline captures and logs. Use the local Workbench from the CLI or open one private team host for browser collaboration. Verified BagIt handoffs support reviews on another laptop.
+
+    python -m ctf_toolkit case --dir exhibit-demo demo layered
+    python -m ctf_toolkit case --dir exhibit-demo serve
+
+Open the printed loopback URL, run triage on exhibit.png, and trace the output of Base64 decoding back to the source bytes.
+
+[Workbench guide and private host setup](docs/CASE_WORKBENCH.md)
 
 ## Table of Contents
 - [Overview & What's New in v4.0 Apex](#overview--whats-new-in-v40-apex)
@@ -225,7 +236,7 @@ artifacts = carve_embedded_files(open("firmware.bin", "rb").read())
 
 ```text
 ctf_toolkit/
-  __init__.py          # Package version (__version__ = "4.1.0") & exports
+  __init__.py          # Package version (__version__ = "5.0.0") & exports
   __main__.py          # Module execution entrypoint (python -m ctf_toolkit)
   main_cli.py          # CLI router (triage / recipe / magic / call / interactive) & UTF-8 setup
   registry.py          # 9-Domain lazy-loaded menu registry

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Case Workbench · CTF Toolkit</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body data-mode="local">
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">▚</span>
+      <div><p class="wordmark">CTF Toolkit</p><h1 id="case-title">Case Workbench</h1></div>
+    </div>
+    <div class="header-actions">
+      <a id="team-home" class="button secondary" href="/" hidden>Team cases</a>
+      <button id="verify" class="button secondary" type="button">Verify &amp; replay</button>
+      <a id="export-report" class="button secondary" href="api/export/report" download>Writeup</a>
+      <a id="export-json" class="button secondary" href="api/export/manifest" download>JSON</a>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sources" aria-label="Case artifacts">
+      <div class="sidebar-heading">
+        <div class="heading-row"><h2>Artifacts</h2><span id="artifact-count" class="count">0</span></div>
+        <label id="upload-label" class="button primary upload" for="upload">Import file</label>
+        <input id="upload" class="visually-hidden" type="file" aria-label="Import file">
+      </div>
+      <ul id="artifact-list" class="artifact-list"></ul>
+      <p id="empty-tree" class="muted">Import a file to begin.</p>
+      <details class="activity">
+        <summary>Recent activity</summary>
+        <ol id="history"></ol>
+        <button id="clear-history" type="button" class="button secondary">Clear activity</button>
+      </details>
+    </aside>
+
+    <main>
+      <div class="main-bar">
+        <nav aria-label="Workbench views">
+          <button type="button" data-tab="evidence" aria-current="page">Evidence</button>
+          <button type="button" data-tab="timeline">Timeline</button>
+          <button type="button" data-tab="notes">Notes</button>
+          <button id="team-tab" type="button" data-tab="team" hidden>Members</button>
+        </nav>
+        <span id="connection" class="connection">Local case</span>
+      </div>
+      <p id="status" role="status" class="status" hidden></p>
+
+      <section id="evidence" class="view">
+        <div id="empty-evidence" class="empty">
+          <h2>Select an artifact</h2>
+          <p>Inspect its structure, trace its source, or apply a transformation.</p>
+        </div>
+        <div id="artifact-view" hidden>
+          <div class="artifact-heading">
+            <div>
+              <p id="artifact-kind" class="eyebrow"></p>
+              <h2 id="artifact-name"></h2>
+              <p id="artifact-meta" class="artifact-meta"></p>
+            </div>
+            <div class="action-row">
+              <a id="download-artifact" class="button secondary" download hidden>Download</a>
+              <button id="parent" class="button secondary" type="button" hidden>Parent artifact</button>
+              <button id="analyze" class="button primary" type="button" data-edit>Run triage</button>
+            </div>
+          </div>
+          <div id="issues" class="issue-box" hidden><h3>Analysis details</h3><ul id="issue-list"></ul></div>
+          <div class="evidence-layout">
+            <div class="panel bytes-panel">
+              <div class="panel-heading">
+                <h3>Bytes</h3>
+                <label>View <select id="byte-view"><option value="hex">Hex</option><option value="text">Text</option></select></label>
+              </div>
+              <pre id="byte-data" class="dump" tabindex="0"></pre>
+              <div class="preview-nav">
+                <button type="button" id="prev-bytes" class="button secondary">Previous</button>
+                <span id="window" class="mono"></span>
+                <button type="button" id="next-bytes" class="button secondary">Next</button>
+              </div>
+              <div class="range-tools">
+                <label>Start byte<input id="range-start" type="number" min="0"></label>
+                <label>End byte, exclusive<input id="range-stop" type="number" min="0"></label>
+                <button type="button" id="trace-source" class="button secondary">Trace source</button>
+                <button type="button" id="bookmark" class="button secondary" data-edit>Bookmark</button>
+              </div>
+              <div id="structure" class="structure" hidden>
+                <h3>Structure</h3><ul id="sections"></ul>
+              </div>
+            </div>
+            <aside class="tools" aria-label="Artifact operations">
+              <section class="panel tool-panel">
+                <h3>Transform</h3>
+                <label for="recipe">Recipe</label>
+                <input id="recipe" value="b64d" aria-describedby="recipe-ops" spellcheck="false">
+                <p id="recipe-ops" class="hint mono">b64d · b64e · hex_decode · hex_encode</p>
+                <div class="action-row">
+                  <button id="preview-recipe" type="button" class="button secondary" data-edit>Preview steps</button>
+                  <button id="save-recipe" type="button" class="button primary" data-edit>Save branch</button>
+                </div>
+                <div id="recipe-result"></div>
+              </section>
+              <section class="panel tool-panel">
+                <h3>Compare artifacts</h3>
+                <label for="comparison">Compare with</label>
+                <select id="comparison"></select>
+                <button id="compare" type="button" class="button secondary">Compare</button>
+              </section>
+              <section class="panel tool-panel">
+                <h3>Caesar lab</h3>
+                <label for="caesar-lang">Language</label>
+                <select id="caesar-lang"><option value="id">Indonesian</option><option value="en">English</option></select>
+                <button id="rank-caesar" type="button" class="button secondary">Rank shifts</button>
+                <div id="caesar-result"></div>
+              </section>
+            </aside>
+          </div>
+          <section id="compare-panel" class="panel comparison" hidden>
+            <div class="panel-heading"><h3>Comparison</h3><button id="close-compare" type="button" class="button secondary">Close</button></div>
+            <p id="compare-description" class="muted"></p>
+            <div id="compare-data" class="compare-split"></div>
+            <ol id="diff-list" class="diff-list"></ol>
+          </section>
+        </div>
+      </section>
+
+      <section id="timeline" class="view" hidden>
+        <div class="section-heading"><h2>Timeline</h2><p class="muted">Timestamps are shown in UTC when the source offset is known.</p></div>
+        <form id="timeline-index" class="form-bar panel" data-edit>
+          <label>Artifact <select id="timeline-input"></select></label>
+          <label>Format <select id="timeline-profile"><option value="pcap">Classic PCAP</option><option value="access">Access log</option><option value="jsonl">JSONL</option></select></label>
+          <label>Source offset <input id="timeline-zone" placeholder="+07:00"></label>
+          <button type="submit" class="button primary">Index events</button>
+        </form>
+        <form id="timeline-filter" class="form-bar">
+          <label>Source <select id="timeline-source"></select></label>
+          <label>From UTC <input type="datetime-local" id="timeline-start"></label>
+          <label>To UTC <input type="datetime-local" id="timeline-stop"></label>
+          <button type="submit" class="button secondary">Filter</button>
+          <button type="button" id="correlate" class="button secondary" data-edit>Annotate selected</button>
+        </form>
+        <div class="table-wrap panel">
+          <table><thead><tr><th scope="col">Select</th><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Source</th></tr></thead><tbody id="events"></tbody></table>
+        </div>
+        <button type="button" id="more-events" class="button secondary" hidden>More events</button>
+      </section>
+
+      <section id="notes" class="view" hidden>
+        <div class="section-heading"><h2>Notes</h2><p class="muted">Open a reference to inspect the original evidence.</p></div>
+        <form id="note-form" class="panel note-form" data-edit hidden>
+          <h3 id="note-heading">New note</h3>
+          <p id="note-context" class="muted"></p>
+          <label for="note-body" class="visually-hidden">Note text</label>
+          <textarea id="note-body" required maxlength="8192" rows="5" placeholder="What does this evidence show?"></textarea>
+          <div class="action-row">
+            <button type="submit" class="button primary">Save note</button>
+            <button id="cancel-note" type="button" class="button secondary">Cancel</button>
+          </div>
+        </form>
+        <div id="note-list" class="note-list"></div>
+      </section>
+
+      <section id="team" class="view" hidden>
+        <div class="section-heading"><h2>Members</h2></div>
+        <form id="invite-form" class="panel form-bar">
+          <label>Role <select id="invite-role"><option value="editor">Editor</option><option value="viewer">Viewer</option></select></label>
+          <button type="submit" class="button primary">Create invitation</button>
+          <label id="invite-result" hidden>Invitation URL <input id="invite-url" readonly></label>
+        </form>
+        <div id="members" class="member-list"></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

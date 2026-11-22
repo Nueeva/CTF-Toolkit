@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from ctf_toolkit.cases.replay import capture_recipe
 from ctf_toolkit.pipeline import run_recipe, RECIPE_REGISTRY
 from ctf_toolkit.triage import triage_data, triage_file
 from ctf_toolkit.ui.console import (
@@ -184,6 +185,7 @@ def recipe_studio_interactive() -> None:
         if cmd.lower() == "done":
             if trace and not trace[-1]["error"]:
                 inspect_output(trace[-1]["output"], title="Recipe Studio Output", op_name=f"recipe:{' | '.join(steps)}")
+                get_session().latest_recipe = capture_recipe(" | ".join(steps), data, trace[-1]["output"])
                 console_success("Hasil disimpan di $last!")
             return
         if cmd.lower() == "inspect":
@@ -204,8 +206,12 @@ def recipe_studio_interactive() -> None:
             console_info("Pipeline dibersihkan.")
             continue
         if cmd.lower() == "export":
-            f_script = export_case_script()
-            f_write = export_case_writeup()
+            if not trace or trace[-1]["error"]:
+                console_warn("Jalankan resep yang valid sebelum mengekspor.")
+                continue
+            replay = capture_recipe(" | ".join(steps), data, trace[-1]["output"])
+            f_script = export_case_script(replay=replay)
+            f_write = export_case_writeup(replay=replay)
             console_success(f"Berhasil diekspor: {f_script} dan {f_write}")
             continue
 
@@ -247,6 +253,7 @@ def fast_recipe_interactive() -> None:
     try:
         result = run_recipe(recipe_str, data)
         inspect_output(result, title=f"Recipe Result ({recipe_str})", op_name=f"recipe:{recipe_str}")
+        get_session().latest_recipe = capture_recipe(recipe_str, data, result)
     except Exception as e:
         console_error(f"Gagal menjalankan resep: {e}")
 
