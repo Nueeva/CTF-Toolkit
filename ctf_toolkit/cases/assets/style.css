@@ -124,7 +124,7 @@ main { min-width: 0; }
 .dump .address { color: #a6c4ae; }
 .preview-nav { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .58rem; font-size: .71rem; }
 .range-tools {
-  display: grid; grid-template-columns: 1fr 1.15fr auto auto; align-items: end; gap: .55rem;
+  display: grid; grid-template-columns: 1fr 1.15fr auto auto auto; align-items: end; gap: .55rem;
   padding-top: .65rem; margin-top: .65rem; border-top: 1px solid var(--border);
 }
 .structure { margin-top: .85rem; }

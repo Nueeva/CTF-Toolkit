@@ -214,13 +214,28 @@ def _coerce_param(raw: Any, param: inspect.Parameter) -> Any:
     return raw
 
 
+def _get_workbench_html() -> str:
+    proto_path = Path(__file__).resolve().parents[2] / "prototype" / "prototype.html"
+    if proto_path.is_file():
+        try:
+            return proto_path.read_text(encoding="utf-8")
+        except OSError:
+            pass
+    return HTML_PAGE
+
+
 class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(_get_workbench_html().encode("utf-8"))
+        elif self.path == "/api/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "online", "engine": "Python WorkbenchHTTPHandler", "status_code": 200}).encode("utf-8"))
         elif self.path == "/api/flags":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -342,27 +357,67 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/recipe":
             try:
-                from ctf_toolkit.pipeline import run_recipe
+                from ctf_toolkit.pipeline.recipe import run_recipe
                 payload = json.loads(body.decode("utf-8")) if body else {}
                 pipeline = payload.get("recipe") or payload.get("pipeline") or ""
+                steps = payload.get("steps") or []
+                if not pipeline and steps:
+                    parts = []
+                    for s in steps:
+                        if isinstance(s, str):
+                            parts.append(s)
+                        elif isinstance(s, dict):
+                            op = s.get("op", "")
+                            args = s.get("args") or {}
+                            if args:
+                                arg_str = ",".join(str(v) for v in args.values())
+                                parts.append(f"{op}:{arg_str}")
+                            else:
+                                parts.append(op)
+                    pipeline = " | ".join(parts)
                 data = payload.get("data") or payload.get("text") or ""
                 res = run_recipe(pipeline, data)
-                self._send_json({"success": True, "recipe": pipeline, "result": res})
+                if isinstance(res, (bytes, bytearray)):
+                    out_utf8 = bytes(res).decode("utf-8", errors="replace")
+                    out_hex = bytes(res).hex()
+                else:
+                    out_utf8 = str(res)
+                    out_hex = out_utf8.encode("utf-8").hex()
+                self._send_json({
+                    "success": True,
+                    "recipe": pipeline,
+                    "steps": [p.strip() for p in pipeline.split("|") if p.strip()],
+                    "result": res,
+                    "output_utf8": out_utf8,
+                    "output_hex": out_hex,
+                })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
 
         elif self.path == "/api/magic":
             try:
+                import time
                 from ctf_toolkit.ui.magic_solver import solve_magic
+                from ctf_toolkit.utils.flag_manager import get_flag_manager
+                t0 = time.perf_counter()
                 payload = json.loads(body.decode("utf-8")) if body else {}
                 raw = payload.get("data") or payload.get("text") or ""
-                depth = int(payload.get("depth", 4))
+                depth = int(payload.get("max_depth") or payload.get("depth") or 5)
                 data_bytes = raw.encode("utf-8") if isinstance(raw, str) else bytes(raw)
-                best_data, best_path, best_score, _ = solve_magic(data_bytes, max_depth=depth)
+                best_data, best_path, best_score, history = solve_magic(data_bytes, max_depth=depth)
+                elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+                out_utf8 = best_data.decode("utf-8", errors="replace") if isinstance(best_data, (bytes, bytearray)) else str(best_data)
+                flag = get_flag_manager().find_first_flag(out_utf8)
                 self._send_json({
                     "success": True,
                     "path": best_path,
+                    "recipe_path": best_path,
                     "score": best_score,
+                    "confidence": min(1.0, max(0.0, best_score / 100.0)),
+                    "flag": flag,
+                    "nodes_explored": len(history),
+                    "elapsed_ms": elapsed_ms,
+                    "final_output": out_utf8,
                     "result": best_data,
                 })
             except Exception as e:

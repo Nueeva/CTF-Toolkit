@@ -202,7 +202,10 @@ function syncArtifactActions() {
   for (const id of ["preview-recipe", "save-recipe", "rank-caesar", "compare"]) {
     byId(id).disabled = waiting;
   }
-  for (const id of ["parent", "trace-source", "bookmark"]) byId(id).disabled = selectionPending;
+  for (const id of ["parent", "trace-source", "trace-root", "bookmark"]) {
+    const el = byId(id);
+    if (el) el.disabled = selectionPending;
+  }
   byId("analyze").disabled = waiting || analyzing;
   byId("download-artifact").hidden = state?.role !== "owner" || waiting;
   byId("prev-bytes").disabled = waiting || preview.offset === 0;
@@ -588,6 +591,16 @@ byId("trace-source").addEventListener("click", () => run(async () => {
   else if (region.kind === "codec") status("Transformation source shown.");
   else status("Source bytes highlighted.");
 }));
+if (byId("trace-root")) {
+  byId("trace-root").addEventListener("click", () => run(async () => {
+    const region = await api("artifact/" + current.id + "/source?" + query({ ...selectedRange(), root: "true" }));
+    const from = region.start ?? region.header_offset ?? 0;
+    const selection = region.stop !== undefined ? { start: from, stop: region.stop } : null;
+    await openArtifact(region.artifact_id, from, selection);
+    const hops = (region.hops || []).length;
+    status("Root evidence highlighted" + (hops ? " (" + hops + " hops)" : "") + ".");
+  }));
+}
 byId("bookmark").addEventListener("click", () => {
   const bounds = selectedRange();
   if (bounds.start >= bounds.stop || bounds.start < 0 || bounds.stop > current.size) {

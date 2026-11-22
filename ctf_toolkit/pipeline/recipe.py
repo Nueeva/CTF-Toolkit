@@ -460,6 +460,83 @@ def op_nibble_swap(data: Any, *args: str) -> bytes:
     return nibble_swap(_as_bytes(data))
 
 
+@register_op("to_binary")
+def op_to_binary(data: Any, *args: str) -> str:
+    return " ".join(f"{b:08b}" for b in _as_bytes(data))
+
+
+@register_op("from_binary")
+def op_from_binary(data: Any, *args: str) -> bytes:
+    tokens = _as_str(data).strip().split()
+    return bytes(int(t, 2) for t in tokens if t)
+
+
+@register_op("to_octal")
+def op_to_octal(data: Any, *args: str) -> str:
+    return " ".join(f"{b:03o}" for b in _as_bytes(data))
+
+
+@register_op("from_octal")
+def op_from_octal(data: Any, *args: str) -> bytes:
+    tokens = _as_str(data).strip().split()
+    return bytes(int(t, 8) for t in tokens if t)
+
+
+@register_op("to_decimal")
+def op_to_decimal(data: Any, *args: str) -> str:
+    return " ".join(str(b) for b in _as_bytes(data))
+
+
+@register_op("from_decimal")
+def op_from_decimal(data: Any, *args: str) -> bytes:
+    tokens = _as_str(data).strip().split()
+    return bytes(int(t, 10) for t in tokens if t)
+
+
+@register_op("strip")
+@register_op("strip_whitespace")
+def op_strip_whitespace(data: Any, *args: str) -> str:
+    return re.sub(r"\s+", "", _as_str(data))
+
+
+# Standardize to_*/from_* aliases for Web Recipe Pipeline parity
+for _alias, _target in (
+    ("to_hex", "b16e"),
+    ("from_hex", "b16d"),
+    ("to_base16", "b16e"),
+    ("from_base16", "b16d"),
+    ("to_base32", "b32e"),
+    ("from_base32", "b32d"),
+    ("to_base32hex", "b32hex_e"),
+    ("from_base32hex", "b32hex_d"),
+    ("to_base36", "b36e"),
+    ("from_base36", "b36d"),
+    ("to_base45", "b45e"),
+    ("from_base45", "b45d"),
+    ("to_base58", "b58e"),
+    ("from_base58", "b58d"),
+    ("to_base58_ripple", "b58_ripple_e"),
+    ("from_base58_ripple", "b58_ripple_d"),
+    ("to_base62", "b62e"),
+    ("from_base62", "b62d"),
+    ("to_base64", "b64e"),
+    ("from_base64", "b64d"),
+    ("to_base64url", "b64url_e"),
+    ("from_base64url", "b64url_d"),
+    ("to_base85", "b85e"),
+    ("from_base85", "b85d"),
+    ("to_ascii85", "a85e"),
+    ("from_ascii85", "a85d"),
+    ("to_z85", "z85e"),
+    ("from_z85", "z85d"),
+    ("to_base91", "b91e"),
+    ("from_base91", "b91d"),
+    ("extract_flag", "flag_scan"),
+):
+    if _target in RECIPE_REGISTRY:
+        RECIPE_REGISTRY[_alias] = RECIPE_REGISTRY[_target]
+
+
 class RecipePipeline:
     """CyberChef-style recipe chaining pipeline engine."""
 
@@ -492,3 +569,4 @@ class RecipePipeline:
 def run_recipe(recipe_str: str, data: Any) -> Any:
     pipeline = RecipePipeline(recipe_str)
     return pipeline.execute(data)
+

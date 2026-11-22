@@ -19,13 +19,6 @@ struct HubSolveRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct CallRequest {
-    function: String,
-    #[serde(default)]
-    kwargs: Value,
-}
-
-#[derive(Debug, Deserialize)]
 struct FlagVerifyRequest {
     #[serde(default)]
     candidate: String,
@@ -50,6 +43,8 @@ async fn main() {
         .route("/api/hub/jwt", post(handle_hub_jwt))
         .route("/api/hub/eccdh", post(handle_hub_eccdh))
         .route("/api/call", post(handle_call))
+        .route("/api/recipe", post(handle_recipe))
+        .route("/api/magic", post(handle_magic))
         .route("/api/triage_file", post(handle_triage_file))
         .route("/api/writeup/generate", post(handle_writeup));
 
@@ -323,6 +318,77 @@ print(json.dumps({
     run_python_with_payload(script, Some(payload.to_string())).await
 }
 
+async fn handle_recipe(Json(payload): Json<Value>) -> Json<Value> {
+    let script = r#"
+import json, os
+from ctf_toolkit.pipeline.recipe import run_recipe
+
+p = json.loads(os.environ["CTF_PAYLOAD"])
+pipeline = p.get("recipe") or p.get("pipeline") or ""
+steps = p.get("steps") or []
+if not pipeline and steps:
+    parts = []
+    for s in steps:
+        if isinstance(s, str):
+            parts.append(s)
+        elif isinstance(s, dict):
+            op = s.get("op", "")
+            args = s.get("args") or {}
+            if args:
+                arg_str = ",".join(str(v) for v in args.values())
+                parts.append(f"{op}:{arg_str}")
+            else:
+                parts.append(op)
+    pipeline = " | ".join(parts)
+raw_data = p.get("data") or p.get("text") or ""
+res = run_recipe(pipeline, raw_data)
+if isinstance(res, (bytes, bytearray)):
+    out_utf8 = bytes(res).decode("utf-8", errors="replace")
+    out_hex = bytes(res).hex()
+else:
+    out_utf8 = str(res)
+    out_hex = out_utf8.encode("utf-8").hex()
+print(json.dumps({
+    "success": True,
+    "recipe": pipeline,
+    "steps": [x.strip() for x in pipeline.split("|") if x.strip()],
+    "output_utf8": out_utf8,
+    "output_hex": out_hex,
+}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
+}
+
+async fn handle_magic(Json(payload): Json<Value>) -> Json<Value> {
+    let script = r#"
+import json, os, time
+from ctf_toolkit.ui.magic_solver import solve_magic
+from ctf_toolkit.utils.flag_manager import get_flag_manager
+
+t0 = time.perf_counter()
+p = json.loads(os.environ["CTF_PAYLOAD"])
+raw_data = p.get("data") or p.get("text") or ""
+max_depth = int(p.get("max_depth") or p.get("depth") or 5)
+data_bytes = raw_data.encode("utf-8") if isinstance(raw_data, str) else bytes(raw_data)
+best_data, best_path, best_score, history = solve_magic(data_bytes, max_depth=max_depth)
+elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+out_utf8 = best_data.decode("utf-8", errors="replace") if isinstance(best_data, (bytes, bytearray)) else str(best_data)
+flag = get_flag_manager().find_first_flag(out_utf8)
+print(json.dumps({
+    "success": True,
+    "path": best_path,
+    "recipe_path": best_path,
+    "score": best_score,
+    "confidence": min(1.0, max(0.0, best_score / 100.0)),
+    "flag": flag,
+    "nodes_explored": len(history),
+    "elapsed_ms": elapsed_ms,
+    "final_output": out_utf8,
+}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
+}
+
 async fn run_python_helper(py_code: &str) -> Json<Value> {
     run_python_with_payload(py_code, None).await
 }
@@ -331,8 +397,15 @@ async fn run_python_with_payload(py_code: &str, payload: Option<String>) -> Json
     let output = tokio::task::spawn_blocking({
         let code = py_code.to_string();
         move || {
-            let mut cmd = Command::new("/opt/ctf-toolkit/venv/bin/python");
-            cmd.arg("-c").arg(code).current_dir("/opt/ctf-toolkit");
+            let prod_py = std::path::Path::new("/opt/ctf-toolkit/venv/bin/python");
+            let mut cmd = if prod_py.exists() {
+                let mut c = Command::new(prod_py);
+                c.current_dir("/opt/ctf-toolkit");
+                c
+            } else {
+                Command::new("python3")
+            };
+            cmd.arg("-c").arg(code);
             if let Some(p) = payload {
                 cmd.env("CTF_PAYLOAD", p);
             }
@@ -361,7 +434,8 @@ async fn run_python_with_payload(py_code: &str, payload: Option<String>) -> Json
 }
 
 /// Forward an uploaded specimen to the Python triage sidecar and relay its
-/// JSON verdict. The sidecar owns the detectors; this hop only moves bytes.
+/// JSON verdict. Falls back to direct AutoTriageDispatcher invocation if
+/// the sidecar on 127.0.0.1:8091 is not running.
 async fn handle_triage_file(
     headers: HeaderMap,
     body: axum::body::Bytes,
@@ -377,44 +451,57 @@ async fn handle_triage_file(
         .unwrap_or("upload.bin")
         .to_string();
 
-    let mut req = format!(
-        "POST /triage HTTP/1.1\r\nHost: {}\r\nContent-Type: application/octet-stream\r\nX-Filename: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        SIDECAR,
-        name,
-        body.len()
-    )
-    .into_bytes();
-    req.extend_from_slice(&body);
+    if let Ok(mut stream) = tokio::net::TcpStream::connect(SIDECAR).await {
+        let mut req = format!(
+            "POST /triage HTTP/1.1\r\nHost: {}\r\nContent-Type: application/octet-stream\r\nX-Filename: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            SIDECAR,
+            name,
+            body.len()
+        )
+        .into_bytes();
+        req.extend_from_slice(&body);
 
-    let mut stream = match tokio::net::TcpStream::connect(SIDECAR).await {
-        Ok(s) => s,
-        Err(e) => {
-            return Json(json!({ "success": false, "error": format!("triage sidecar unreachable: {e}") }))
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        if stream.write_all(&req).await.is_ok() {
+            let mut buf = Vec::new();
+            if stream.read_to_end(&mut buf).await.is_ok() {
+                let split = buf
+                    .windows(4)
+                    .position(|w| w == b"\r\n\r\n")
+                    .map(|i| i + 4)
+                    .unwrap_or(0);
+                let body_bytes = &buf[split..];
+                let text = String::from_utf8_lossy(body_bytes).to_string();
+                if let Ok(val) = serde_json::from_str::<Value>(text.trim()) {
+                    return Json(json!({ "success": true, "data": val }));
+                }
+            }
         }
-    };
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    if let Err(e) = stream.write_all(&req).await {
-        return Json(json!({ "success": false, "error": format!("write failed: {e}") }));
-    }
-    let mut buf = Vec::new();
-    if let Err(e) = stream.read_to_end(&mut buf).await {
-        return Json(json!({ "success": false, "error": format!("read failed: {e}") }));
     }
 
-    let split = buf
-        .windows(4)
-        .position(|w| w == b"\r\n\r\n")
-        .map(|i| i + 4)
-        .unwrap_or(0);
-    let body_bytes = &buf[split..];
-    // chunked transfer would need decoding; the sidecar answers with a length
-    let text = String::from_utf8_lossy(body_bytes).to_string();
-    match serde_json::from_str::<Value>(text.trim()) {
-        Ok(val) => Json(json!({ "success": true, "data": val })),
-        Err(_) => Json(json!({
-            "success": false,
-            "error": "sidecar returned non-JSON",
-            "preview": text.chars().take(400).collect::<String>()
-        })),
+    // Fallback: write specimen to temp file and run AutoTriageDispatcher directly
+    let safe_name: String = name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' { c } else { '_' })
+        .collect();
+    let tmp_path = std::env::temp_dir().join(format!("ctf_triage_{}_{}", std::process::id(), safe_name));
+    if let Err(e) = std::fs::write(&tmp_path, &body) {
+        return Json(json!({ "success": false, "error": format!("temp write failed: {e}") }));
     }
+    let script = r#"
+import json, os
+from pathlib import Path
+from ctf_toolkit.triage.dispatcher import AutoTriageDispatcher
+
+p = Path(os.environ["CTF_PAYLOAD"])
+try:
+    report = AutoTriageDispatcher.dispatch_file(p)
+    print(json.dumps({"success": True, "data": report}, default=str))
+finally:
+    try:
+        p.unlink()
+    except OSError:
+        pass
+"#;
+    run_python_with_payload(script, Some(tmp_path.to_string_lossy().to_string())).await
 }

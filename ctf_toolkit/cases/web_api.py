@@ -61,7 +61,8 @@ def _get(workspace: Workspace, route: list[str], query, role: str) -> Response:
         if len(route) == 2:
             return Response(operations.inspect_saved(workspace, artifact, number("offset", 0)))
         if route[2:] == ["source"]:
-            return Response(operations.source_region(workspace, artifact, number("start", 0), number("stop", 1)))
+            to_root = str(query.get("root", "")).lower() in ("1", "true")
+            return Response(operations.source_region(workspace, artifact, number("start", 0), number("stop", 1), to_root=to_root))
         if route[2:] == ["download"]:
             if role != "owner":
                 return Response({"error": "Artifact downloads require the case owner"}, 403)

@@ -318,7 +318,7 @@
 
     <div class="nav-group">Advanced &amp; Config</div>
     <div class="nav-link" data-page="workbench" onclick="switchPage('workbench','Manual Tool Catalog','__TOOL_COUNT__ Solvers',this)">
-      <span>554 Tool Catalog</span><span class="nav-count">__TOOL_COUNT__</span>
+      <span>__TOOL_COUNT__ Tool Catalog</span><span class="nav-count">__TOOL_COUNT__</span>
     </div>
     <div class="nav-link" data-page="flags" onclick="switchPage('flags','Flag Formats','Priority Chain',this)">
       <span>Flag Formats</span><span class="nav-count" id="navFlagCount">13</span>
@@ -358,7 +358,7 @@
       <div class="hub-pane active">
         <div>
           <div class="flat-section-title">⚡ Auto-Solver <em>Hub</em></div>
-          <div class="flat-sub">Tempel apa saja (Ciphertext, RSA n/e/c, JWT, Hash MD5/SHA, Morse, A1Z26, Base64 berlapis) — sistem deteksi &amp; pecahkan otomatis tanpa pilih fungsi.</div>
+          <div class="flat-sub">Tempel apa saja (Ciphertext, RSA n/e/c, JWT, Hash MD5/SHA, Morse, A1Z26, Multi-Base berlapis Base16/32/32Hex/36/45/58/62/64/64URL/85/Ascii85/Z85/91) — sistem deteksi &amp; pecahkan otomatis tanpa pilih fungsi.</div>
         </div>
 
         <textarea class="hub-textarea" id="omniInput" placeholder="Tempel parameter challenge atau ciphertext mentah di sini...
@@ -371,6 +371,8 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
 
         <div class="hub-actions">
           <button class="btn-submit" onclick="runOmniSolve()">⚡ Analisa &amp; Pecahkan Otomatis</button>
+          <button class="btn-flat" style="border-color:var(--brass);color:var(--brass)" onclick="runOmniMagic()">🔮 A* Magic Multi-Base Peel</button>
+          <button class="btn-flat" onclick="loadSample('multibase')">Sample Multi-Base Chain</button>
           <button class="btn-flat" onclick="loadSample('rsa')">Sample RSA 3-Faktor</button>
           <button class="btn-flat" onclick="loadSample('rsa_fermat')">Sample RSA Fermat</button>
           <button class="btn-flat" onclick="loadSample('rsa_cm')">Sample RSA Common Modulus</button>
@@ -432,7 +434,7 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
 
       <!-- Subtab: Classical Brute -->
       <div class="hub-pane" id="csub-classical">
-        <div class="flat-sub" style="margin-bottom:0">Satu kotak teks — satu klik brute-force Caesar semua rotasi, Affine semua kunci, Vigenere, Railfence, atau XOR single-byte. Flag otomatis tersorot hijau.</div>
+        <div class="flat-sub" style="margin-bottom:0">Satu kotak teks — satu klik brute-force Caesar semua rotasi, Affine semua kunci, Vigenere, Railfence, XOR single-byte, atau kupas seluruh lapisan Multi-Base (Base16..Base91). Flag otomatis tersorot hijau.</div>
         <textarea class="hub-textarea" id="clsInput" style="min-height:95px" placeholder="Tempel ciphertext klasik di sini...">WKLV LV D WHVW</textarea>
         <div class="hub-grid-3">
           <input class="arg-input" id="clsKey" placeholder="Key Vigenere / XOR (opsional)">
@@ -447,6 +449,7 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
           <button class="btn-flat" onclick="runClassical('xor')">XOR Brute / Key</button>
           <button class="btn-flat" onclick="runClassical('vigenere')">Vigenere</button>
           <button class="btn-flat" onclick="runClassical('railfence')">Rail Fence</button>
+          <button class="btn-flat" style="border-color:var(--brass);color:var(--brass)" onclick="runMultiBasePeel()">🔮 Multi-Base Auto-Peel</button>
         </div>
         <div class="hub-out" id="clsOut" style="overflow-x:auto">Pilih salah satu serangan klasik di atas.</div>
       </div>
@@ -717,15 +720,23 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
     <section id="page-recipe" class="view">
       <div class="wb-split" style="height:100%">
         <!-- Available operations palette -->
-        <div class="wb-col" style="width:260px">
-          <div class="col-head"><span>Operations</span><span style="color:var(--brass)">Palette</span></div>
-          <div style="padding:0 0 8px"><input class="flag-input" id="recipeOpFilter" placeholder="Filter operations…" oninput="filterRecipeOps(this.value)"></div>
+        <div class="wb-col" style="width:270px">
+          <div class="col-head"><span>Operations</span><span id="recipeOpCount" style="color:var(--brass)">Palette</span></div>
+          <div style="padding:0 0 8px"><input class="flag-input" id="recipeOpFilter" placeholder="Filter Base16..Base91, ROT, XOR…" oninput="filterRecipeOps(this.value)"></div>
           <div class="tool-list" id="recipeOpList" style="max-height:calc(100vh - 210px);overflow-y:auto"></div>
         </div>
 
         <!-- Recipe chain builder -->
-        <div class="wb-col" style="width:340px">
-          <div class="col-head"><span>Recipe Chain</span><div><button class="btn-clear" onclick="clearRecipeChain()">Clear</button> <button class="btn-submit" style="padding:2px 8px;font-size:11px" onclick="executeRecipeChain()">Bake</button></div></div>
+        <div class="wb-col" style="width:350px">
+          <div class="col-head">
+            <span>Recipe Chain</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <button class="btn-clear" onclick="clearRecipeChain()">Clear</button>
+              <button class="btn-submit" style="padding:2px 8px;font-size:11px" onclick="executeRecipeChain()">Bake</button>
+              <button class="btn-flat" style="padding:2px 8px;font-size:11px" title="Execute via Python RecipeEngine (/api/recipe)" onclick="executeBackendRecipeChain()">⚡ Server</button>
+              <button class="btn-flat" style="padding:2px 8px;font-size:11px;border-color:var(--brass);color:var(--brass)" title="Autonomous A* Magic Multi-Base Solver (/api/magic)" onclick="runMagicRecipe()">🔮 Magic</button>
+            </div>
+          </div>
           <div id="recipeChain" style="display:flex;flex-direction:column;gap:6px;padding:8px 0;max-height:calc(100vh - 210px);overflow-y:auto">
             <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-3);padding:14px;text-align:center" id="recipeEmptyNote">No operations in recipe. Double-click or click '+' from Palette to chain.</div>
           </div>
@@ -734,7 +745,7 @@ c = ...">R0VUU0ZMQUd7c2lsZW50X2hlYWRlcl9sZWFrfQ==</textarea>
         <!-- Input & Output split -->
         <div class="wb-col">
           <div class="col-head"><span>Input</span><span id="recipeInLen" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-3)">0 chars</span></div>
-          <textarea class="code-area" id="recipeInput" style="height:180px;resize:none" placeholder="Paste input data here…" oninput="$('recipeInLen').textContent = this.value.length + ' chars'; if($('recipeAutoBake').checked) executeRecipeChain()"></textarea>
+          <textarea class="code-area" id="recipeInput" style="height:180px;resize:none" placeholder="Paste input data here (supports Base16, Base32, Base32Hex, Base36, Base45, Base58, Base62, Base64, Base64URL, Base85, Ascii85, Z85, Base91, ROT, XOR, etc.)…" oninput="$('recipeInLen').textContent = this.value.length + ' chars'; if($('recipeAutoBake').checked) executeRecipeChain()"></textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px">
             <label style="font-family:var(--font-mono);font-size:11px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="checkbox" id="recipeAutoBake" checked> Auto Bake</label>
             <span id="recipeStepTime" style="font-family:var(--font-mono);font-size:10px;color:var(--brass)"></span>
@@ -900,7 +911,9 @@ const API = {
   hubRsa: "/api/hub/rsa",
   hubClassical: "/api/hub/classical",
   hubJwt: "/api/hub/jwt",
-  hubEccdh: "/api/hub/eccdh" 
+  hubEccdh: "/api/hub/eccdh",
+  recipe: "/api/recipe",
+  magic: "/api/magic"
 };
 
 let selectedChalId = QUEUE[0].id;
@@ -1240,6 +1253,7 @@ async function runIdentify() {
   }
   $("resultPane").textContent = lines.join("\n");
   $("execStatus").textContent = "identified";
+  sniffFlags(lines.join("\n"));
 }
 
 function formatResult(res) {
@@ -1270,6 +1284,7 @@ async function executeSolver() {
       const out = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
       $("resultPane").textContent += out;
       $("execStatus").textContent = "ok";
+      sniffFlags(data.result);
     } else {
       $("resultPane").textContent += "[error] " + data.error;
       $("execStatus").textContent = "error";
@@ -1389,15 +1404,17 @@ async function handleTriage(file) {
       const data = await res.json();
       if (data && data.success) {
         const d = data.data || {};
-        const found = d.flags || [];
+        const found = d.flags || d.flags_found || [];
+        const specs = d.specialists || d.dispatched_specialists || [];
         const lines = [];
         lines.push("specimen   " + (d.filename || file.name) + "  (" + (d.size || file.size) + " bytes)");
-        lines.push("specialist " + ((d.specialists || []).join(", ") || "generic"));
+        lines.push("specialist " + (specs.join(", ") || (hit ? hit.route : "generic")));
         lines.push("flags      " + (found.length ? found.join(", ") : "none recovered"));
         lines.push("");
-        lines.push(JSON.stringify(d.findings || d, null, 2));
+        lines.push(JSON.stringify(d.findings || d.extracted_findings || d, null, 2));
         $("triageReport").textContent = lines.join("\n");
         $("triageStatus").textContent = found.length ? "flag recovered" : "no flag";
+        sniffFlags(d);
         if (found.length) {
           const row2 = document.createElement("div");
           row2.className = "tool-row";
@@ -1600,21 +1617,277 @@ function searchPalette(q) {
   });
 }
 
-/* ---------- RECIPE PIPELINE (CYBERCHEF PARITY) ---------- */
+/* ---------- RECIPE PIPELINE (CYBERCHEF PARITY + FULL MULTI-BASE) ---------- */
+const _B32_STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const _B32_HEX = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
+const _B36_ALP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const _B45_ALP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const _B58_BTC = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const _B58_XRP = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
+const _B62_ALP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const _B85_RFC = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+const _Z85_ALP = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
+const _B91_ALP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
+
+function _u8(s) { return new TextEncoder().encode(s); }
+function _str(b) { return new TextDecoder("utf-8", { fatal: false }).decode(b); }
+
+function _b32Enc(s, alpha) {
+  const data = _u8(s);
+  let bits = 0, val = 0, out = "";
+  for (let i = 0; i < data.length; i++) {
+    val = (val << 8) | data[i];
+    bits += 8;
+    while (bits >= 5) {
+      out += alpha[(val >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += alpha[(val << (5 - bits)) & 31];
+  while (out.length % 8 !== 0) out += "=";
+  return out;
+}
+
+function _b32Dec(s, alpha) {
+  const clean = s.trim().replace(/=+$/, "").toUpperCase();
+  let bits = 0, val = 0;
+  const out = [];
+  for (let i = 0; i < clean.length; i++) {
+    const idx = alpha.indexOf(clean[i]);
+    if (idx === -1) continue;
+    val = (val << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((val >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return _str(new Uint8Array(out));
+}
+
+function _bigBaseEnc(s, alpha, preserveLeadingZeros) {
+  const data = _u8(s);
+  if (!data.length) return "";
+  const base = BigInt(alpha.length);
+  let num = 0n;
+  for (let i = 0; i < data.length; i++) num = (num << 8n) | BigInt(data[i]);
+  let out = "";
+  while (num > 0n) {
+    const rem = Number(num % base);
+    num = num / base;
+    out = alpha[rem] + out;
+  }
+  if (preserveLeadingZeros) {
+    for (let i = 0; i < data.length && data[i] === 0; i++) out = alpha[0] + out;
+  }
+  return out || alpha[0];
+}
+
+function _bigBaseDec(s, alpha, preserveLeadingZeros, caseInsensitive) {
+  const clean = (caseInsensitive ? s.trim().toUpperCase() : s.trim());
+  if (!clean) return "";
+  const base = BigInt(alpha.length);
+  let num = 0n;
+  for (let i = 0; i < clean.length; i++) {
+    const idx = alpha.indexOf(clean[i]);
+    if (idx === -1) throw new Error(`Invalid character '${clean[i]}' for base-${alpha.length}`);
+    num = num * base + BigInt(idx);
+  }
+  const bytes = [];
+  while (num > 0n) {
+    bytes.unshift(Number(num & 0xffn));
+    num >>= 8n;
+  }
+  if (preserveLeadingZeros) {
+    for (let i = 0; i < clean.length && clean[i] === alpha[0]; i++) bytes.unshift(0);
+  }
+  return _str(new Uint8Array(bytes));
+}
+
+function _b45Enc(s) {
+  const data = _u8(s);
+  let out = "";
+  for (let i = 0; i < data.length; i += 2) {
+    if (i + 1 < data.length) {
+      let v = (data[i] << 8) | data[i + 1];
+      const c = v % 45; v = Math.floor(v / 45);
+      const d = v % 45; const e = Math.floor(v / 45);
+      out += _B45_ALP[c] + _B45_ALP[d] + _B45_ALP[e];
+    } else {
+      const v = data[i];
+      out += _B45_ALP[v % 45] + _B45_ALP[Math.floor(v / 45)];
+    }
+  }
+  return out;
+}
+
+function _b45Dec(s) {
+  const clean = s.trim();
+  const out = [];
+  for (let i = 0; i < clean.length; i += 3) {
+    const chunk = clean.slice(i, i + 3);
+    if (chunk.length === 3) {
+      const v = _B45_ALP.indexOf(chunk[0]) + _B45_ALP.indexOf(chunk[1]) * 45 + _B45_ALP.indexOf(chunk[2]) * 2025;
+      out.push((v >> 8) & 0xff, v & 0xff);
+    } else if (chunk.length === 2) {
+      const v = _B45_ALP.indexOf(chunk[0]) + _B45_ALP.indexOf(chunk[1]) * 45;
+      out.push(v & 0xff);
+    }
+  }
+  return _str(new Uint8Array(out));
+}
+
+function _b85Enc(s, alpha) {
+  const data = _u8(s);
+  const pad = (4 - (data.length % 4)) % 4;
+  const padded = new Uint8Array(data.length + pad);
+  padded.set(data);
+  let out = "";
+  for (let i = 0; i < padded.length; i += 4) {
+    let v = ((padded[i] * 16777216) + (padded[i + 1] << 16) + (padded[i + 2] << 8) + padded[i + 3]) >>> 0;
+    let chunk = "";
+    for (let j = 0; j < 5; j++) {
+      chunk = alpha[v % 85] + chunk;
+      v = Math.floor(v / 85);
+    }
+    out += chunk;
+  }
+  return pad ? out.slice(0, out.length - pad) : out;
+}
+
+function _b85Dec(s, alpha) {
+  const clean = s.trim();
+  const pad = (5 - (clean.length % 5)) % 5;
+  const padded = clean + alpha[84].repeat(pad);
+  const out = [];
+  for (let i = 0; i < padded.length; i += 5) {
+    let v = 0;
+    for (let j = 0; j < 5; j++) {
+      const idx = alpha.indexOf(padded[i + j]);
+      if (idx === -1) throw new Error(`Invalid Base85 char '${padded[i + j]}'`);
+      v = v * 85 + idx;
+    }
+    out.push((v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff);
+  }
+  return _str(new Uint8Array(pad ? out.slice(0, out.length - pad) : out));
+}
+
+function _a85Enc(s) {
+  const data = _u8(s);
+  const pad = (4 - (data.length % 4)) % 4;
+  const padded = new Uint8Array(data.length + pad);
+  padded.set(data);
+  let out = "";
+  for (let i = 0; i < padded.length; i += 4) {
+    let v = ((padded[i] * 16777216) + (padded[i + 1] << 16) + (padded[i + 2] << 8) + padded[i + 3]) >>> 0;
+    if (v === 0 && (i + 4 <= data.length)) { out += "z"; continue; }
+    let chunk = "";
+    for (let j = 0; j < 5; j++) {
+      chunk = String.fromCharCode(33 + (v % 85)) + chunk;
+      v = Math.floor(v / 85);
+    }
+    out += pad && (i + 4 === padded.length) ? chunk.slice(0, 5 - pad) : chunk;
+  }
+  return out;
+}
+
+function _a85Dec(s) {
+  let clean = s.trim();
+  if (clean.startsWith("<~") && clean.endsWith("~>")) clean = clean.slice(2, -2);
+  clean = clean.replace(/\s+/g, "").replace(/z/g, "!!!!!");
+  const pad = (5 - (clean.length % 5)) % 5;
+  const padded = clean + "u".repeat(pad);
+  const out = [];
+  for (let i = 0; i < padded.length; i += 5) {
+    let v = 0;
+    for (let j = 0; j < 5; j++) v = v * 85 + (padded.charCodeAt(i + j) - 33);
+    out.push((v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff);
+  }
+  return _str(new Uint8Array(pad ? out.slice(0, out.length - pad) : out));
+}
+
+function _b91Enc(s) {
+  const data = _u8(s);
+  let b = 0, n = 0, out = "";
+  for (let i = 0; i < data.length; i++) {
+    b |= data[i] << n;
+    n += 8;
+    if (n > 13) {
+      let v = b & 8191;
+      if (v > 88) { b >>= 13; n -= 13; } else { v = b & 16383; b >>= 14; n -= 14; }
+      out += _B91_ALP[v % 91] + _B91_ALP[Math.floor(v / 91)];
+    }
+  }
+  if (n) {
+    out += _B91_ALP[b % 91];
+    if (n > 7 || b > 90) out += _B91_ALP[Math.floor(b / 91)];
+  }
+  return out;
+}
+
+function _b91Dec(s) {
+  const clean = s.trim();
+  let v = -1, b = 0, n = 0;
+  const out = [];
+  for (let i = 0; i < clean.length; i++) {
+    const c = _B91_ALP.indexOf(clean[i]);
+    if (c === -1) continue;
+    if (v < 0) { v = c; } else {
+      v += c * 91;
+      b |= v << n;
+      n += (v & 8191) > 88 ? 13 : 14;
+      do { out.push(b & 0xff); b >>= 8; n -= 8; } while (n > 7);
+      v = -1;
+    }
+  }
+  if (v + 1) out.push((b | (v << n)) & 0xff);
+  return _str(new Uint8Array(out));
+}
+
 const RECIPE_OPS = [
-  { id: "to_hex", name: "To Hex", cat: "Encodings", run: s => Array.from(new TextEncoder().encode(s)).map(b => b.toString(16).padStart(2,"0")).join("") },
-  { id: "from_hex", name: "From Hex", cat: "Encodings", run: s => { const clean = s.replace(/[^0-9a-fA-F]/g, ""); const b = new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); return new TextDecoder().decode(b); } },
-  { id: "to_b64", name: "To Base64", cat: "Encodings", run: s => btoa(unescape(encodeURIComponent(s))) },
-  { id: "from_b64", name: "From Base64", cat: "Encodings", run: s => decodeURIComponent(escape(atob(s.trim()))) },
-  { id: "rot13", name: "ROT13", cat: "Ciphers", run: s => s.replace(/[a-zA-Z]/g, c => { const code = c.charCodeAt(0); const base = code >= 97 ? 97 : 65; return String.fromCharCode(((code - base + 13) % 26) + base); }) },
-  { id: "reverse", name: "Reverse", cat: "Transforms", run: s => s.split("").reverse().join("") },
-  { id: "strip_whitespace", name: "Strip Whitespace", cat: "Transforms", run: s => s.replace(/\s+/g, "") },
-  { id: "url_decode", name: "URL Decode", cat: "Encodings", run: s => decodeURIComponent(s) },
-  { id: "url_encode", name: "URL Encode", cat: "Encodings", run: s => encodeURIComponent(s) },
-  { id: "to_binary", name: "To Binary", cat: "Encodings", run: s => Array.from(new TextEncoder().encode(s)).map(b => b.toString(2).padStart(8,"0")).join(" ") },
-  { id: "from_binary", name: "From Binary", cat: "Encodings", run: s => { const clean = s.trim().split(/\s+/); return new TextDecoder().decode(new Uint8Array(clean.map(b => parseInt(b, 2)))); } },
-  { id: "xor_single", name: "XOR (Key 0x5a)", cat: "Ciphers", run: s => Array.from(new TextEncoder().encode(s)).map(b => String.fromCharCode(b ^ 0x5a)).join("") },
-  { id: "extract_flag", name: "Extract CTF Flag", cat: "Forensics", run: s => { const m = s.match(/(?:[A-Za-z0-9_]{2,15}\{[\x20-\x7d]{2,120}\})/); return m ? m[0] : "[No flag pattern matched]"; } }
+  { id: "to_hex", backendOp: "to_hex", name: "To Base16 / Hex", cat: "Multi-Base", run: s => Array.from(_u8(s)).map(b => b.toString(16).padStart(2,"0")).join("") },
+  { id: "from_hex", backendOp: "from_hex", name: "From Base16 / Hex", cat: "Multi-Base", run: s => { const clean = s.replace(/[^0-9a-fA-F]/g, ""); if (!clean) return ""; const b = new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); return _str(b); } },
+  { id: "to_b32", backendOp: "to_base32", name: "To Base32", cat: "Multi-Base", run: s => _b32Enc(s, _B32_STD) },
+  { id: "from_b32", backendOp: "from_base32", name: "From Base32", cat: "Multi-Base", run: s => _b32Dec(s, _B32_STD) },
+  { id: "to_b32hex", backendOp: "to_base32hex", name: "To Base32Hex", cat: "Multi-Base", run: s => _b32Enc(s, _B32_HEX) },
+  { id: "from_b32hex", backendOp: "from_base32hex", name: "From Base32Hex", cat: "Multi-Base", run: s => _b32Dec(s, _B32_HEX) },
+  { id: "to_b36", backendOp: "to_base36", name: "To Base36", cat: "Multi-Base", run: s => _bigBaseEnc(s, _B36_ALP, false) },
+  { id: "from_b36", backendOp: "from_base36", name: "From Base36", cat: "Multi-Base", run: s => _bigBaseDec(s, _B36_ALP, false, true) },
+  { id: "to_b45", backendOp: "to_base45", name: "To Base45", cat: "Multi-Base", run: s => _b45Enc(s) },
+  { id: "from_b45", backendOp: "from_base45", name: "From Base45", cat: "Multi-Base", run: s => _b45Dec(s) },
+  { id: "to_b58", backendOp: "to_base58", name: "To Base58 (Bitcoin)", cat: "Multi-Base", run: s => _bigBaseEnc(s, _B58_BTC, true) },
+  { id: "from_b58", backendOp: "from_base58", name: "From Base58 (Bitcoin)", cat: "Multi-Base", run: s => _bigBaseDec(s, _B58_BTC, true, false) },
+  { id: "to_b58_ripple", backendOp: "to_base58_ripple", name: "To Base58 (Ripple)", cat: "Multi-Base", run: s => _bigBaseEnc(s, _B58_XRP, true) },
+  { id: "from_b58_ripple", backendOp: "from_base58_ripple", name: "From Base58 (Ripple)", cat: "Multi-Base", run: s => _bigBaseDec(s, _B58_XRP, true, false) },
+  { id: "to_b62", backendOp: "to_base62", name: "To Base62", cat: "Multi-Base", run: s => _bigBaseEnc(s, _B62_ALP, true) },
+  { id: "from_b62", backendOp: "from_base62", name: "From Base62", cat: "Multi-Base", run: s => _bigBaseDec(s, _B62_ALP, true, false) },
+  { id: "to_b64", backendOp: "to_base64", name: "To Base64", cat: "Multi-Base", run: s => btoa(unescape(encodeURIComponent(s))) },
+  { id: "from_b64", backendOp: "from_base64", name: "From Base64", cat: "Multi-Base", run: s => decodeURIComponent(escape(atob(s.trim()))) },
+  { id: "to_b64url", backendOp: "to_base64url", name: "To Base64URL", cat: "Multi-Base", run: s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") },
+  { id: "from_b64url", backendOp: "from_base64url", name: "From Base64URL", cat: "Multi-Base", run: s => { let t = s.trim().replace(/-/g, "+").replace(/_/g, "/"); while (t.length % 4) t += "="; return decodeURIComponent(escape(atob(t))); } },
+  { id: "to_b85", backendOp: "to_base85", name: "To Base85 (RFC 1924)", cat: "Multi-Base", run: s => _b85Enc(s, _B85_RFC) },
+  { id: "from_b85", backendOp: "from_base85", name: "From Base85 (RFC 1924)", cat: "Multi-Base", run: s => _b85Dec(s, _B85_RFC) },
+  { id: "to_a85", backendOp: "to_ascii85", name: "To Ascii85 (Adobe)", cat: "Multi-Base", run: s => _a85Enc(s) },
+  { id: "from_a85", backendOp: "from_ascii85", name: "From Ascii85 (Adobe)", cat: "Multi-Base", run: s => _a85Dec(s) },
+  { id: "to_z85", backendOp: "to_z85", name: "To Z85 (ZeroMQ)", cat: "Multi-Base", run: s => _b85Enc(s, _Z85_ALP) },
+  { id: "from_z85", backendOp: "from_z85", name: "From Z85 (ZeroMQ)", cat: "Multi-Base", run: s => _b85Dec(s, _Z85_ALP) },
+  { id: "to_b91", backendOp: "to_base91", name: "To Base91", cat: "Multi-Base", run: s => _b91Enc(s) },
+  { id: "from_b91", backendOp: "from_base91", name: "From Base91", cat: "Multi-Base", run: s => _b91Dec(s) },
+  { id: "to_binary", backendOp: "to_binary", name: "To Binary (Base2)", cat: "Encodings", run: s => Array.from(_u8(s)).map(b => b.toString(2).padStart(8,"0")).join(" ") },
+  { id: "from_binary", backendOp: "from_binary", name: "From Binary (Base2)", cat: "Encodings", run: s => { const clean = s.trim().split(/\s+/); return _str(new Uint8Array(clean.map(b => parseInt(b, 2)))); } },
+  { id: "to_octal", backendOp: "to_octal", name: "To Octal (Base8)", cat: "Encodings", run: s => Array.from(_u8(s)).map(b => b.toString(8).padStart(3,"0")).join(" ") },
+  { id: "from_octal", backendOp: "from_octal", name: "From Octal (Base8)", cat: "Encodings", run: s => { const clean = s.trim().split(/\s+/); return _str(new Uint8Array(clean.map(b => parseInt(b, 8)))); } },
+  { id: "to_decimal", backendOp: "to_decimal", name: "To Decimal (Base10)", cat: "Encodings", run: s => Array.from(_u8(s)).join(" ") },
+  { id: "from_decimal", backendOp: "from_decimal", name: "From Decimal (Base10)", cat: "Encodings", run: s => { const clean = s.trim().split(/\s+/); return _str(new Uint8Array(clean.map(b => parseInt(b, 10)))); } },
+  { id: "rot13", backendOp: "rot13", name: "ROT13", cat: "Ciphers", run: s => s.replace(/[a-zA-Z]/g, c => { const code = c.charCodeAt(0); const base = code >= 97 ? 97 : 65; return String.fromCharCode(((code - base + 13) % 26) + base); }) },
+  { id: "rot47", backendOp: "rot47", name: "ROT47", cat: "Ciphers", run: s => s.replace(/[\x21-\x7e]/g, c => String.fromCharCode(33 + ((c.charCodeAt(0) - 33 + 47) % 94))) },
+  { id: "atbash", backendOp: "atbash", name: "Atbash", cat: "Ciphers", run: s => s.replace(/[a-zA-Z]/g, c => { const code = c.charCodeAt(0); const base = code >= 97 ? 97 : 65; return String.fromCharCode(base + (25 - (code - base))); }) },
+  { id: "reverse", backendOp: "reverse", name: "Reverse", cat: "Transforms", run: s => s.split("").reverse().join("") },
+  { id: "strip_whitespace", backendOp: "strip", name: "Strip Whitespace", cat: "Transforms", run: s => s.replace(/\s+/g, "") },
+  { id: "url_decode", backendOp: "url_decode", name: "URL Decode", cat: "Encodings", run: s => decodeURIComponent(s) },
+  { id: "url_encode", backendOp: "url_encode", name: "URL Encode", cat: "Encodings", run: s => encodeURIComponent(s) },
+  { id: "xor_single", backendOp: "xor", name: "XOR (Key 0x5a)", cat: "Ciphers", run: s => Array.from(_u8(s)).map(b => String.fromCharCode(b ^ 0x5a)).join("") },
+  { id: "extract_flag", backendOp: "extract_flag", name: "Extract CTF Flag", cat: "Forensics", run: s => { const m = s.match(/(?:[A-Za-z0-9_]{2,15}\{[\x20-\x7d]{2,120}\})/); return m ? m[0] : "[No flag pattern matched]"; } }
 ];
 
 let recipeActiveChain = [];
@@ -1627,7 +1900,9 @@ function filterRecipeOps(query) {
   const q = (query || "").toLowerCase();
   const list = $("recipeOpList");
   if (!list) return;
-  const filtered = RECIPE_OPS.filter(op => !q || op.name.toLowerCase().includes(q) || op.cat.toLowerCase().includes(q));
+  const filtered = RECIPE_OPS.filter(op => !q || op.name.toLowerCase().includes(q) || op.cat.toLowerCase().includes(q) || op.id.toLowerCase().includes(q));
+  const countEl = $("recipeOpCount");
+  if (countEl) countEl.textContent = filtered.length + " ops";
   list.innerHTML = filtered.map(op => `
     <div class="tool-row" style="cursor:pointer" onclick="addRecipeStep('${op.id}')">
       <div>
@@ -1698,9 +1973,85 @@ function executeRecipeChain() {
     $("recipeOutput").textContent = current;
     $("recipeOutLen").textContent = current.length + " chars";
     $("recipeStepTime").textContent = `${recipeActiveChain.length} ops in ${dt}ms`;
+    sniffFlags(current);
   } catch (err) {
     $("recipeOutput").textContent = `[Pipeline Error at step]: ${err.message}`;
     $("recipeStepTime").textContent = "Execution failed";
+  }
+}
+
+async function executeBackendRecipeChain() {
+  const input = $("recipeInput").value;
+  if (!input) return toast("Paste input data first");
+  if (!recipeActiveChain.length) return toast("Add at least one operation to the Recipe Chain");
+  const steps = recipeActiveChain.map(op => op.backendOp === "xor" ? { op: "xor", args: { key: "5a" } } : { op: op.backendOp || op.id });
+  $("recipeStepTime").textContent = "running on server…";
+  try {
+    const r = await fetch(API.recipe, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: input, steps })
+    });
+    const d = await r.json();
+    if (d.success) {
+      $("recipeOutput").textContent = d.output_utf8 || d.output_hex || "";
+      $("recipeOutLen").textContent = (d.output_utf8 || "").length + " chars";
+      $("recipeStepTime").textContent = `server · ${(d.steps || []).length} steps`;
+      sniffFlags(d);
+    } else {
+      $("recipeOutput").textContent = "[Server Recipe Error] " + (d.error || "failed");
+      $("recipeStepTime").textContent = "server error";
+    }
+  } catch (e) {
+    executeRecipeChain();
+    toast("Server recipe endpoint offline — executed locally in browser");
+  }
+}
+
+async function runMagicRecipe() {
+  const input = $("recipeInput").value.trim();
+  if (!input) return toast("Paste input data into Recipe Input first");
+  $("recipeStepTime").textContent = "A* Magic searching…";
+  $("recipeOutput").textContent = "Running Autonomous A* Multi-Base Magic Solver…";
+  try {
+    const r = await fetch(API.magic, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: input, max_depth: 5 })
+    });
+    const d = await r.json();
+    if (d && d.success) {
+      const pathStr = (d.recipe_path || []).join(" → ") || "direct";
+      const lines = [
+        "=== 🔮 A* MAGIC SOLVER RESULT ===",
+        "Path       : " + pathStr,
+        "Confidence : " + ((d.confidence || 0) * 100).toFixed(1) + "%",
+        "Nodes      : " + (d.nodes_explored || 0) + " explored in " + (d.elapsed_ms || 0) + " ms",
+        "Flag Found : " + (d.flag || "(none)"),
+        "",
+        "=== FINAL OUTPUT ===",
+        d.final_output || ""
+      ];
+      $("recipeOutput").textContent = lines.join("\n");
+      $("recipeOutLen").textContent = (d.final_output || "").length + " chars";
+      $("recipeStepTime").textContent = `A* Magic · ${pathStr}`;
+      sniffFlags(d);
+      return;
+    }
+  } catch (_) {}
+  try {
+    const r2 = await fetch(API.call, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function: "auto_decode_layers", kwargs: { data: input } })
+    });
+    const d2 = await r2.json();
+    if (d2.success) {
+      const out = typeof d2.result === "string" ? d2.result : JSON.stringify(d2.result, null, 2);
+      $("recipeOutput").textContent = out;
+      $("recipeOutLen").textContent = out.length + " chars";
+      $("recipeStepTime").textContent = "auto_decode_layers";
+      sniffFlags(d2.result);
+    }
+  } catch (e) {
+    $("recipeOutput").textContent = "[Magic Solver Error] " + e.message;
   }
 }
 
@@ -1781,7 +2132,11 @@ function sniffFlags(textOrObj) {
 
 /* ---------- Samples for Omni Hub ---------- */
 function loadSample(kind) {
-  if (kind === "rsa") {
+  if (kind === "multibase") {
+    $("omniInput").value = "GB;F4F>zE?H&AmnGe$yUN=J7yMr&1iac4|#azs>cZ&Y|lT6RrpM`3DsSY}Q)F*Is+HFq~vRaQ-MO=D3~cV==kSaNSxMsQ+bXE8HcctK7#GgMMqS!Z~5N_kUoLv2a";
+    runOmniMagic();
+    return;
+  } else if (kind === "rsa") {
     $("omniInput").value =
       "p = 115792089237316195423570985008687907853269984665640564039457584007913129640233\n" +
       "q = 231584178474632390847141970017375815706539969331281128078915168015826259280027\n" +
@@ -1849,6 +2204,56 @@ function loadSample(kind) {
     $("omniInput").value = "Crack SHA256 dengan wordlist kecil.\n```\nsha256=6ea09c25a7f1dcbd677077edaadfacdc41202e5be88e4ccf4c35207e343990bd\nwordlist: password, letmein, correcthorse, admin123, qwerty\n```";
   }
   runOmniSolve();
+}
+
+async function runOmniMagic() {
+  const text = $("omniInput").value.trim();
+  if (!text) return toast("Masukkan input dulu");
+  $("omniStatus").textContent = "A* Magic peeling…";
+  $("omniOut").textContent = "Menjalankan A* Magic Solver & Multi-Base Peeler (Base16..Base91)…";
+  try {
+    const r = await fetch(API.magic, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: text, max_depth: 6 })
+    });
+    const d = await r.json();
+    if (d && d.success) {
+      $("omniStatus").textContent = (d.recipe_path || []).join(" → ") || "magic done";
+      $("omniOut").textContent = JSON.stringify(d, null, 2);
+      sniffFlags(d);
+      return;
+    }
+  } catch (_) {}
+  try {
+    const r2 = await fetch(API.call, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function: "auto_decode_layers", kwargs: { data: text } })
+    });
+    const d2 = await r2.json();
+    $("omniStatus").textContent = d2.success ? "peeled" : "error";
+    $("omniOut").textContent = JSON.stringify(d2, null, 2);
+    sniffFlags(d2);
+  } catch (e) {
+    $("omniOut").textContent = "[error] " + e.message;
+    $("omniStatus").textContent = "offline";
+  }
+}
+
+async function runMultiBasePeel() {
+  const text = $("clsInput").value.trim();
+  if (!text) return toast("Masukkan ciphertext dulu");
+  $("clsOut").textContent = "Mengupas lapisan Multi-Base (Base16..Base91)…";
+  try {
+    const r = await fetch(API.call, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function: "auto_decode_layers", kwargs: { data: text } })
+    });
+    const d = await r.json();
+    $("clsOut").textContent = JSON.stringify(d, null, 2);
+    sniffFlags(d);
+  } catch (e) {
+    $("clsOut").textContent = "[error] " + e.message;
+  }
 }
 
 async function runOmniSolve() {

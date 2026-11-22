@@ -264,6 +264,50 @@ class TestMultiBaseAndV5Enhancements(unittest.TestCase):
         categories = {item["category"].split(".")[0] for item in catalog}
         self.assertIn("defensive", categories)
 
+    def test_web_workbench_multibase_ui_and_case_root_api(self) -> None:
+        import json
+        from ctf_toolkit.cases import web_api
+        from ctf_toolkit.ui.web_server import _get_workbench_html
+
+        html = _get_workbench_html()
+        self.assertNotIn("__TOOL_COUNT__", html)
+        for expected in (
+            "From Base32Hex",
+            "From Base36",
+            "From Base45",
+            "From Base58 (Bitcoin)",
+            "From Base58 (Ripple)",
+            "From Base62",
+            "From Base64URL",
+            "From Base85 (RFC 1924)",
+            "From Ascii85 (Adobe)",
+            "From Z85 (ZeroMQ)",
+            "From Base91",
+            "runMagicRecipe",
+            "executeBackendRecipeChain",
+            "runOmniMagic",
+            "runMultiBasePeel",
+        ):
+            self.assertIn(expected, html)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Workspace.create(Path(tmp) / "web_root")
+            root_art = ws.add("root.txt", base64_encode_std(b"464c4147").encode("ascii"))
+            tx = operations.transform(ws, root_art["id"], "b64d | hex_decode")
+            leaf_id = tx["artifacts"][-1]
+            resp = web_api.dispatch(
+                ws,
+                "GET",
+                f"/artifact/{leaf_id}/source",
+                {"start": "0", "stop": "2", "root": "true"},
+                {},
+            )
+            self.assertEqual(resp.status, 200)
+            payload = json.loads(resp.body)
+            self.assertEqual(payload["artifact_id"], root_art["id"])
+            self.assertEqual(len(payload["chain"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
+
