@@ -64,6 +64,14 @@ class SolveContext:
 
     def flag_in(self, data: bytes) -> str | None:
         """Case-insensitive match; returns the flag exactly as produced."""
+        if self.flag_pattern == DEFAULT_FLAG_PATTERN:
+            try:
+                from ctf_toolkit.utils.flag_manager import get_flag_manager
+                hit = get_flag_manager().find_first_flag(data)
+                if hit:
+                    return hit
+            except Exception:
+                pass
         m = re.search(self.flag_pattern.encode(), data, re.IGNORECASE)
         return m.group(0).decode("utf-8", "replace") if m else None
 

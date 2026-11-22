@@ -62,3 +62,27 @@ def describe_integer_bounds(value: int, limit: int = 67) -> list[dict[str, objec
             }
         )
     return results
+
+
+def glibc_safe_link_mangle(ptr: int, pos_addr: int) -> int:
+    """Compute glibc >= 2.32 safe-linking mangled pointer: `ptr ^ (pos_addr >> 12)`."""
+    return (ptr ^ (pos_addr >> 12)) & ((1 << 64) - 1)
+
+
+def glibc_safe_link_demangle(mangled_ptr: int, pos_addr: int = 0) -> int:
+    """Recover original pointer from glibc >= 2.32 safe-linking mangled value.
+
+    If `pos_addr` (the address where the pointer is stored) is known, computes
+    `mangled_ptr ^ (pos_addr >> 12)`. If `pos_addr == 0`, iteratively unmasks
+    12-bit chunks from MSB to LSB assuming same-page heap locality.
+    """
+    val = mangled_ptr & ((1 << 64) - 1)
+    if pos_addr:
+        return val ^ (pos_addr >> 12)
+    plain = 0
+    for i in range(1, 6):
+        bits = 64 - 12 * i
+        if bits < 0:
+            bits = 0
+        plain = ((val ^ (plain >> 12)) >> bits) << bits
+    return plain

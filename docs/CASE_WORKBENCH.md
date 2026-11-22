@@ -27,7 +27,7 @@ Folder ekspor berisi case.json, report.md, dan timeline.jsonl. Isi file tetap be
     python -m ctf_toolkit case --dir .\case-notes show
     python -m ctf_toolkit doctor
 
-Gunakan ID dari **show** untuk **analyze**, **transform**, **compare**, dan **source**. Recipe kasus mendukung b64d, b64e, hex_decode, dan hex_encode. Untuk menjalankan transformasi secara manual, gunakan:
+Gunakan ID dari **show** untuk **analyze**, **transform**, **compare**, dan **source**. Recipe kasus mendukung seluruh varian Base (`b64d`/`b64e`, `b64url_d`/`b64url_e`, `hex_decode`/`hex_encode` (`b16d`/`b16e`), `b32d`/`b32e`, `b32hex_d`/`b32hex_e`, `b36d`/`b36e`, `b45d`/`b45e`, `b58d`/`b58e`, `b58_ripple_d`/`b58_ripple_e`, `b62d`/`b62e`, `b85d`/`b85e`, `a85d`/`a85e`, `z85d`/`z85e`, `b91d`/`b91e`) serta `rot13`, `rot47`, `atbash`, `reverse`, dan `url_d`/`url_e`. Untuk menjalankan transformasi secara manual, gunakan:
 
     python -m ctf_toolkit case --dir .\case-notes transform ARTIFACT_ID --recipe "b64d | hex_encode"
 

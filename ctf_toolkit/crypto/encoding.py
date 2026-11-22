@@ -150,6 +150,12 @@ def decimal_to_text(decimal_str: str) -> str:
     return "".join([chr(n) for n in numbers if 0 <= n <= 1114111])
 
 
+def ascii85_encode(data: str | bytes) -> str:
+    """Encode string or bytes into Adobe Ascii85."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return base64.a85encode(raw).decode("ascii")
+
+
 def ascii85_decode(data: str | bytes) -> bytes:
     """Decode Adobe Ascii85 encoded string or bytes."""
     raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
@@ -162,14 +168,126 @@ def ascii85_decode(data: str | bytes) -> bytes:
         return base64.a85decode(s, adobe=True)
 
 
+def base85_encode(data: str | bytes) -> str:
+    """Encode string or bytes into RFC 1924 / Base85."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return base64.b85encode(raw).decode("ascii")
+
+
 def base85_decode(data: str | bytes) -> bytes:
     """Decode RFC 1924 / IPv6 style Base85 encoded string or bytes."""
     raw = data.encode("utf-8") if isinstance(data, str) else data
     return base64.b85decode(raw.strip())
 
 
+def base16_encode(data: bytes | str) -> str:
+    """Encode bytes or string into uppercase Base16 / hexadecimal."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return raw.hex()
+
+
+def base16_decode(data: str | bytes) -> bytes:
+    """Decode Base16 / hexadecimal string or bytes into raw bytes."""
+    text = data.decode("ascii", errors="ignore") if isinstance(data, bytes) else str(data)
+    clean = re.sub(r"\s+", "", text.strip())
+    if clean.startswith(("0x", "0X")):
+        clean = clean[2:]
+    if len(clean) % 2 != 0:
+        clean = "0" + clean
+    return bytes.fromhex(clean)
+
+
+def base32_encode(data: bytes | str) -> str:
+    """Encode bytes or string into RFC 4648 Base32."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return base64.b32encode(raw).decode("ascii")
+
+
+def base32_decode(data: str | bytes) -> bytes:
+    """Decode RFC 4648 Base32 string or bytes with automatic padding."""
+    text = data.decode("ascii", errors="ignore") if isinstance(data, bytes) else str(data)
+    return base32_decode_autopad(text)
+
+
+def base64_encode_std(data: bytes | str) -> str:
+    """Encode bytes or string into standard RFC 4648 Base64."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return base64.b64encode(raw).decode("ascii")
+
+
+def base64_decode_std(data: str | bytes) -> bytes:
+    """Decode standard RFC 4648 Base64 with automatic padding."""
+    raw = data if isinstance(data, bytes) else str(data).encode("ascii", errors="ignore")
+    clean = re.sub(rb"\s+", b"", raw)
+    pad = (4 - len(clean) % 4) % 4
+    return base64.b64decode(clean + b"=" * pad)
+
+
+def base64url_encode(data: bytes | str) -> str:
+    """Encode bytes or string into URL-safe Base64 (RFC 4648) without trailing '='."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def base64url_decode(data: str | bytes) -> bytes:
+    """Decode URL-safe Base64 (RFC 4648) string or bytes with automatic padding."""
+    raw = data if isinstance(data, bytes) else str(data).encode("ascii", errors="ignore")
+    clean = re.sub(rb"\s+", b"", raw)
+    pad = (4 - len(clean) % 4) % 4
+    return base64.urlsafe_b64decode(clean + b"=" * pad)
+
+
+BASE36_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def base36_encode(data: bytes | int | str) -> str:
+    """Encode bytes, string, or integer into Base36 (0-9a-z), preserving leading zero bytes."""
+    if isinstance(data, int):
+        num = data
+        leading_zeros = 0
+    else:
+        raw_bytes = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+        if not raw_bytes:
+            return ""
+        leading_zeros = 0
+        for b in raw_bytes:
+            if b == 0:
+                leading_zeros += 1
+            else:
+                break
+        num = int.from_bytes(raw_bytes, "big")
+
+    if num == 0:
+        return "0" * (leading_zeros if leading_zeros > 0 else 1)
+
+    res: list[str] = []
+    while num > 0:
+        num, rem = divmod(num, 36)
+        res.append(BASE36_ALPHABET[rem])
+    return ("0" * leading_zeros) + "".join(reversed(res))
+
+
+def base36_decode(s: str | bytes) -> bytes:
+    """Decode Base36 (0-9a-z) string into raw bytes, preserving leading zeros."""
+    text = s.decode("ascii", errors="ignore") if isinstance(s, bytes) else str(s)
+    clean = text.strip().lower()
+    if not clean:
+        return b""
+    leading_zeros = 0
+    for ch in clean:
+        if ch == "0":
+            leading_zeros += 1
+        else:
+            break
+    num = int(clean, 36)
+    if num == 0:
+        return b"\x00" * leading_zeros
+    byte_len = (num.bit_length() + 7) // 8
+    return (b"\x00" * leading_zeros) + num.to_bytes(byte_len, "big")
+
+
 def smart_decode(text: str) -> dict[str, str]:
-    """Attempt multiple standard encodings on a string and return successful decodes."""
+    """Attempt all supported standard and esoteric Base encodings on a string and return successful decodes."""
     results: dict[str, str] = {}
     clean = text.strip()
 
@@ -195,7 +313,7 @@ def smart_decode(text: str) -> dict[str, str]:
         except Exception:
             pass
 
-    # Hex
+    # Hex (Base16)
     try:
         hex_cand = clean[2:] if clean.startswith("0x") else clean
         hex_bytes = bytes.fromhex(hex_cand)
@@ -212,6 +330,15 @@ def smart_decode(text: str) -> dict[str, str]:
     except Exception:
         pass
 
+    # Base64URL
+    if "-" in clean or "_" in clean:
+        try:
+            b64u_bytes = base64url_decode(clean)
+            if any(32 <= b <= 126 for b in b64u_bytes):
+                results["base64url"] = b64u_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
     # Base32
     try:
         b32_bytes = base32_decode_autopad(clean)
@@ -219,6 +346,50 @@ def smart_decode(text: str) -> dict[str, str]:
             results["base32"] = b32_bytes.decode("utf-8", errors="replace")
     except Exception:
         pass
+
+    # Base32Hex
+    if re.fullmatch(r"[0-9A-Va-v=\s]+", clean) and len(clean) >= 8:
+        try:
+            b32h_bytes = base32hex_decode(clean)
+            if any(32 <= b <= 126 for b in b32h_bytes):
+                results["base32hex"] = b32h_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
+    # Base36
+    if re.fullmatch(r"[0-9A-Za-z]+", clean) and len(clean) >= 6:
+        try:
+            b36_bytes = base36_decode(clean)
+            if any(32 <= b <= 126 for b in b36_bytes):
+                results["base36"] = b36_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
+    # Base45
+    try:
+        from ctf_toolkit.crypto.classical import base45_decode
+        b45_bytes = base45_decode(clean)
+        if b45_bytes and any(32 <= b <= 126 for b in b45_bytes):
+            results["base45"] = b45_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        pass
+
+    # Base58 (Bitcoin & Ripple)
+    if re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]+", clean) and len(clean) >= 6:
+        try:
+            from ctf_toolkit.crypto.classical import base58_decode, base58_ripple_decode
+            b58_bytes = base58_decode(clean)
+            if any(32 <= b <= 126 for b in b58_bytes):
+                results["base58"] = b58_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        try:
+            from ctf_toolkit.crypto.classical import base58_ripple_decode
+            b58r_bytes = base58_ripple_decode(clean)
+            if any(32 <= b <= 126 for b in b58r_bytes):
+                results["base58_ripple"] = b58r_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
 
     # Base62
     if re.fullmatch(r"[0-9A-Za-z]+", clean) and len(clean) >= 8:
@@ -229,13 +400,36 @@ def smart_decode(text: str) -> dict[str, str]:
         except Exception:
             pass
 
-    # Ascii85
+    # Ascii85 & Base85 & Z85 & Base91
     try:
         a85_bytes = ascii85_decode(clean)
         if any(32 <= b <= 126 for b in a85_bytes):
             results["ascii85"] = a85_bytes.decode("utf-8", errors="replace")
     except Exception:
         pass
+
+    try:
+        b85_bytes = base85_decode(clean)
+        if any(32 <= b <= 126 for b in b85_bytes):
+            results["base85"] = b85_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        pass
+
+    if len(clean) >= 5 and len(clean) % 5 == 0:
+        try:
+            z85_bytes = z85_decode(clean)
+            if any(32 <= b <= 126 for b in z85_bytes):
+                results["z85"] = z85_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
+    if len(clean) >= 4:
+        try:
+            b91_bytes = base91_decode(clean)
+            if b91_bytes and any(32 <= b <= 126 for b in b91_bytes):
+                results["base91"] = b91_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
 
     # ROT13
     r13 = rot13(clean)
@@ -498,6 +692,73 @@ def ebcdic_decode(data: bytes, encoding: str = "cp037") -> str:
     return data.decode(encoding)
 
 
+def base32hex_encode(data: bytes | str) -> str:
+    """Encode bytes or string into RFC 4648 Base32 Extended Hex (0-9A-V)."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    b32 = base64.b32encode(raw).decode("ascii")
+    trans = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "0123456789ABCDEFGHIJKLMNOPQRSTUV")
+    return b32.translate(trans)
+
+
+def base_n_encode(data: bytes | int | str, base: int) -> str:
+    """Encode bytes, string, or integer into arbitrary radix string (bases 2..36)."""
+    if not (2 <= base <= 36):
+        raise ValueError("base must be between 2 and 36")
+    if isinstance(data, int):
+        val = data
+    else:
+        raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+        if not raw:
+            return ""
+        val = int.from_bytes(raw, "big")
+    if val == 0:
+        return "0"
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out: list[str] = []
+    while val > 0:
+        val, rem = divmod(val, base)
+        out.append(digits[rem])
+    return "".join(reversed(out))
+
+
+def z85_encode(data: bytes | str) -> str:
+    """Encode bytes or string into ZeroMQ Z85 text (pads to a multiple of 4 bytes if needed)."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    if len(raw) % 4 != 0:
+        raw = raw + b"\x00" * (4 - (len(raw) % 4))
+    out: list[str] = []
+    for i in range(0, len(raw), 4):
+        val = int.from_bytes(raw[i : i + 4], "big")
+        chunk: list[str] = []
+        for _ in range(5):
+            val, rem = divmod(val, 85)
+            chunk.append(Z85_CHARS[rem])
+        out.extend(reversed(chunk))
+    return "".join(out)
+
+
+RIPPLE_BASE58_ALPHABET = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+
+
+def base58_ripple_encode(data: bytes | str) -> str:
+    """Encode bytes or string using Ripple/XRP Base58 alphabet."""
+    raw = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+    if not raw:
+        return ""
+    leading_zeros = 0
+    for b in raw:
+        if b == 0:
+            leading_zeros += 1
+        else:
+            break
+    num = int.from_bytes(raw, "big")
+    out: list[str] = []
+    while num > 0:
+        num, rem = divmod(num, 58)
+        out.append(RIPPLE_BASE58_ALPHABET[rem])
+    return (RIPPLE_BASE58_ALPHABET[0] * leading_zeros) + "".join(reversed(out))
+
+
 def zeckendorf_decode(bits: str) -> bytes:
     """Decode Zeckendorf binary representation (Fibonacci base, MSB first) into bytes."""
     clean = bits.strip()
@@ -507,3 +768,13 @@ def zeckendorf_decode(bits: str) -> bytes:
     val = sum(f for bit, f in zip(clean, reversed(fibs[:len(clean)])) if bit == "1")
     length = (val.bit_length() + 7) // 8
     return val.to_bytes(length, "big")
+
+
+from ctf_toolkit.crypto.classical import (  # noqa: E402
+    base45_decode,
+    base45_encode,
+    base58_decode,
+    base58_encode,
+    base58_ripple_decode,
+)
+

@@ -82,10 +82,15 @@ class AutoTriageDispatcher:
         if is_png:
             res["dispatched_specialists"].append("PNG_Specialist")
             try:
-                from ctf_toolkit.forensics.png_tools import extract_png_text_chunks
+                from ctf_toolkit.forensics.png_tools import extract_png_text_chunks, repair_png_dimensions_from_crc
                 from ctf_toolkit.forensics.image_channels import extract_png_trailing_bytes
                 from ctf_toolkit.forensics.image_stego import extract_all_bit_planes
                 from ctf_toolkit.forensics.carve import transform_candidates
+                try:
+                    repaired_png, rec_w, rec_h = repair_png_dimensions_from_crc(data, max_dim=2048)
+                    res["extracted_findings"]["png_ihdr_dimensions"] = {"width": rec_w, "height": rec_h, "crc_repaired": repaired_png != data}
+                except Exception:
+                    pass
                 chunks = extract_png_text_chunks(data)
                 trailing = extract_png_trailing_bytes(data)
                 res["extracted_findings"]["png_text_chunks"] = chunks
@@ -141,6 +146,7 @@ class AutoTriageDispatcher:
                 from ctf_toolkit.forensics.pcap_extract import extract_http_basic_auth, repair_pcap_header
                 from ctf_toolkit.forensics.network_artifacts import assemble_icmp_echo_payloads, extract_dns_hex_subdomains
                 from ctf_toolkit.forensics.log_pcap_analyzer import analyze_pcap_streams
+                from ctf_toolkit.forensics.usb_hid import decode_usb_hid_pcap
                 auths = extract_http_basic_auth(data)
                 icmp = assemble_icmp_echo_payloads(data)
                 dns_hex = extract_dns_hex_subdomains(data)
@@ -155,6 +161,16 @@ class AutoTriageDispatcher:
                     dns_fl = get_flag_manager().extract_flags(dns_hex)
                     if dns_fl:
                         res["flags_found"].extend([f["flag"] for f in dns_fl])
+
+                try:
+                    usb_text = decode_usb_hid_pcap(data)
+                    if usb_text:
+                        res["extracted_findings"]["usb_hid_keystrokes"] = usb_text
+                        usb_fl = get_flag_manager().extract_flags(usb_text)
+                        if usb_fl:
+                            res["flags_found"].extend([f["flag"] for f in usb_fl])
+                except Exception:
+                    pass
 
                 # Deep stream and tunnel parser
                 pcap_strings = analyze_pcap_streams(data)

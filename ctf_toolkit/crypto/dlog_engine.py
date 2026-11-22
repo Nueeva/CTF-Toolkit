@@ -387,6 +387,53 @@ def ec_bsgs(
     raise ValueError("ECDLP discrete logarithm not found via BSGS")
 
 
+def ec_pohlig_hellman(
+    curve: EllipticCurve,
+    P: ECPoint,
+    Q: ECPoint,
+    order: int | None = None,
+    deadline: float | None = None,
+) -> tuple[int, list[tuple[int, int]]]:
+    """Pohlig-Hellman ECDLP solver over prime-power subgroup decomposition of order(P)."""
+    check_deadline(deadline)
+    if P.is_identity():
+        raise ValueError("P cannot be point at infinity")
+    if Q.is_identity():
+        return 0, []
+    n = order if order is not None else curve.order_naive()
+    factors = _factor_small(n)
+
+    residues: list[int] = []
+    moduli: list[int] = []
+    for q, e in factors:
+        qe = q ** e
+        P_sub = curve.mul(n // q, P)
+        k_part = 0
+        q_pow = 1
+        Q_acc = Q
+        d_prev = 0
+        for j in range(e):
+            check_deadline(deadline)
+            if j > 0:
+                Q_acc = curve.add(Q_acc, curve.neg(curve.mul(d_prev * (q_pow // q), P)))
+            scale = n // (q ** (j + 1))
+            Q_sub = curve.mul(scale, Q_acc)
+            d_j = ec_bsgs(curve, P_sub, Q_sub, order=q, deadline=deadline)
+            k_part += d_j * q_pow
+            d_prev = d_j
+            q_pow *= q
+        residues.append(k_part % qe)
+        moduli.append(qe)
+
+    from .galois import crt
+
+    k, _ = crt(residues, moduli)
+    k %= n
+    if curve.mul(k, P) != Q:
+        raise ValueError("Pohlig-Hellman ECDLP CRT verification failed")
+    return k, factors
+
+
 def dsolve(curve: EllipticCurve, P: ECPoint, Q: ECPoint, deadline: float | None = None) -> int:
     """ECDLP dispatcher: anomalous -> Smart, general small-order curve -> BSGS."""
     check_deadline(deadline)
@@ -442,6 +489,14 @@ def ec_bsgs_coords(
 ) -> int:
     """BSGS ECDLP with flat arguments: solves Q = k*P on y^2 = x^3 + ax + b mod p."""
     return ec_bsgs(EllipticCurve(a, b, p), ECPoint(px, py), ECPoint(qx, qy), order=order)
+
+
+def ec_pohlig_hellman_coords(
+    a: int, b: int, p: int, px: int, py: int, qx: int, qy: int, order: int | None = None
+) -> int:
+    """Pohlig-Hellman ECDLP with flat arguments: solves Q = k*P on y^2 = x^3 + ax + b mod p."""
+    k, _ = ec_pohlig_hellman(EllipticCurve(a, b, p), ECPoint(px, py), ECPoint(qx, qy), order=order)
+    return k
 
 
 def smart_attack_coords(

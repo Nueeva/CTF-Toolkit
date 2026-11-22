@@ -115,6 +115,15 @@ def interactive_menu() -> None:
 
 def handle_triage(args: argparse.Namespace) -> int:
     target = args.target
+    file_target = args.file or (target if target is not None and os.path.isfile(target) else None)
+    if getattr(args, "deep", False) and file_target is not None:
+        from ctf_toolkit.triage.dispatcher import AutoTriageDispatcher
+        deep_report = AutoTriageDispatcher.dispatch_file(file_target)
+        if args.json:
+            print(json.dumps(deep_report, indent=2, default=str))
+        else:
+            print(json.dumps(deep_report, indent=2, default=str))
+        return 0
     try:
         if args.string is not None:
             report = triage_data(args.string.encode(), target_label="cli_arg")
@@ -452,6 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument("-f", "--file", dest="file", help="Path ke file target")
     source.add_argument("-s", "--string", dest="string", help="Raw string target")
     triage_parser.add_argument("--json", action="store_true", help="Output dalam format JSON")
+    triage_parser.add_argument("--deep", action="store_true", help="Jalankan AutoTriageDispatcher spesialis format mendalam")
 
     # Subcommand: recipe
     recipe_parser = subparsers.add_parser("recipe", help="CyberChef-style recipe chaining pipeline")

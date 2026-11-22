@@ -11,7 +11,7 @@ from .analysis import Extracted, inspect_artifact
 from .store import Workspace, as_json, new_id, now
 from .transforms import (
     ENGINE_VERSION, MAX_CHILDREN, MAX_DEPTH, MAX_DERIVED_BYTES, apply_recipe, base64_input_range,
-    parse_recipe, sha256,
+    codec_input_range, parse_recipe, sha256,
 )
 
 PREVIEW_LIMIT = 4096
@@ -121,6 +121,13 @@ def inspect_saved(workspace: Workspace, artifact_id: str, offset: int = 0) -> di
             "preview": preview_bytes(workspace.blob(artifact), offset) if available else None}
 
 
+_PROVENANCE_CODECS = {
+    "b64d", "b64url_d", "b32d", "b32hex_d", "hex_decode", "b45d",
+    "b85d", "z85d", "b36d", "b58d", "b58_ripple_d", "b62d", "a85d", "b91d",
+    "rot13", "rot47", "atbash", "reverse",
+}
+
+
 def source_region(workspace: Workspace, artifact_id: str, start: int, stop: int) -> dict:
     artifact = workspace.artifact(artifact_id)
     if start < 0 or start >= stop or stop > artifact["size"]:
@@ -129,9 +136,9 @@ def source_region(workspace: Workspace, artifact_id: str, start: int, stop: int)
         return {"artifact_id": artifact_id, "kind": "bytes", "start": start, "stop": stop}
     location = artifact["source"]
     parent_id = artifact["parent_id"]
-    if artifact["operation"] == "b64d":
+    if artifact["operation"] in _PROVENANCE_CODECS:
         original = workspace.blob(workspace.artifact(parent_id))
-        first, last = base64_input_range(original, start, stop)
+        first, last = codec_input_range(artifact["operation"], original, start, stop)
         return {"artifact_id": parent_id, "kind": "bytes", "start": first, "stop": last}
     if location["kind"] == "bytes":
         base = location["start"]

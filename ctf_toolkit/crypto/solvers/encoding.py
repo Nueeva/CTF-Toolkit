@@ -33,6 +33,13 @@ def _layer_once(text: str) -> list[tuple[str, str]]:
             candidates.append(("base64", base64.b64decode(re.sub(r"\s+", "", stripped)).decode("latin-1")))
         except (binascii.Error, ValueError):
             pass
+    if ("-" in stripped or "_" in stripped) and re.fullmatch(r"[A-Za-z0-9\-_\s]*={0,2}", stripped):
+        try:
+            clean_u = re.sub(r"\s+", "", stripped)
+            clean_u += "=" * (-len(clean_u) % 4)
+            candidates.append(("base64url", base64.urlsafe_b64decode(clean_u).decode("latin-1")))
+        except (binascii.Error, ValueError):
+            pass
     if re.fullmatch(r"[A-Z2-7=\s]+", stripped) and len(re.sub(r"\s+", "", stripped)) >= 8:
         try:
             padded = re.sub(r"\s+", "", stripped)
@@ -40,10 +47,56 @@ def _layer_once(text: str) -> list[tuple[str, str]]:
             candidates.append(("base32", base64.b32decode(padded).decode("latin-1")))
         except (binascii.Error, ValueError):
             pass
+    if re.fullmatch(r"[0-9A-V=\s]+", stripped) and len(re.sub(r"\s+", "", stripped)) >= 8:
+        try:
+            from ..encoding import base32hex_decode
+            candidates.append(("base32hex", base32hex_decode(re.sub(r"\s+", "", stripped)).decode("latin-1")))
+        except Exception:
+            pass
+    if re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]+", stripped) and len(stripped) >= 6:
+        try:
+            from ..classical import base58_decode
+            candidates.append(("base58", base58_decode(stripped).decode("latin-1")))
+        except Exception:
+            pass
+    if re.fullmatch(r"[0-9A-Za-z]+", stripped) and len(stripped) >= 6:
+        try:
+            from ..encoding import base62_decode
+            candidates.append(("base62", base62_decode(stripped).decode("latin-1")))
+        except Exception:
+            pass
+        try:
+            from ..encoding import base36_decode
+            candidates.append(("base36", base36_decode(stripped).decode("latin-1")))
+        except Exception:
+            pass
+    if len(stripped) >= 4:
+        try:
+            from ..classical import base45_decode
+            candidates.append(("base45", base45_decode(stripped).decode("latin-1")))
+        except Exception:
+            pass
     if re.fullmatch(r"[!-u\s]{8,}", stripped):
         try:
-            candidates.append(("base85", base64.a85decode(re.sub(r"\s+", "", stripped)).decode("latin-1")))
+            candidates.append(("ascii85", base64.a85decode(re.sub(r"\s+", "", stripped)).decode("latin-1")))
         except (binascii.Error, ValueError):
+            pass
+    if len(stripped) >= 4:
+        try:
+            candidates.append(("base85", base64.b85decode(re.sub(r"\s+", "", stripped)).decode("latin-1")))
+        except Exception:
+            pass
+    if len(stripped) >= 5 and len(stripped) % 5 == 0:
+        try:
+            from ..encoding import z85_decode
+            candidates.append(("z85", z85_decode(stripped).decode("latin-1")))
+        except Exception:
+            pass
+    if len(stripped) >= 4:
+        try:
+            from ..encoding import base91_decode
+            candidates.append(("base91", base91_decode(stripped).decode("latin-1")))
+        except Exception:
             pass
     if "%" in stripped:
         unquoted = unquote(stripped)

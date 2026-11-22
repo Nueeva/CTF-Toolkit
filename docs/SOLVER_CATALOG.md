@@ -66,6 +66,8 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `EllipticCurve` / `ECPoint` | `ctf_toolkit.crypto.dlog_engine` | Affine group law over F_p with `add`, `mul`, `neg`, `on_curve`, and a correct `order_naive` (two points per quadratic residue). |
 | `smart_attack_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy) -> k`: flat-argument twin for the web API / CLI, where JSON cannot carry an `EllipticCurve`. |
 | `ec_bsgs` / `ec_bsgs_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy, order=None) -> k`: Baby-Step Giant-Step discrete logarithm solver on general elliptic curves over $\mathbb{F}_p$. |
+| `ec_pohlig_hellman` / `ec_pohlig_hellman_coords` | `ctf_toolkit.crypto.dlog_engine` | `(a, b, p, px, py, qx, qy, order=None) -> k`: Pohlig-Hellman ECDLP solver over prime-power subgroup decomposition with CRT recombination. |
+| `coppersmith_factor_high_bits` | `ctf_toolkit.crypto.coppersmith` | `(n, p_approx, unknown_bits) -> (p, q)`: Factors RSA modulus $N = p \cdot q$ given known high bits of $p$ via Howgrave-Graham LLL reduction. |
 | `ec_add` / `ec_mul` / `curve_order_naive` / `ec_validate_point` | `ctf_toolkit.crypto.dlog_engine` | Scalar-only curve helpers for the same dispatcher path. |
 | `smart_attack` | `ctf_toolkit.crypto.dlog_engine` | `(curve, P, Q) -> k`: anomalous-curve ECDLP via Q_p lift, elliptic logarithm `-x/y`, with random-lift retries and a verification gate on `k·P == Q`. |
 | `QpContext` / `Qp` | `ctf_toolkit.crypto.padic` | Fixed-precision p-adics with explicit valuation, exact division of non-units, and Hensel square roots. |
@@ -93,6 +95,7 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `calculate_oob_offset` | `ctf_toolkit.pwn` | Compute negative/positive array index offset `(target_addr - base_addr) // stride`. |
 | `cyclic_create` / `cyclic_find` | `ctf_toolkit.pwn` | De Bruijn non-repeating pattern generator and crash offset calculator. |
 | `describe_integer_bounds` | `ctf_toolkit.pwn` | Analyze signed/unsigned 32/64-bit integer overflow/underflow boundaries. |
+| `glibc_safe_link_mangle` / `glibc_safe_link_demangle` | `ctf_toolkit.binex.pwncalc` | Compute and reverse glibc $\ge 2.32$ heap safe-linking pointer mangling (`ptr ^ (pos_addr >> 12)`). |
 | `parse_elf` / `scan_gadgets` | `ctf_toolkit.binex.elf` / `gadgets` | Inspect ELF headers/protections and locate `ret` / `pop rdi; ret` gadgets. |
 
 ---
@@ -105,6 +108,7 @@ Added 2026-11-14. Pure stdlib — no PyCryptodome, no gmpy2, no Sage.
 | `jwt_crack_hs256` / `jwt_sign_hs256` | `ctf_toolkit.web.jwt_attacks` | Offline dictionary cracker and signer for HMAC-SHA256 JWT tokens. |
 | `jwt_forge_key_confusion` | `ctf_toolkit.web.jwt_attacks` | Forge RS256→HS256 key-confusion tokens signed using the server's RSA public key bytes. |
 | `jwt_inject_jwk_header` / `jwt_inject_kid_sqli` | `ctf_toolkit.web.jwt_attacks` | Inject custom `jwk` headers or `kid` path-traversal / SQLi payloads into JWT headers. |
+| `decode_flask_session_cookie` | `ctf_toolkit.web.helpers` | Decode and inspect Flask / Werkzeug (`itsdangerous`) signed session cookies (compressed & uncompressed). |
 | `pickle_inspect_opcodes` / `generate_pickle_test_payload` | `ctf_toolkit.web.deserialization` | Disassemble Python `pickle` VM opcodes safely via `pickletools` and craft `__reduce__` payloads. |
 | `parse_php_serialized` / `build_php_serialized_object` | `ctf_toolkit.web.deserialization` | Parse PHP `O:...` strings and craft PHP Object Injection payloads (with CVE-2016-7124 `__wakeup` bypass). |
 | `build_sqli_payload` / `build_sqli_auth_bypass` | `ctf_toolkit.web.helpers` | Generate UNION, boolean, and comment-truncated SQL injection payloads. |

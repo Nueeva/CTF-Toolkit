@@ -56,11 +56,20 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             except Exception:
                 next_val = None
 
-        # 3. Try Base32
+        # 3. Try Base32 & Base32Hex
         if next_val is None and len(text) >= 8 and re.fullmatch(r"[A-Z2-7=]+", text):
             try:
                 padded = text + "=" * ((8 - len(text) % 8) % 8)
                 next_val = base64.b32decode(padded)
+            except Exception:
+                next_val = None
+
+        if next_val is None and len(text) >= 8 and re.fullmatch(r"[0-9A-V=]+", text):
+            try:
+                from ctf_toolkit.crypto.encoding import base32hex_decode
+                cand_32h = base32hex_decode(text)
+                if cand_32h and sum(1 for b in cand_32h if 32 <= b <= 126 or b in (9, 10, 13)) >= len(cand_32h) * 0.75:
+                    next_val = cand_32h
             except Exception:
                 next_val = None
 
@@ -73,6 +82,21 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
                     next_val = cand
             except Exception:
                 next_val = None
+
+        # 4.1 Try Base58 (Bitcoin & Ripple), Base62, Base45, Base85, Z85, Base91, Base36
+        if next_val is None:
+            from ctf_toolkit.crypto.encoding import (
+                base36_decode, base45_decode, base58_decode, base58_ripple_decode,
+                base62_decode, base85_decode, base91_decode, z85_decode,
+            )
+            for dec_fn in (base58_decode, base58_ripple_decode, base62_decode, base45_decode, base85_decode, z85_decode, base91_decode, base36_decode):
+                try:
+                    cand_b = dec_fn(text)
+                    if cand_b and len(cand_b) >= 4 and sum(1 for b in cand_b if 32 <= b <= 126 or b in (9, 10, 13)) >= len(cand_b) * 0.85:
+                        next_val = cand_b
+                        break
+                except Exception:
+                    continue
 
         # 5. Check all 25 Caesar / ROT shifts & ROT47 for flag pattern
         flag_patt = r"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^}]+\}"
@@ -87,7 +111,7 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
                     else:
                         shifted.append(ch)
                 cand_caesar = "".join(shifted)
-                if re.search(flag_patt, cand_caesar, re.IGNORECASE):
+                if re.search(flag_patt, cand_caesar, re.IGNORECASE) or get_flag_manager().find_first_flag(cand_caesar):
                     return cand_caesar.encode("utf-8")
 
         # 5.1 ROT47
@@ -99,7 +123,7 @@ def auto_decode_layers(data: bytes | str, max_layers: int = 8) -> bytes:
             else:
                 rot47_chars.append(ch)
         rot47_str = "".join(rot47_chars)
-        if re.search(flag_patt, rot47_str, re.IGNORECASE):
+        if re.search(flag_patt, rot47_str, re.IGNORECASE) or get_flag_manager().find_first_flag(rot47_str):
             return rot47_str.encode("utf-8")
 
         # 6. Fallback to smart_decode

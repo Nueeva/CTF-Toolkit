@@ -93,3 +93,52 @@ def coppersmith_stereotyped(
                 if abs(cand) < x_bound and pow(known + cand, e, n) == c:
                     return known + cand
     return None
+
+
+def coppersmith_factor_high_bits(
+    n: int,
+    p_approx: int,
+    unknown_bits: int,
+) -> tuple[int, int] | None:
+    """Factor RSA modulus ``n = p * q`` given known high bits ``p_approx`` of ``p``.
+
+    ``p_approx`` is the known upper portion already shifted left by ``unknown_bits``
+    (so ``0 <= p - p_approx < 2**unknown_bits``). Uses LLL reduction on the
+    Howgrave-Graham lattice for ``f(x) = p_approx + x (mod p)``.
+    """
+    import math
+    import sympy
+
+    x_bound = 1 << max(1, unknown_bits)
+    # Build lattice for f(x) = p_approx + x modulo divisor p of N:
+    # B = [[X^2, X*p_approx, 0], [0, X, p_approx], [0, 0, N]]
+    basis = [
+        [x_bound * x_bound, x_bound * p_approx, 0],
+        [0, x_bound, p_approx],
+        [0, 0, n],
+    ]
+    reduced = lll_reduce(basis)
+
+    x = sympy.symbols("x")
+    for row in reduced:
+        c2, c1_scaled, c0 = row
+        if c1_scaled % x_bound != 0 or (c2 % (x_bound * x_bound)) != 0:
+            continue
+        a2 = c2 // (x_bound * x_bound)
+        a1 = c1_scaled // x_bound
+        a0 = c0
+        if a2 == 0 and a1 == 0:
+            continue
+        poly = a2 * x * x + a1 * x + a0
+        for root in sympy.nroots(poly, n=50, maxsteps=200):
+            try:
+                xi = int(round(float(root)))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            for delta in (-1, 0, 1):
+                cand_p = p_approx + xi + delta
+                if 1 < cand_p < n:
+                    g = math.gcd(cand_p, n)
+                    if 1 < g < n:
+                        return (g, n // g) if g < n // g else (n // g, g)
+    return None

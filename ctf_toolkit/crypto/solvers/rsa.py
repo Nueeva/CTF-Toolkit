@@ -282,6 +282,22 @@ def solve_phi_leak(ctx: SolveContext) -> list[Candidate]:
     return _decrypt_variants(n, d, c, "phi-leak")
 
 
+def solve_paillier(ctx: SolveContext) -> list[Candidate]:
+    """Decrypt Paillier ciphertext c = g^m * r^n mod n^2 when n can be factored."""
+    n = ctx.params.get("n")
+    c = ctx.params.get("c")
+    p = ctx.params.get("p")
+    q = ctx.params.get("q")
+    if not isinstance(n, int) or not isinstance(c, int):
+        return []
+    try:
+        from ..paillier import paillier_auto_solve
+        m = paillier_auto_solve(c=c, n=n, p=p if isinstance(p, int) else None, q=q if isinstance(q, int) else None)
+    except Exception:
+        return []
+    return [Candidate(blob, f"paillier[{label}]") for label, blob in candidate_texts(m)]
+
+
 SOLVERS = {
     "rsa_shared_prime": solve_shared_prime,
     "rsa_small_factor_trial": solve_small_factor,
@@ -294,4 +310,5 @@ SOLVERS = {
     "rsa_hastad": solve_hastad,
     "rsa_given_factors": solve_given_factors,
     "rsa_phi_leak": solve_phi_leak,
+    "paillier_decrypt": solve_paillier,
 }

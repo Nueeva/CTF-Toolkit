@@ -49,6 +49,7 @@ PAIR_CATEGORIES = {"p", "q", "r"}
 
 CATEGORY_PRIORS: dict[str, float] = {
     "rsa": 1.00,
+    "paillier": 0.98,
     "dh": 0.95,
     "elgamal": 0.95,
     "ecc": 0.95,
@@ -790,7 +791,9 @@ def plan_from(trace: ChallengeTrace | None = None, params: dict[str, int] | None
     # Precision families ordered by their own confidence, not by a fixed ladder
     ordered = [c for c, _ in sorted(cats.items(), key=lambda kv: -kv[1])]
     for cat in ordered:
-        if cat == "elgamal":
+        if cat == "paillier":
+            add("paillier_decrypt")
+        elif cat == "elgamal":
             add("elgamal_recover")
         elif cat == "dh":
             add("dh_shared_secret")
@@ -824,7 +827,7 @@ def plan_from(trace: ChallengeTrace | None = None, params: dict[str, int] | None
         add("rsa_shared_prime", "rsa_small_factor_trial", "rsa_fermat")
         if p.get("e", 0) and p.get("n") and p["e"].bit_length() > p["n"].bit_length() // 2:
             add("rsa_wiener")
-        add("rsa_pollard_pm1", "rsa_factor_auto")
+        add("rsa_pollard_pm1", "rsa_factor_auto", "paillier_decrypt")
 
     if not cats:
         add("encoding_peel", "caesar_bruteforce", "affine_bruteforce",

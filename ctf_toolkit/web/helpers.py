@@ -303,6 +303,40 @@ def add_forwarded_headers(headers: dict[str, str] | None = None, ip: str = "127.
     res["X-Forwarded-Host"] = ip
     return res
 
+
+def decode_flask_session_cookie(cookie: str) -> dict[str, object]:
+    """Decode and inspect a Flask / Werkzeug (itsdangerous) session cookie without verifying the signature.
+
+    Supports both uncompressed (`<b64>.<ts>.<sig>`) and zlib-compressed (`.<b64>.<ts>.<sig>`) tokens.
+    """
+    import zlib
+
+    raw = cookie.strip()
+    compressed = False
+    if raw.startswith("."):
+        compressed = True
+        raw = raw[1:]
+    parts = raw.split(".")
+    if not parts or not parts[0]:
+        raise ValueError("Invalid Flask session cookie format")
+
+    payload_bytes = b64url_decode(parts[0])
+    if compressed:
+        payload_bytes = zlib.decompress(payload_bytes)
+
+    try:
+        payload: object = json.loads(payload_bytes.decode("utf-8"))
+    except Exception:
+        payload = payload_bytes.decode("utf-8", errors="replace")
+
+    return {
+        "compressed": compressed,
+        "payload": payload,
+        "timestamp_b64": parts[1] if len(parts) > 1 else None,
+        "signature_b64": parts[2] if len(parts) > 2 else None,
+    }
+
+
 import sys
 # Allow direct attribute reflection for dictionary templates
 setattr(sys.modules[__name__], "REQUEST_TEMPLATES['sqli']", REQUEST_TEMPLATES['sqli'])

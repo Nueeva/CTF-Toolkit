@@ -41,9 +41,21 @@ def index_of_coincidence(data: bytes) -> float:
     return sum(c * (c - 1) for c in counts.values()) / (n * (n - 1))
 
 
+def _matches_flag(data: bytes) -> re.Match[bytes] | str | None:
+    """Check both built-in regex and dynamic IntelligentFlagManager templates."""
+    m = re.search(FLAG_PATTERN, data, re.IGNORECASE)
+    if m:
+        return m
+    try:
+        from ctf_toolkit.utils.flag_manager import get_flag_manager
+        return get_flag_manager().find_first_flag(data)
+    except Exception:
+        return None
+
+
 def score_plaintext(data: bytes) -> float:
     """Evaluate fitness of candidate plaintext:
-    - High bonus for CTF flag patterns
+    - High bonus for CTF flag patterns (built-in + dynamic FlagManager)
     - High bonus for high printable ASCII ratio
     - Bonus for English-like Index of Coincidence (~0.065)
     - Bonus for reasonable text entropy (3.5 - 5.2)
@@ -52,8 +64,7 @@ def score_plaintext(data: bytes) -> float:
         return -100.0
 
     # 1. CTF Flag check (Instant high score)
-    flag_match = re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\n\r\}]{3,100}\}", data, re.IGNORECASE)
-    if flag_match:
+    if _matches_flag(data):
         return 10000.0 + len(data)
 
     total = len(data)
@@ -89,29 +100,117 @@ def score_plaintext(data: bytes) -> float:
 
 
 def apply_step(op: str, data: bytes) -> bytes | None:
-    """Safely apply a single cryptographic/encoding transformation."""
+    """Safely apply a single cryptographic/encoding transformation across all Base formats."""
     try:
         if op == "b64d":
-            # Strip whitespace
             clean = re.sub(rb"\s+", b"", data)
+            if not re.fullmatch(rb"[A-Za-z0-9+/=]+", clean) or len(clean) < 4:
+                return None
             if len(clean) % 4 != 0:
                 clean += b"=" * (4 - len(clean) % 4)
             res = base64.b64decode(clean, validate=False)
             return res if res and res != data else None
 
+        if op == "b64url_d":
+            clean = re.sub(rb"\s+", b"", data)
+            if (b"-" not in clean and b"_" not in clean) or not re.fullmatch(rb"[A-Za-z0-9\-_=]+", clean):
+                return None
+            if len(clean) % 4 != 0:
+                clean += b"=" * (4 - len(clean) % 4)
+            res = base64.urlsafe_b64decode(clean)
+            return res if res and res != data else None
+
         if op == "b32d":
             clean = re.sub(rb"\s+", b"", data).upper()
+            if not re.fullmatch(rb"[A-Z2-7=]+", clean) or len(clean) < 4:
+                return None
             if len(clean) % 8 != 0:
                 clean += b"=" * (8 - len(clean) % 8)
             res = base64.b32decode(clean)
             return res if res and res != data else None
 
-        if op == "hex_d":
+        if op == "b32hex_d":
+            clean = re.sub(rb"\s+", b"", data).upper()
+            if not re.fullmatch(rb"[0-9A-V=]+", clean) or len(clean) < 4:
+                return None
+            from ctf_toolkit.crypto.encoding import base32hex_decode
+            res = base32hex_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op in ("hex_d", "b16d"):
             clean = re.sub(rb"\s+", b"", data)
-            if re.match(rb"^[0-9a-fA-F]+$", clean) and len(clean) % 2 == 0:
+            if clean.startswith((b"0x", b"0X")):
+                clean = clean[2:]
+            if re.match(rb"^[0-9a-fA-F]+$", clean) and len(clean) % 2 == 0 and len(clean) >= 4:
                 res = bytes.fromhex(clean.decode("ascii"))
                 return res if res and res != data else None
             return None
+
+        if op == "b36d":
+            clean = data.strip()
+            if not re.fullmatch(rb"[0-9A-Za-z]+", clean) or len(clean) < 6:
+                return None
+            from ctf_toolkit.crypto.encoding import base36_decode
+            res = base36_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "b45d":
+            clean = data.strip()
+            if len(clean) < 3 or not all(32 <= b <= 90 for b in clean):
+                return None
+            from ctf_toolkit.crypto.classical import base45_decode
+            res = base45_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "b58d":
+            clean = re.sub(rb"\s+", b"", data)
+            if not re.fullmatch(rb"[1-9A-HJ-NP-Za-km-z]+", clean) or len(clean) < 4:
+                return None
+            from ctf_toolkit.crypto.classical import base58_decode
+            res = base58_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "b58_ripple_d":
+            clean = re.sub(rb"\s+", b"", data)
+            if not re.fullmatch(rb"[1-9A-HJ-NP-Za-km-z]+", clean) or len(clean) < 4:
+                return None
+            from ctf_toolkit.crypto.classical import base58_ripple_decode
+            res = base58_ripple_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "b62d":
+            clean = re.sub(rb"\s+", b"", data)
+            if not re.fullmatch(rb"[0-9A-Za-z]+", clean) or len(clean) < 6:
+                return None
+            from ctf_toolkit.crypto.encoding import base62_decode
+            res = base62_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "a85d":
+            from ctf_toolkit.crypto.encoding import ascii85_decode
+            res = ascii85_decode(data)
+            return res if res and res != data else None
+
+        if op == "b85d":
+            from ctf_toolkit.crypto.encoding import base85_decode
+            res = base85_decode(data)
+            return res if res and res != data else None
+
+        if op == "z85d":
+            clean = data.strip()
+            if len(clean) < 5 or len(clean) % 5 != 0:
+                return None
+            from ctf_toolkit.crypto.encoding import z85_decode
+            res = z85_decode(clean.decode("ascii"))
+            return res if res and res != data else None
+
+        if op == "b91d":
+            clean = data.strip()
+            if len(clean) < 4 or not all(33 <= b <= 126 for b in clean):
+                return None
+            from ctf_toolkit.crypto.encoding import base91_decode
+            res = base91_decode(clean.decode("ascii"))
+            return res if res and res != data else None
 
         if op == "url_d":
             text = data.decode("latin1")
@@ -127,6 +226,12 @@ def apply_step(op: str, data: bytes) -> bytes | None:
         if op == "rot13":
             text = data.decode("latin1", errors="ignore")
             rotated = rot_n(text, 13).encode("latin1")
+            return rotated if rotated != data else None
+
+        if op == "rot47":
+            from ctf_toolkit.crypto.encoding import rot47
+            text = data.decode("latin1", errors="ignore")
+            rotated = rot47(text).encode("latin1")
             return rotated if rotated != data else None
 
         if op == "atbash":
@@ -149,12 +254,24 @@ def apply_step(op: str, data: bytes) -> bytes | None:
 
 CANDIDATE_OPS = [
     "b64d",
+    "b64url_d",
     "hex_d",
     "b32d",
+    "b32hex_d",
+    "b58d",
+    "b58_ripple_d",
+    "b62d",
+    "b45d",
+    "b85d",
+    "a85d",
+    "z85d",
+    "b91d",
+    "b36d",
     "url_d",
     "zlib_d",
     "gzip_d",
     "rot13",
+    "rot47",
     "atbash",
     "reverse",
 ]
@@ -238,7 +355,7 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
         text_cand = data.decode("latin-1")
         for shift in range(1, 26):
             cand_rot = rot_n(text_cand, shift)
-            if re.search(FLAG_PATTERN, cand_rot.encode("latin-1"), re.IGNORECASE):
+            if _matches_flag(cand_rot.encode("latin-1")):
                 cand_bytes = cand_rot.encode("utf-8")
                 refined, inner_path = refine_flag_inner(cand_bytes)
                 path = [f"caesar:{shift}"] + inner_path
@@ -295,7 +412,7 @@ def solve_magic(data: bytes, max_depth: int = 4, max_states: int = 150) -> tuple
             scored_keys = []
             for k in range(1, 256):
                 dec = xor_bytes(current, k)
-                if re.search(rb"(?:TECHCOMFEST\d*|COMPFEST\d*|GEMASTIK\d*|WRECKIT\d*|HOLOGY\d*|SLASHROOT\d*|GETSFLAG|CTFLEARN|picoCTF|SEKAI|HIDC\d*|ARA\d*|CHTB|HTB|THM|ASIS|DICE|HOPE|OOO|ARKAV|LACTF|ACTF|LKS|CTF|FLAG|CT)\{[^\n\r\}]{3,100}\}", dec, re.IGNORECASE):
+                if _matches_flag(dec):
                     ops_to_try.append(f"xor:0x{k:02x}")
                     break
                 b64_cnt = sum(1 for b in dec if (65 <= b <= 90) or (97 <= b <= 122) or (48 <= b <= 57) or b in (43, 47, 61))

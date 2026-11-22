@@ -8,7 +8,13 @@ from ctf_toolkit.binex.pwn_tools import (
     calculate_oob_offset,
     leak_stack_offsets,
 )
-from ctf_toolkit.binex.pwncalc import cyclic_create, cyclic_find, describe_integer_bounds
+from ctf_toolkit.binex.pwncalc import (
+    cyclic_create,
+    cyclic_find,
+    describe_integer_bounds,
+    glibc_safe_link_demangle,
+    glibc_safe_link_mangle,
+)
 
 __all__ = [
     "build_format_string_probe",
@@ -20,4 +26,6 @@ __all__ = [
     "cyclic_create",
     "cyclic_find",
     "describe_integer_bounds",
+    "glibc_safe_link_demangle",
+    "glibc_safe_link_mangle",
 ]
