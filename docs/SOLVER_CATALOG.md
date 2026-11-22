@@ -1,4 +1,4 @@
-# CTF-Toolkit v4.0 Apex — Solver Abstractions Catalog (560+ Functions)
+# CTF-Toolkit v5.0 — Solver Abstractions Catalog (560+ Functions)
 
 All solver modules in `ctf_toolkit` are dynamically indexed in the **Command Palette (`/search`)**, directly callable from the terminal via **`ctf-toolkit call <function_name> [args...]`**, and importable inside standalone Python solve scripts.
 

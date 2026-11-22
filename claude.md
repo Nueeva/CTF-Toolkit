@@ -23,17 +23,20 @@
 
 ## Validation Commands (Cross-Platform)
 ```bash
-# Run full test suite (1,230+ tests across 118+ test files on Windows/Linux/macOS)
+# Run full test suite (1,238+ tests across 120+ test files on Windows/Linux/macOS)
 python run_tests.py
 
-# Verify CLI version & portable .pyz bundle
+# Verify CLI version, environment doctor, v5 Workbench QA & portable .pyz bundle
 python main.py --version
+python -m ctf_toolkit doctor
+pytest qa/cases
 python scripts/build_portable.py
 python dist/ctf-toolkit.pyz --version
 ```
 
 ## Related Docs
 - Main project readme: [`README.md`](README.md)
+- v5 Evidence Workbench & private host guide: [`docs/CASE_WORKBENCH.md`](docs/CASE_WORKBENCH.md)
 - TUI & CLI guide: [`docs/TUI_AND_CLI_GUIDE.md`](docs/TUI_AND_CLI_GUIDE.md)
 - Solver catalog: [`docs/SOLVER_CATALOG.md`](docs/SOLVER_CATALOG.md)
 - Platform install guide: [`docs/PLATFORM_INSTALL.md`](docs/PLATFORM_INSTALL.md)

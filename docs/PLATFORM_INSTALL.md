@@ -1,6 +1,6 @@
 # Cross-Platform Installation & Deployment Guide
 
-`CTF-Toolkit v4.0 Apex` is engineered to run seamlessly across **Windows 10/11**, **Linux (Kali, Parrot, Ubuntu, Debian, Arch, WSL2)**, **macOS (Apple Silicon & Intel)**, **Docker containers**, and **air-gapped CTF jumpboxes**.
+`CTF-Toolkit v5.0` is engineered to run seamlessly across **Windows 10/11**, **Linux (Kali, Parrot, Ubuntu, Debian, Arch, WSL2)**, **macOS (Apple Silicon & Intel)**, **Docker containers**, and **air-gapped CTF jumpboxes**.
 
 ---
 
@@ -15,11 +15,12 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Launch Interactive TUI v4 Apex Command Center
+# 2. Launch Interactive TUI Command Center
 .\ctf.ps1
 
-# 3. Run Headless CLI commands
+# 3. Run Headless CLI & v5 Evidence Workbench commands
 .\ctf.ps1 --version
+.\ctf.ps1 doctor
 .\ctf.ps1 triage artifact.bin
 .\ctf.ps1 recipe "b64d | xor:0x5a | flag_scan" -d "cVoxcVFFWlxXWlx="
 .\ctf.ps1 magic -s "RkxBR3t3aW5kb3dzX3Bvd2Vyc2hlbGxfb2t9"
@@ -46,6 +47,7 @@ chmod +x ctf.sh
 ./ctf.sh
 
 # 3. Headless CLI usage
+./ctf.sh doctor
 ./ctf.sh triage suspicious.pcap
 ./ctf.sh recipe "hex_d | zlib_d" -i dump.hex
 ./ctf.sh magic @cipher.txt
@@ -53,7 +55,7 @@ chmod +x ctf.sh
 
 ---
 
-## 3. Global CLI Installation (`pipx` / `uv` / `pip`)
+## 3. Global CLI Installation & Optional Extras (`pipx` / `uv` / `pip`)
 
 To call `ctf-toolkit` or its short alias `ctft` from any directory on your system:
 
@@ -67,9 +69,16 @@ uv tool install .
 # Or editable install inside an active environment
 pip install -e .
 
+# Optional extras defined in pyproject.toml:
+# - [team]: Django + Uvicorn for the private HTTPS team collaboration host
+# - [qa]  : BagIt + Playwright for browser & bundle verification
+# - [dev] : pytest + shiv for test suites and .pyz bundling
+pip install -e ".[team,qa,dev]"
+
 # Now available globally:
 ctf-toolkit
 ctft --version
+ctft doctor
 ctft magic -s "RkxBR3tnbG9iYWxfY2xpX3JlYWR5fQ=="
 ```
 
@@ -77,7 +86,7 @@ ctft magic -s "RkxBR3tnbG9iYWxfY2xpX3JlYWR5fQ=="
 
 ## 4. Portable Single-File `.pyz` Bundle (For Air-Gapped VMs & Remote SSH Boxes)
 
-During on-site competitions (such as LKS, Gemastik, or restricted SSH jumpboxes) where `pip install` or internet access is unavailable, you can build a single self-contained Python ZIP application (`dist/ctf-toolkit.pyz`, ~130 KB):
+During on-site competitions (such as LKS, Gemastik, or restricted SSH jumpboxes) where `pip install` or internet access is unavailable, you can build a single self-contained Python ZIP application (`dist/ctf-toolkit.pyz`):
 
 ```bash
 # 1. Build the portable bundle on your host machine
@@ -106,28 +115,32 @@ Run `CTF-Toolkit` inside an isolated `python:3.12-slim` container with your curr
 
 ```bash
 # Build the image
-docker build -t ctf-toolkit:v4 .
+docker build -t ctf-toolkit:v5 .
 
 # Launch interactive TUI with current folder mounted
-docker run -it --rm -v "$(pwd):/work" ctf-toolkit:v4
+docker run -it --rm -v "$(pwd):/work" ctf-toolkit:v5
 
 # Run headless triage on a file in the current directory
-docker run --rm -v "$(pwd):/work" ctf-toolkit:v4 triage /work/challenge.bin
+docker run --rm -v "$(pwd):/work" ctf-toolkit:v5 triage /work/challenge.bin
 ```
 
 On **Windows PowerShell**:
 ```powershell
-docker run -it --rm -v "${PWD}:/work" ctf-toolkit:v4
+docker run -it --rm -v "${PWD}:/work" ctf-toolkit:v5
 ```
 
 ---
 
-## 6. Running the Test Suite Across Platforms
+## 6. Running the Test Suites Across Platforms
 
-The repository includes a zero-dependency test runner (`run_tests.py`) that discovers and runs all **118+ test files (1,238+ tests)** across Windows, Linux, and macOS without requiring external test frameworks:
+The repository includes a zero-dependency test runner (`run_tests.py`) that discovers and runs all **120+ test files (1,238+ tests)** across Windows, Linux, and macOS without requiring external test frameworks, plus an isolated `pytest` QA suite in `qa/cases/` for the v5 Evidence Workbench and private team host:
 
 ```bash
+# 1. Standard unit, integration & synthetic twin benchmark suite
 python run_tests.py
+
+# 2. v5 Evidence Workbench, BagIt exchange & private team host QA suite
+pytest qa/cases
 ```
 
-Install the development dependencies first (`pip install -r requirements-dev.txt`, or `pip install -e ".[dev]"`). One test — the portable-bundle builder — needs `shiv`; without it that single test is reported as skipped and the rest of the suite still runs to completion.
+Install the development dependencies first (`pip install -r requirements-dev.txt`, or `pip install -e ".[team,qa,dev]"`). One test in `run_tests.py` — the portable-bundle builder — needs `shiv`; without it that single test is reported as skipped and the rest of the suite still runs to completion.

@@ -1,6 +1,6 @@
-# TUI v4 Apex & Headless CLI Operator Guide
+# CTF-Toolkit v5.0 — TUI & Headless CLI Operator Guide
 
-This guide covers interactive navigation in the **TUI v4 Apex Command Center**, global hotkeys, Smart Input syntax, the **Interactive CyberChef Recipe Studio**, the **Autonomous A\* Magic Solver**, and headless CLI piping across Windows PowerShell, CMD, Linux Bash, and macOS Zsh.
+This guide covers interactive navigation in the **CTF-Toolkit v5.0 Command Center**, global hotkeys, Smart Input syntax, the **v5 Evidence Case Workbench (`case`, `team`, `doctor`)**, the **Universal Function Dispatcher (`call`)**, **Static AST Cascade Tracing (`trace`)**, the **Interactive CyberChef Recipe Studio**, and the **Autonomous A\* Magic Solver** across Windows PowerShell, CMD, Linux Bash, and macOS Zsh.
 
 ---
 
@@ -39,22 +39,52 @@ Every prompt in the Command Palette, Magic Solver, Recipe Studio, and Workbench 
 
 ## 3. Headless CLI Subcommands
 
-`ctf-toolkit` provides three headless subcommands for terminal scripting, automation, and shell piping:
+`ctf-toolkit` provides a full suite of headless subcommands for terminal scripting, evidence management, automation, and shell piping:
 
-### A. `triage` — Heuristic Fingerprinter & Entropy Analyzer
-Scans a file or raw string for magic signatures, Shannon entropy, Index of Coincidence (IC), candidate encodings, and embedded flags.
+### A. `call` — Universal Function Dispatcher (560+ Solvers)
+List, search, or directly invoke any indexed solver function from the command line with positional coercion and optional `--json` output.
+
+```bash
+python main.py call --list
+python main.py call --list rsa
+python main.py call crack_crc32_4byte 0x1c291ca3
+python main.py call jwt_forge_none '{"user":"admin","admin":true}' --json
+```
+
+### B. `case`, `doctor` & `team` — v5 Evidence Workbench & Private Team Host
+Manage persistent SQLite evidence workspaces, deterministic transformations, byte-level provenance (`source`), side-by-side diffs (`compare`), timelines (`pcap`, `access`, `jsonl`), BagIt handoffs (`pack`, `unpack`, `merge`), and the optional HTTPS team server. See [`docs/CASE_WORKBENCH.md`](CASE_WORKBENCH.md) for the complete guide.
+
+```bash
+python -m ctf_toolkit doctor --json
+python -m ctf_toolkit case --dir ./exhibit-demo demo layered
+python -m ctf_toolkit case --dir ./exhibit-demo show
+python -m ctf_toolkit case --dir ./exhibit-demo verify --replay
+python -m ctf_toolkit case --dir ./exhibit-demo serve --port 8081
+```
+
+### C. `trace` — Static AST Analysis & Multi-Solver Cascade
+Statically analyzes Python challenge scripts (`chall.py`) and companion output files (`output.txt`), infers cryptographic parameters, and runs a multi-solver DAG cascade.
+
+```bash
+python main.py trace ./challenge_dir
+python main.py trace chall.py -o output.txt --timeout 30 --json
+```
+
+### D. `triage` & `identify` — Heuristic Fingerprinter & Cipher/Hash Identifier
+Scans a file or raw string for magic signatures, Shannon entropy, Index of Coincidence (IC), candidate encodings, hash digest formats, and embedded flags.
 
 ```bash
 # Linux / macOS / WSL2
 python3 main.py triage suspicious.bin
 python3 main.py triage -s "RkxBR3toZWFkbGVzc190cmlhZ2V9" --json
+python3 main.py identify "5d41402abc4b2a76b9719d911017c592" --json
 
 # Windows PowerShell
 .\ctf.ps1 triage suspicious.bin
-.\ctf.ps1 triage -s "RkxBR3toZWFkbGVzc190cmlhZ2V9" --json
+.\ctf.ps1 identify "5d41402abc4b2a76b9719d911017c592"
 ```
 
-### B. `recipe` — CyberChef-Style Chained Pipeline
+### E. `recipe` — CyberChef-Style Chained Pipeline
 Executes a pipe-delimited (`|`) chain of operations from `RECIPE_REGISTRY` on input strings, files, or `stdin`.
 
 ```bash
@@ -67,7 +97,7 @@ cat payload.enc | python3 main.py recipe "hex_d | zlib_d | rot13" -o decrypted.t
 Get-Content payload.enc -Raw | .\ctf.ps1 recipe "hex_d | zlib_d | rot13"
 ```
 
-### C. `magic` — Autonomous A* Multi-Hop Solver
+### F. `magic` — Autonomous A* Multi-Hop Solver
 Automatically discovers multi-layer encoding and classical cipher chains (up to depth $D=4$ by default) and prints the search tree.
 
 ```bash
@@ -77,6 +107,13 @@ python main.py magic -s "71597a7151455a51..."
 # Solve from a file with custom search depth
 python main.py magic @artifact.enc --depth 4
 ```
+
+### G. `flags`, `cheatsheet`, `writeup`, `server` & `train`
+- **`flags`**: List, add, prioritize, or reset dynamic flag regex templates (`python main.py flags --list`, `--add MYCTF "MYCTF\{[^}]+\}"`).
+- **`cheatsheet`**: Print or export JSON web exploitation payload references (`python main.py cheatsheet SQLi --json`).
+- **`writeup`**: Generate competition-ready Markdown writeups and standalone Python solver templates (`python main.py writeup --name "Chal" --category Crypto --flag "FLAG{...}"`).
+- **`server`**: Launch the visual CyberChef-style Web Workbench on port 8080 (`python main.py server --port 8080`).
+- **`train`**: Connect to a CTFd instance to test and benchmark automated challenge solving (`python main.py train --url https://getsflag.com --dry-run`).
 
 ---
 
