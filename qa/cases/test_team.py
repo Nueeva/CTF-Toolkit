@@ -92,7 +92,7 @@ def test_private_host_review_reconnect_and_conflicts_in_five_browser_sessions(tm
     api = pytest.importorskip("playwright.sync_api")
     with running_team(tmp_path) as origin:
         from django.contrib.auth import get_user_model
-        from ctf_toolkit.cases.team_app.models import Case, Membership
+        from ctf_toolkit_team.models import Case, Membership
 
         case_id = new_id()
         workspace = Workspace.create(tmp_path / "cases" / case_id, "Shared exhibit", case_id=case_id)

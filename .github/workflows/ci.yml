@@ -65,7 +65,7 @@ jobs:
         if: runner.os != 'Linux'
         run: python -m playwright install chromium
       - name: Verify case lifecycle, packages, and private host
-        run: python -m pytest -q -s -ra tests/cases
+        run: python -m pytest -q -s -ra qa/cases
       - name: Measure fixed corpus
         run: |
           python scripts/case_benchmark.py --engine legacy

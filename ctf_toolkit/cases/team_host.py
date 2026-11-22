@@ -33,10 +33,10 @@ def configure(directory: Path, origin: str, secret: str) -> None:
         DEBUG=False,
         ALLOWED_HOSTS=[hostname],
         CSRF_TRUSTED_ORIGINS=[origin.rstrip("/")],
-        ROOT_URLCONF="ctf_toolkit.cases.team_app.views",
+        ROOT_URLCONF="ctf_toolkit_team.views",
         INSTALLED_APPS=[
             "django.contrib.contenttypes", "django.contrib.auth", "django.contrib.sessions",
-            "ctf_toolkit.cases.team_app",
+            "ctf_toolkit_team.apps.TeamConfig",
         ],
         MIDDLEWARE=[
             "django.middleware.security.SecurityMiddleware",
@@ -89,7 +89,7 @@ def _secret(directory: Path, create: bool) -> str:
 
 
 def _known_case(directory: Path, case_id: str) -> Workspace:
-    from .team_app.models import Case
+    from ctf_toolkit_team.models import Case
     if not ID.fullmatch(case_id) or not Case.objects.filter(id=case_id).exists():
         raise ValueError("Case is not registered on this host")
     return Workspace(directory / "cases" / case_id)
@@ -135,7 +135,7 @@ def execute(args: argparse.Namespace) -> int:
     directory = args.dir.resolve()
     secret = _secret(directory, args.action == "init")
     configure(directory, args.origin if args.action == "serve" else "https://127.0.0.1", secret)
-    from .team_app.models import Case, Membership
+    from ctf_toolkit_team.models import Case, Membership
 
     if args.action == "init":
         call_command("migrate", interactive=False, verbosity=0)

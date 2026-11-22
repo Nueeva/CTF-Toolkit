@@ -26,9 +26,9 @@ from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.http import require_http_methods
 
-from ..local_web import CONTENT_SECURITY
-from ..store import ID, Workspace, as_json, new_id
-from ..web_api import MAX_JSON, MAX_UPLOAD, Response, dispatch, get_asset
+from ctf_toolkit.cases.local_web import CONTENT_SECURITY
+from ctf_toolkit.cases.store import ID, Workspace, as_json, new_id
+from ctf_toolkit.cases.web_api import MAX_JSON, MAX_UPLOAD, Response, dispatch, get_asset
 from .models import Case, Invitation, Membership
 
 
