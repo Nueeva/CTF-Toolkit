@@ -25,18 +25,18 @@ class CaseHandler(BaseHTTPRequestHandler):
 
     def _send(self, response: Response) -> None:
         data = response.body
-        self.send_response(response.status)
-        self.send_header("Content-Type", response.content_type)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", CONTENT_SECURITY)
-        if response.attachment:
-            self.send_header("Content-Disposition", f'attachment; filename="{response.attachment}"')
-        self.end_headers()
         try:
+            self.send_response(response.status)
+            self.send_header("Content-Type", response.content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", CONTENT_SECURITY)
+            if response.attachment:
+                self.send_header("Content-Disposition", f'attachment; filename="{response.attachment}"')
+            self.end_headers()
             self.wfile.write(data)
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:
             pass
 
     def _authorized(self) -> bool:

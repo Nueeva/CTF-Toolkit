@@ -53,7 +53,7 @@ def test_browser_upload_uses_original_file_bytes_and_applies_limits(tmp_path):
 def test_local_chromium_investigation_and_reload(tmp_path):
     api = pytest.importorskip("playwright.sync_api")
     workspace = Workspace.create(tmp_path, "Exhibit")
-    populate(workspace, "layered")
+    exhibit, = populate(workspace, "layered")
     with browser_server(workspace) as origin, api.sync_playwright() as playwright:
         try:
             browser = playwright.chromium.launch()
@@ -68,8 +68,19 @@ def test_local_chromium_investigation_and_reload(tmp_path):
             page.goto(origin, wait_until="domcontentloaded")
             api.expect(page.locator("#artifact-name")).to_have_text("exhibit.png")
             page.get_by_role("button", name="Run triage").click()
-            page.get_by_role("button", name="desk/message.b64").click()
-            page.get_by_role("button", name="Preview steps").click()
+            member = page.get_by_role("button", name="desk/message.b64", exact=True)
+            member_id = member.get_attribute("data-artifact")
+            member_url = f"{origin}/api/artifact/{member_id}?offset=0"
+            paused_member = []
+            page.route(member_url, lambda route: paused_member.append(route))
+            with page.expect_request(member_url):
+                member.click()
+            preview = page.get_by_role("button", name="Preview steps")
+            api.expect(preview).to_be_disabled()
+            assert len(paused_member) == 1
+            paused_member.pop().continue_()
+            page.unroute(member_url)
+            preview.click()
             api.expect(page.locator("#recipe-result")).to_contain_text("hello")
             page.get_by_role("button", name="Save branch").click()
             api.expect(page.locator("#artifact-name")).to_have_text("b64d output")
@@ -82,8 +93,17 @@ def test_local_chromium_investigation_and_reload(tmp_path):
             page.get_by_role("button", name="Save note").click()
             api.expect(page.locator("#note-list")).to_contain_text("Base64 characters selected")
 
-            page.reload(wait_until="domcontentloaded")
+            artifact_url = f"{origin}/api/artifact/{exhibit['id']}?offset=0"
+            paused = []
+            page.route(artifact_url, lambda route: paused.append(route))
+            with page.expect_request(artifact_url):
+                page.reload(wait_until="domcontentloaded")
             page.get_by_role("button", name="Notes", exact=True).click()
+            assert len(paused) == 1
+            paused.pop().continue_()
+            page.unroute(artifact_url)
+            api.expect(page.locator("#artifact-name")).to_have_text("exhibit.png")
+            api.expect(page.locator("#note-list")).to_be_visible()
             api.expect(page.locator("#note-list")).to_contain_text("Base64 characters selected")
             page.get_by_role("button", name="desk/message.b64 · bytes 0–4").click()
             api.expect(page.locator("#byte-data mark")).to_have_count(4)

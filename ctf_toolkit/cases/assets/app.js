@@ -5,6 +5,9 @@ const isTeam = document.body.dataset.mode === "team";
 const apiRoot = new URL("api/", document.baseURI);
 let state = null;
 let current = null;
+let selectionVersion = 0;
+let selectionPending = false;
+let analyzing = false;
 let highlighted = null;
 let editor = null;
 let tab = "evidence";
@@ -150,14 +153,18 @@ function syncControls() {
 }
 
 async function refresh() {
-  state = await api("state");
+  const next = await api("state");
+  if (state && next.seq < state.seq) return state;
+  state = next;
   byId("case-title").textContent = state.case.title;
   document.title = state.case.title + " · CTF Toolkit";
   tree();
   syncControls();
   renderNotes();
   activity(true);
-  if (!current && state.artifacts.length) await openArtifact(state.artifacts[0].id);
+  if (!current && !selectionPending && state.artifacts.length) {
+    await openArtifact(state.artifacts[0].id, 0, null, false);
+  }
   return state;
 }
 
@@ -188,11 +195,23 @@ function hexDump(pre, preview, range = null) {
   pre.replaceChildren(fragment);
 }
 
+function syncArtifactActions() {
+  const preview = current?.preview;
+  const waiting = selectionPending || !preview;
+  byId("artifact-view").setAttribute("aria-busy", String(selectionPending));
+  for (const id of ["preview-recipe", "save-recipe", "rank-caesar", "compare"]) {
+    byId(id).disabled = waiting;
+  }
+  for (const id of ["parent", "trace-source", "bookmark"]) byId(id).disabled = selectionPending;
+  byId("analyze").disabled = waiting || analyzing;
+  byId("download-artifact").hidden = state?.role !== "owner" || waiting;
+  byId("prev-bytes").disabled = waiting || preview.offset === 0;
+  byId("next-bytes").disabled = waiting || preview.offset + preview.hex.length / 2 >= preview.size;
+}
+
 function drawPreview() {
   const preview = current?.preview;
   const dump = byId("byte-data");
-  byId("prev-bytes").disabled = !preview || preview.offset === 0;
-  byId("next-bytes").disabled = !preview || preview.offset + preview.hex.length / 2 >= preview.size;
   byId("window").textContent = preview
     ? preview.offset + "–" + (preview.offset + preview.hex.length / 2) + " / " + preview.size : "Unavailable";
   if (!preview) dump.textContent = "This review package contains metadata for this artifact.";
@@ -208,8 +227,21 @@ function sectionLabel(section) {
   return section.name + " · header " + section.header_offset + " · " + section.size + " B";
 }
 
-async function openArtifact(id, offset = 0, range = null) {
-  const next = await api("artifact/" + id + "?offset=" + offset);
+async function openArtifact(id, offset = 0, range = null, navigate = true) {
+  if (navigate) tabTo("evidence");
+  const request = ++selectionVersion;
+  selectionPending = true;
+  syncArtifactActions();
+  let next;
+  try {
+    next = await api("artifact/" + id + "?offset=" + offset);
+  } finally {
+    if (request === selectionVersion) {
+      selectionPending = false;
+      syncArtifactActions();
+    }
+  }
+  if (request !== selectionVersion) return;
   if (next.id !== current?.id) {
     byId("compare-panel").hidden = true;
     byId("recipe-result").replaceChildren();
@@ -218,7 +250,6 @@ async function openArtifact(id, offset = 0, range = null) {
   current = next;
   highlighted = range;
   if (range) byId("byte-view").value = "hex";
-  tabTo("evidence");
   byId("empty-evidence").hidden = true;
   byId("artifact-view").hidden = false;
   byId("artifact-name").textContent = next.label;
@@ -229,9 +260,7 @@ async function openArtifact(id, offset = 0, range = null) {
     : "Pending triage";
   byId("artifact-meta").textContent = next.size + " B · SHA-256 " + next.digest;
   byId("parent").hidden = !next.parent_id;
-  byId("download-artifact").hidden = state.role !== "owner" || !next.preview;
   byId("download-artifact").href = new URL("artifact/" + next.id + "/download", apiRoot);
-  byId("analyze").disabled = !next.preview;
   byId("range-start").value = range?.start ?? offset;
   byId("range-stop").value = range?.stop ?? Math.min(next.size, offset + 1);
   byId("range-start").max = next.size;
@@ -251,6 +280,7 @@ async function openArtifact(id, offset = 0, range = null) {
     return item;
   }));
   drawPreview();
+  syncArtifactActions();
   tree();
   syncControls();
 }
@@ -529,16 +559,19 @@ byId("verify").addEventListener("click", () => run(async () => {
 byId("clear-history").addEventListener("click", () => activity());
 byId("analyze").addEventListener("click", () => run(async () => {
   const id = current.id;
-  byId("analyze").disabled = true;
+  const request = selectionVersion;
+  analyzing = true;
+  syncArtifactActions();
   status("Reading file structure…");
   try {
     const result = await post("analyze", { artifact: id });
     activity(false, result.status === "partial" ? "Triage finished with limits" : "Triage completed");
     await refresh();
-    await openArtifact(id);
+    if (request === selectionVersion) await openArtifact(id, 0, null, false);
     status(result.inspected + " artifacts inspected · " + result.issues + " issues");
   } finally {
-    byId("analyze").disabled = !current?.preview;
+    analyzing = false;
+    syncArtifactActions();
   }
 }));
 byId("parent").addEventListener("click", () => run(() => openArtifact(current.parent_id)));
@@ -564,16 +597,19 @@ byId("bookmark").addEventListener("click", () => {
   beginNote([{ kind: "bytes", id: current.id, ...bounds }]);
 });
 byId("preview-recipe").addEventListener("click", () => run(async () => {
+  const request = selectionVersion;
   const result = await post("recipe", { artifact: current.id, recipe: byId("recipe").value, preview: true });
+  if (request !== selectionVersion) return;
   drawRecipe(result);
   status("Recipe preview ready.");
 }));
 byId("save-recipe").addEventListener("click", () => run(async () => {
   const id = current.id;
+  const request = selectionVersion;
   const result = await post("recipe", { artifact: id, recipe: byId("recipe").value });
   activity(false, "Recipe branch saved");
   await refresh();
-  await openArtifact(result.artifacts.at(-1));
+  if (request === selectionVersion) await openArtifact(result.artifacts.at(-1), 0, null, false);
   status("Branch saved · SHA-256 " + result.output_sha256);
 }));
 byId("compare").addEventListener("click", () => run(async () => {
