@@ -95,7 +95,7 @@
                 <h3>Transform</h3>
                 <label for="recipe">Recipe</label>
                 <input id="recipe" value="b64d" aria-describedby="recipe-ops" spellcheck="false">
-                <p id="recipe-ops" class="hint mono">b64d · b64e · hex_decode · hex_encode</p>
+                <p id="recipe-ops" class="hint mono">b64d · b64e · b64url_d · hex_decode · hex_encode · b32d · b32hex_d · b36d · b45d · b58d · b62d · b85d · a85d · z85d · b91d · rot13 · rot47 · atbash · reverse · url_d</p>
                 <div class="action-row">
                   <button id="preview-recipe" type="button" class="button secondary" data-edit>Preview steps</button>
                   <button id="save-recipe" type="button" class="button primary" data-edit>Save branch</button>
@@ -130,7 +130,7 @@
         <div class="section-heading"><h2>Timeline</h2><p class="muted">Timestamps are shown in UTC when the source offset is known.</p></div>
         <form id="timeline-index" class="form-bar panel" data-edit>
           <label>Artifact <select id="timeline-input"></select></label>
-          <label>Format <select id="timeline-profile"><option value="pcap">Classic PCAP</option><option value="access">Access log</option><option value="jsonl">JSONL</option></select></label>
+          <label>Format <select id="timeline-profile"><option value="pcap">Classic PCAP</option><option value="access">Access log</option><option value="jsonl">JSONL</option><option value="syslog">Syslog / Auth.log</option><option value="csv">CSV</option></select></label>
           <label>Source offset <input id="timeline-zone" placeholder="+07:00"></label>
           <button type="submit" class="button primary">Index events</button>
         </form>

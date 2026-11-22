@@ -49,14 +49,14 @@ HTML_PAGE = """<!doctype html>
     <h1>CTF-Toolkit Web Workbench</h1>
     <p style="color:#8b949e;font-size:13px">CyberChef-Style Visual Analyzer, Auto-Solver & File Triage</p>
   </div>
-  <span class="badge">v4.2.0 • Headless / Standalone</span>
+  <span class="badge">v5.0.0 • Headless / Standalone</span>
 </header>
 
 <div class="grid">
   <!-- Left Panel: Text & Prompt Analyzer -->
   <div class="card">
     <h2>⚡ Text / Cipher / Prompt Auto-Solver</h2>
-    <textarea id="promptInput" placeholder="Paste deskripsi challenge, ciphertext (Base64, Hex, Morse, A1Z26), atau RSA params (p, q, e, c)..."></textarea>
+    <textarea id="promptInput" placeholder="Paste deskripsi challenge, ciphertext (Base16..Base91, Morse, A1Z26), atau RSA params (p, q, e, c)..."></textarea>
     <button class="btn" onclick="solveText()">Run Auto-Solver</button>
     <button class="btn btn-sec" onclick="identifyText()">Identify Cipher / Hash</button>
     <h2 style="margin-top:16px">Analysis & Flag Output</h2>
@@ -115,6 +115,38 @@ async function uploadAndTriage() {
 </body>
 </html>
 """
+
+
+def _extract_multipart_file(body: bytes, content_type: str) -> tuple[bytes, str]:
+    """Extract raw file payload and filename from multipart/form-data HTTP request body."""
+    import re as _re
+
+    if "multipart/form-data" not in content_type.lower() or "boundary=" not in content_type:
+        return body, "uploaded_ctf_artifact.bin"
+
+    boundary_str = content_type.split("boundary=", 1)[1].split(";", 1)[0].strip().strip('"')
+    boundary = ("--" + boundary_str).encode("latin-1")
+    parts = body.split(boundary)
+    for part in parts:
+        if b"Content-Disposition:" not in part:
+            continue
+        header_end = part.find(b"\r\n\r\n")
+        sep_len = 4
+        if header_end == -1:
+            header_end = part.find(b"\n\n")
+            sep_len = 2
+        if header_end == -1:
+            continue
+        headers_raw = part[:header_end].decode("utf-8", errors="replace")
+        payload = part[header_end + sep_len :]
+        if payload.endswith(b"\r\n"):
+            payload = payload[:-2]
+        elif payload.endswith(b"\n"):
+            payload = payload[:-1]
+        m_fn = _re.search(r'filename="([^"]+)"', headers_raw)
+        fname = os.path.basename(m_fn.group(1)) if m_fn else "uploaded_ctf_artifact.bin"
+        return payload, (fname or "uploaded_ctf_artifact.bin")
+    return body, "uploaded_ctf_artifact.bin"
 
 
 def _coerce_param(raw: Any, param: inspect.Parameter) -> Any:
@@ -297,10 +329,42 @@ class WorkbenchHTTPHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/triage_file":
             try:
-                temp_path = Path("/tmp/uploaded_ctf_artifact.bin")
-                temp_path.write_bytes(body)
-                res = AutoTriageDispatcher.dispatch_file(temp_path)
+                import tempfile
+                content_type = self.headers.get("Content-Type", "")
+                file_bytes, fname = _extract_multipart_file(body, content_type)
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    temp_path = Path(tmpdir) / fname
+                    temp_path.write_bytes(file_bytes)
+                    res = AutoTriageDispatcher.dispatch_file(temp_path)
                 self._send_json({"success": True, "data": res})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/recipe":
+            try:
+                from ctf_toolkit.pipeline import run_recipe
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                pipeline = payload.get("recipe") or payload.get("pipeline") or ""
+                data = payload.get("data") or payload.get("text") or ""
+                res = run_recipe(pipeline, data)
+                self._send_json({"success": True, "recipe": pipeline, "result": res})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif self.path == "/api/magic":
+            try:
+                from ctf_toolkit.ui.magic_solver import solve_magic
+                payload = json.loads(body.decode("utf-8")) if body else {}
+                raw = payload.get("data") or payload.get("text") or ""
+                depth = int(payload.get("depth", 4))
+                data_bytes = raw.encode("utf-8") if isinstance(raw, str) else bytes(raw)
+                best_data, best_path, best_score, _ = solve_magic(data_bytes, max_depth=depth)
+                self._send_json({
+                    "success": True,
+                    "path": best_path,
+                    "score": best_score,
+                    "result": best_data,
+                })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
 

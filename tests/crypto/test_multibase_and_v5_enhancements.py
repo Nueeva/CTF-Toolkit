@@ -163,6 +163,107 @@ class TestMultiBaseAndV5Enhancements(unittest.TestCase):
         self.assertFalse(info["compressed"])
         self.assertEqual(info["payload"], {"admin": True, "user": "nueeva"})
 
+    def test_multipart_upload_parser_and_multihop_provenance(self) -> None:
+        from ctf_toolkit.ui.web_server import _extract_multipart_file
+
+        png_magic = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+        boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="evidence.png"\r\n'
+            f"Content-Type: image/png\r\n\r\n"
+        ).encode("latin-1") + png_magic + f"\r\n--{boundary}--\r\n".encode("latin-1")
+
+        extracted_bytes, fname = _extract_multipart_file(body, f"multipart/form-data; boundary={boundary}")
+        self.assertEqual(fname, "evidence.png")
+        self.assertEqual(extracted_bytes, png_magic)
+
+        # Multi-hop provenance to root (b64e(hex_encode(b"FLAG")))
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Workspace.create(Path(tmp) / "multihop")
+            inner_hex = b"464c4147"  # "FLAG"
+            root_b64 = base64_encode_std(inner_hex).encode("ascii")  # "NDY0YzQxNDc="
+            root_art = ws.add("layered.txt", root_b64)
+            tx = operations.transform(ws, root_art["id"], "b64d | hex_decode")
+            leaf_id = tx["artifacts"][-1]
+            root_trace = operations.source_region(ws, leaf_id, 0, 2, to_root=True)
+            self.assertEqual(root_trace["artifact_id"], root_art["id"])
+            self.assertEqual(len(root_trace["chain"]), 2)
+            self.assertEqual(root_trace["start"], 0)
+            self.assertEqual(root_trace["stop"], 8)
+
+    def test_reversing_out_of_order_stack_strings_and_x64_emulation(self) -> None:
+        from ctf_toolkit.reversing.permutations_and_asm import emulate_x86_snippet
+        from ctf_toolkit.reversing.stack_strings import extract_mov_stack_strings
+
+        # Out-of-order stack assignments: [rbp-0x18] = "4321", [rbp-0x20] = "FLAG", [rbp-0x1c] = "{ok_"
+        disasm = """
+        mov DWORD PTR [rbp-0x18], 0x7d313233
+        mov DWORD PTR [rbp-0x20], 0x47414c46
+        mov DWORD PTR [rbp-0x1c], 0x5f6b6f7b
+        """
+        reconstructed = extract_mov_stack_strings(disasm)
+        self.assertEqual(reconstructed[0], "FLAG{ok_321}")
+
+        regs = emulate_x86_snippet(
+            "mov rax, 0x12345678\nrol rax, 8\nxor rax, 0xff\nbswap eax",
+            initial_regs={"rax": 0},
+        )
+        self.assertEqual(regs["rax"], 0x12345678 << 8 ^ 0xFF)
+
+    def test_syslog_and_csv_timeline_profiles(self) -> None:
+        from ctf_toolkit.cases.timeline import index_timeline, timeline
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Workspace.create(Path(tmp) / "tl")
+            syslog_data = (
+                b"2026-11-21T04:10:00Z bastion sshd[123]: Accepted publickey for root\n"
+                b"Nov 21 04:11:00 bastion sudo: pam_unix(sudo:session): session opened\n"
+            )
+            csv_data = (
+                b"datetime,message,timestamp_desc\n"
+                b"2026-11-21T04:12:00Z,Door badge swipe,physical access\n"
+            )
+            sys_art = ws.add("auth.log", syslog_data)
+            csv_art = ws.add("badge.csv", csv_data)
+            res_sys = index_timeline(ws, sys_art["id"], "syslog", "+00:00")
+            res_csv = index_timeline(ws, csv_art["id"], "csv")
+            self.assertEqual(res_sys["count"], 2)
+            self.assertEqual(res_csv["count"], 1)
+            events = timeline(ws)
+            self.assertEqual(len(events), 3)
+
+    def test_lcg_unknown_params_and_aes_gcm_ghash_and_defensive_catalog(self) -> None:
+        from ctf_toolkit.crypto.block_attacks import (
+            gcm_forge_tag_with_h,
+            gcm_ghash_compute,
+            gcm_nonce_reuse_verify_h,
+        )
+        from ctf_toolkit.crypto.prng import crack_lcg_unknown_params, lcg_generate, lcg_prev
+        from ctf_toolkit.ui.palette import build_tool_catalog
+
+        a, c, m = 1103515245, 12345, 2147483647
+        seq = lcg_generate(424242, a, c, m, 8)
+        rec_a, rec_c, rec_m = crack_lcg_unknown_params(seq)
+        self.assertEqual((rec_a, rec_c, rec_m), (a, c, m))
+        self.assertEqual(lcg_prev(seq[1], a, c, m), seq[0])
+
+        h_subkey = b"0123456789abcdef"
+        enc_j0 = b"fedcba9876543210"
+        aad1, ct1 = b"header1", b"ciphertext_one_!"
+        aad2, ct2 = b"header2", b"ciphertext_two_!"
+        g1 = gcm_ghash_compute(h_subkey, aad1, ct1)
+        g2 = gcm_ghash_compute(h_subkey, aad2, ct2)
+        tag1 = bytes(x ^ y for x, y in zip(g1, enc_j0))
+        tag2 = bytes(x ^ y for x, y in zip(g2, enc_j0))
+        self.assertTrue(gcm_nonce_reuse_verify_h(h_subkey, aad1, ct1, tag1, aad2, ct2, tag2))
+        forged_tag2 = gcm_forge_tag_with_h(h_subkey, aad1, ct1, tag1, aad2, ct2)
+        self.assertEqual(forged_tag2, tag2)
+
+        catalog = build_tool_catalog(force_refresh=True)
+        categories = {item["category"].split(".")[0] for item in catalog}
+        self.assertIn("defensive", categories)
+
 
 if __name__ == "__main__":
     unittest.main()

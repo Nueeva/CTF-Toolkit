@@ -7,6 +7,11 @@ def lcg_next(x: int, a: int, c: int, m: int) -> int:
     return (a * x + c) % m
 
 
+def lcg_prev(x: int, a: int, c: int, m: int) -> int:
+    """Step an LCG state backwards by one iteration: `a^-1 * (x - c) mod m`."""
+    return (modinv(a, m) * (x - c)) % m
+
+
 def lcg_generate(seed: int, a: int, c: int, m: int, count: int) -> list[int]:
     values: list[int] = []
     x = seed
@@ -28,6 +33,46 @@ def recover_lcg_params_known_mod(outputs: list[int], m: int) -> tuple[int, int]:
     a = ((x2 - x1) * modinv(denom, m)) % m
     c = (x1 - a * x0) % m
     return a, c
+
+
+def crack_lcg_unknown_params(outputs: list[int]) -> tuple[int, int, int]:
+    """Recover unknown LCG parameters `(a, c, m)` from at least 6 consecutive outputs.
+
+    Uses the determinant identity `t_{n+1} * t_{n-1} - t_n^2 == 0 (mod m)`
+    where `t_n = x_{n+1} - x_n`.
+    """
+    import math
+    from functools import reduce
+
+    if len(outputs) < 6:
+        raise ValueError("at least 6 consecutive outputs are required to recover unknown LCG modulus m")
+
+    diffs = [s1 - s0 for s0, s1 in zip(outputs, outputs[1:])]
+    zeroes = [
+        t2 * t0 - t1 * t1
+        for t0, t1, t2 in zip(diffs, diffs[1:], diffs[2:])
+    ]
+    non_zero = [abs(z) for z in zeroes if z != 0]
+    if not non_zero:
+        raise ValueError("degenerate LCG sequence (all determinant differences are zero)")
+
+    m = reduce(math.gcd, non_zero)
+    max_out = max(outputs)
+    # Strip small extraneous factors dividing m if possible while keeping m > max(outputs)
+    for small_p in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31):
+        while m % small_p == 0 and (m // small_p) > max_out:
+            cand_m = m // small_p
+            try:
+                a_c, c_c = recover_lcg_params_known_mod(outputs, cand_m)
+                if all((a_c * x0 + c_c) % cand_m == x1 for x0, x1 in zip(outputs, outputs[1:])):
+                    m = cand_m
+                    break
+            except Exception:
+                pass
+            break
+
+    a, c = recover_lcg_params_known_mod(outputs, m)
+    return a, c, m
 
 
 class GlibcRandom:

@@ -80,19 +80,36 @@ async fn get_flags() -> Json<Value> {
 }
 
 async fn post_flags(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        "import json; from ctf_toolkit.utils.flag_manager import get_flag_manager; mgr = get_flag_manager(); p = json.loads({:?}); act = p.get('action','add');\nif act == 'add':\n mgr.add_template(p.get('name',''), p.get('pattern',''), int(p.get('priority',50)))\n print(json.dumps({{'success': True, 'templates': mgr.templates}}))\nelif act == 'remove':\n mgr.remove_template(p.get('name',''))\n print(json.dumps({{'success': True, 'templates': mgr.templates}}))\nelse:\n mgr.reset_to_defaults()\n print(json.dumps({{'success': True, 'templates': mgr.templates}}))",
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+    let script = r#"
+import json, os
+from ctf_toolkit.utils.flag_manager import get_flag_manager
+mgr = get_flag_manager()
+p = json.loads(os.environ["CTF_PAYLOAD"])
+act = p.get("action", "add")
+if act == "add":
+    mgr.add_template(p.get("name", ""), p.get("pattern", ""), int(p.get("priority", 50)))
+    print(json.dumps({"success": True, "templates": mgr.templates}))
+elif act == "remove":
+    mgr.remove_template(p.get("name", ""))
+    print(json.dumps({"success": True, "templates": mgr.templates}))
+else:
+    mgr.reset_to_defaults()
+    print(json.dumps({"success": True, "templates": mgr.templates}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn verify_flag(Json(payload): Json<FlagVerifyRequest>) -> Json<Value> {
-    let script = format!(
-        "import json; from ctf_toolkit.utils.flag_manager import get_flag_manager; mgr = get_flag_manager(); cand = {:?}; hits = mgr.extract_flags(cand); first = mgr.find_first_flag(cand); print(json.dumps({{'success': True, 'accepted': bool(first), 'match': first, 'all_matches': hits}}))",
-        payload.candidate
-    );
-    run_python_helper(&script).await
+    let script = r#"
+import json, os
+from ctf_toolkit.utils.flag_manager import get_flag_manager
+mgr = get_flag_manager()
+cand = os.environ["CTF_PAYLOAD"]
+hits = mgr.extract_flags(cand)
+first = mgr.find_first_flag(cand)
+print(json.dumps({"success": True, "accepted": bool(first), "match": first, "all_matches": hits}))
+"#;
+    run_python_with_payload(script, Some(payload.candidate)).await
 }
 
 async fn get_tools() -> Json<Value> {
@@ -149,19 +166,19 @@ async fn get_patterns() -> Json<Value> {
 }
 
 async fn handle_hub_solve(Json(payload): Json<HubSolveRequest>) -> Json<Value> {
-    let script = format!(
-        "import json; from ctf_toolkit.crypto.omni_solver import auto_solve_hub; text = {:?}; print(json.dumps(auto_solve_hub(text)))",
-        payload.text
-    );
-    run_python_helper(&script).await
+    let script = r#"
+import json, os
+from ctf_toolkit.crypto.omni_solver import auto_solve_hub
+print(json.dumps(auto_solve_hub(os.environ["CTF_PAYLOAD"])))
+"#;
+    run_python_with_payload(script, Some(payload.text)).await
 }
 
 async fn handle_hub_rsa(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json
+    let script = r#"
+import json, os
 from ctf_toolkit.crypto.omni_solver import solve_rsa_intent
-p = json.loads({:?})
+p = json.loads(os.environ["CTF_PAYLOAD"])
 def _to_int(k):
     v = p.get(k)
     return int(str(v).strip(), 0) if v is not None and str(v).strip() else None
@@ -174,18 +191,15 @@ res = solve_rsa_intent(
     primes=primes_list
 )
 print(json.dumps(res))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn handle_hub_classical(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json
+    let script = r#"
+import json, os
 from ctf_toolkit.crypto.omni_solver import solve_classical_intent
-p = json.loads({:?})
+p = json.loads(os.environ["CTF_PAYLOAD"])
 res = solve_classical_intent(
     text=p.get("text", ""),
     operation=p.get("operation", "caesar"),
@@ -197,31 +211,25 @@ res = solve_classical_intent(
     is_hex=bool(p.get("is_hex", False)),
 )
 print(json.dumps(res))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn handle_hub_jwt(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json
+    let script = r#"
+import json, os
 from ctf_toolkit.crypto.omni_solver import solve_jwt_intent
-p = json.loads({:?})
+p = json.loads(os.environ["CTF_PAYLOAD"])
 res = solve_jwt_intent(token=p.get("token", ""), extra_secret=p.get("extra_secret", ""))
 print(json.dumps(res))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn handle_hub_eccdh(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json
-p = json.loads({:?})
+    let script = r#"
+import json, os
+p = json.loads(os.environ["CTF_PAYLOAD"])
 mode = p.get("type", "dh")
 def _to_int(k):
     v = p.get(k)
@@ -232,10 +240,10 @@ if mode == "dh":
     p_v = _to_int("p")
     g_v = _to_int("g")
     if p_v is None or g_v is None:
-        print(json.dumps({{"success": False, "error": "Parameters p and g required."}}))
+        print(json.dumps({"success": False, "error": "Parameters p and g required."}))
     else:
         res = diffie_hellman_compute(p=p_v, g=g_v, A=_to_int("A"), B=_to_int("B"), a=_to_int("a"), b=_to_int("b"))
-        print(json.dumps({{"success": True, "result": res}}))
+        print(json.dumps({"success": True, "result": res}))
 elif mode == "ecc":
     from ctf_toolkit.crypto.dh_ecc_tool import ecc_point_operation
     res = ecc_point_operation(
@@ -244,35 +252,32 @@ elif mode == "ecc":
         Px=_to_int("Px") or 0, Py=_to_int("Py") or 0, k=_to_int("k"),
         Qx=_to_int("Qx"), Qy=_to_int("Qy")
     )
-    print(json.dumps({{"success": True, "result": res}}))
+    print(json.dumps({"success": True, "result": res}))
 else:
-    print(json.dumps({{"success": False, "error": f"Unknown mode {{mode}}"}}))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+    print(json.dumps({"success": False, "error": f"Unknown mode {mode}"}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn handle_call(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json, inspect
+    let script = r#"
+import json, inspect, os
 from ctf_toolkit.ui.palette import build_tool_catalog
 from ctf_toolkit.ui.web_server import _coerce_param
 
-p = json.loads({:?})
+p = json.loads(os.environ["CTF_PAYLOAD"])
 func_name = p.get("function", "").strip()
-kwargs_dict = p.get("kwargs", {{}})
+kwargs_dict = p.get("kwargs", {})
 catalog = build_tool_catalog()
 tool = next((t for t in catalog if t["name"] == func_name), None)
 if not tool:
-    print(json.dumps({{"success": False, "error": f"Function '{{func_name}}' not found."}}))
+    print(json.dumps({"success": False, "error": f"Function '{func_name}' not found."}))
 else:
     try:
         fn = tool["func"]
         sig = inspect.signature(fn)
         params = [p for p in sig.parameters.values() if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)]
-        call_kwargs = {{}}
+        call_kwargs = {}
         for param in params:
             if param.name in kwargs_dict:
                 call_kwargs[param.name] = _coerce_param(kwargs_dict[param.name], param)
@@ -280,27 +285,24 @@ else:
                 call_kwargs[param.name] = param.default
         res = fn(**call_kwargs)
         if isinstance(res, bytes):
-            res_val = {{"hex": res.hex(), "utf8": res.decode("utf-8", errors="replace")}}
+            res_val = {"hex": res.hex(), "utf8": res.decode("utf-8", errors="replace")}
         else:
             res_val = res
-        print(json.dumps({{"success": True, "function": func_name, "result": res_val}}))
+        print(json.dumps({"success": True, "function": func_name, "result": res_val}))
     except Exception as e:
-        print(json.dumps({{"success": False, "error": str(e)}}))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+        print(json.dumps({"success": False, "error": str(e)}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn handle_writeup(Json(payload): Json<Value>) -> Json<Value> {
-    let script = format!(
-        r#"
-import json
+    let script = r#"
+import json, os, tempfile
 from pathlib import Path
 from ctf_toolkit.utils.writeup_generator import DynamicWriteupGenerator
 
-p = json.loads({:?})
-out_folder = Path("/tmp/ctf_writeups")
+p = json.loads(os.environ["CTF_PAYLOAD"])
+out_folder = Path(tempfile.gettempdir()) / "ctf_writeups"
 out_folder.mkdir(parents=True, exist_ok=True)
 wf, sf = DynamicWriteupGenerator.generate_writeup_and_solver(
     challenge_name=p.get("name", "Challenge"),
@@ -310,28 +312,31 @@ wf, sf = DynamicWriteupGenerator.generate_writeup_and_solver(
     output_dir=out_folder,
     points=int(p.get("points", 100))
 )
-print(json.dumps({{
+print(json.dumps({
     "success": True,
     "writeup_path": str(wf),
     "solver_path": str(sf),
     "writeup_md": wf.read_text(encoding="utf-8"),
     "solver_py": sf.read_text(encoding="utf-8"),
-}}))
-"#,
-        payload.to_string()
-    );
-    run_python_helper(&script).await
+}))
+"#;
+    run_python_with_payload(script, Some(payload.to_string())).await
 }
 
 async fn run_python_helper(py_code: &str) -> Json<Value> {
+    run_python_with_payload(py_code, None).await
+}
+
+async fn run_python_with_payload(py_code: &str, payload: Option<String>) -> Json<Value> {
     let output = tokio::task::spawn_blocking({
         let code = py_code.to_string();
         move || {
-            Command::new("/opt/ctf-toolkit/venv/bin/python")
-                .arg("-c")
-                .arg(code)
-                .current_dir("/opt/ctf-toolkit")
-                .output()
+            let mut cmd = Command::new("/opt/ctf-toolkit/venv/bin/python");
+            cmd.arg("-c").arg(code).current_dir("/opt/ctf-toolkit");
+            if let Some(p) = payload {
+                cmd.env("CTF_PAYLOAD", p);
+            }
+            cmd.output()
         }
     })
     .await;

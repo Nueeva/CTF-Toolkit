@@ -75,7 +75,7 @@ def render_header(module_name: str = "Main Hub") -> None:
         print("=" * 68)
         print(f"APEX CTF WORKBENCH | {module_name} | Case: {session.active_case} | Vault: {flag_count} Flags")
         print(f"Buffer $last: {last_str}")
-        print("Hotkeys: [/] Search 106+ Tools | [:m] Magic | [:s] Studio | [:f] Flags | [0] Back")
+        print("Hotkeys: [/] Search 560+ Tools | [:m] Magic | [:s] Studio | [:f] Flags | [0] Back")
         print("=" * 68)
 
 

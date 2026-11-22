@@ -61,15 +61,22 @@ def emulate_x86_snippet(
 ) -> dict[str, int]:
     """
     Lightweight emulator for straight-line x86/x64 assembly snippets
-    (mov, add, sub, xor, rol, ror, inc, dec, shl, shr).
+    (mov, add, sub, xor, and, or, rol, ror, inc, dec, shl, shr, not, neg, imul, bswap).
     Supports either machine bytecode (bytes) or mnemonic assembly text (str).
     """
-    regs = {"eax": 0, "ebx": 0, "ecx": 0, "edx": 0, "esi": 0, "edi": 0, "ebp": 0, "esp": 0}
+    regs = {
+        "eax": 0, "ebx": 0, "ecx": 0, "edx": 0, "esi": 0, "edi": 0, "ebp": 0, "esp": 0,
+        "rax": 0, "rbx": 0, "rcx": 0, "rdx": 0, "rsi": 0, "rdi": 0, "rbp": 0, "rsp": 0,
+        "r8": 0, "r9": 0, "r10": 0, "r11": 0, "r12": 0, "r13": 0, "r14": 0, "r15": 0,
+    }
     if initial_regs:
         for k, v in initial_regs.items():
-            regs[k.lower()] = v & 0xFFFFFFFF
+            kl = k.lower()
+            mask_k = 0xFFFFFFFFFFFFFFFF if kl.startswith("r") else 0xFFFFFFFF
+            regs[kl] = v & mask_k
 
-    MASK = 0xFFFFFFFF
+    MASK32 = 0xFFFFFFFF
+    MASK64 = 0xFFFFFFFFFFFFFFFF
 
     # Text disassembly parsing mode
     if isinstance(code, str):
@@ -86,11 +93,22 @@ def emulate_x86_snippet(
             op = parts[0].lower()
             if op == "nop":
                 continue
-            if op in ("inc", "dec") and len(parts) >= 2:
+            if op in ("inc", "dec", "not", "neg", "bswap") and len(parts) >= 2:
                 r = parts[1].lower()
                 if r in regs:
-                    diff = 1 if op == "inc" else -1
-                    regs[r] = (regs[r] + diff) & MASK
+                    width = 64 if r.startswith("r") else 32
+                    rmask = MASK64 if width == 64 else MASK32
+                    if op == "inc":
+                        regs[r] = (regs[r] + 1) & rmask
+                    elif op == "dec":
+                        regs[r] = (regs[r] - 1) & rmask
+                    elif op == "not":
+                        regs[r] = (~regs[r]) & rmask
+                    elif op == "neg":
+                        regs[r] = (-regs[r]) & rmask
+                    elif op == "bswap":
+                        b_len = width // 8
+                        regs[r] = int.from_bytes(regs[r].to_bytes(b_len, "little"), "big")
                 continue
             if len(parts) >= 3:
                 r = parts[1].lower()
@@ -98,19 +116,43 @@ def emulate_x86_snippet(
                 val = regs[val_str] if val_str in regs else int(val_str, 0) if (val_str.startswith("0x") or val_str.lstrip("-").isdigit()) else 0
                 if r not in regs:
                     continue
-                if op == "mov":
-                    regs[r] = val & MASK
+                width = 64 if r.startswith("r") else 32
+                rmask = MASK64 if width == 64 else MASK32
+                if op in ("mov", "movabs"):
+                    regs[r] = val & rmask
                 elif op == "add":
-                    regs[r] = (regs[r] + val) & MASK
+                    regs[r] = (regs[r] + val) & rmask
                 elif op == "sub":
-                    regs[r] = (regs[r] - val) & MASK
+                    regs[r] = (regs[r] - val) & rmask
                 elif op == "xor":
-                    regs[r] = (regs[r] ^ val) & MASK
+                    regs[r] = (regs[r] ^ val) & rmask
+                elif op == "and":
+                    regs[r] = (regs[r] & val) & rmask
+                elif op == "or":
+                    regs[r] = (regs[r] | val) & rmask
+                elif op == "imul":
+                    src_val = regs[val_str] if val_str in regs else val
+                    if len(parts) >= 4:
+                        imm_str = parts[3].lower()
+                        imm_v = int(imm_str, 0) if (imm_str.startswith("0x") or imm_str.lstrip("-").isdigit()) else 0
+                        regs[r] = (src_val * imm_v) & rmask
+                    else:
+                        regs[r] = (regs[r] * src_val) & rmask
                 elif op == "shl":
-                    regs[r] = (regs[r] << (val & 31)) & MASK
+                    regs[r] = (regs[r] << (val & (width - 1))) & rmask
                 elif op == "shr":
-                    regs[r] = (regs[r] >> (val & 31)) & MASK
+                    regs[r] = (regs[r] >> (val & (width - 1))) & rmask
+                elif op == "rol":
+                    s = val % width
+                    v = regs[r] & rmask
+                    regs[r] = ((v << s) | (v >> (width - s))) & rmask if s else v
+                elif op == "ror":
+                    s = val % width
+                    v = regs[r] & rmask
+                    regs[r] = ((v >> s) | (v << (width - s))) & rmask if s else v
         return regs
+
+    MASK = MASK32
 
     # Binary machine code emulation mode
     bytecode = bytes(code)

@@ -128,7 +128,7 @@ _PROVENANCE_CODECS = {
 }
 
 
-def source_region(workspace: Workspace, artifact_id: str, start: int, stop: int) -> dict:
+def _single_hop_source(workspace: Workspace, artifact_id: str, start: int, stop: int) -> dict:
     artifact = workspace.artifact(artifact_id)
     if start < 0 or start >= stop or stop > artifact["size"]:
         raise ValueError("Selection is outside the artifact")
@@ -144,6 +144,23 @@ def source_region(workspace: Workspace, artifact_id: str, start: int, stop: int)
         base = location["start"]
         return {"artifact_id": parent_id, "kind": "bytes", "start": base + start, "stop": base + stop}
     return {"artifact_id": parent_id, **location}
+
+
+def source_region(workspace: Workspace, artifact_id: str, start: int, stop: int, *, to_root: bool = False) -> dict:
+    step = _single_hop_source(workspace, artifact_id, start, stop)
+    if not to_root:
+        return step
+    chain = [step]
+    curr_id = step["artifact_id"]
+    while step.get("kind") == "bytes":
+        artifact = workspace.artifact(curr_id)
+        if not artifact["parent_id"]:
+            break
+        nxt = _single_hop_source(workspace, curr_id, step["start"], step["stop"])
+        chain.append(nxt)
+        step = nxt
+        curr_id = step["artifact_id"]
+    return {**step, "chain": chain}
 
 
 def compare(workspace: Workspace, first: str, second: str, offset_a: int = 0, offset_b: int = 0) -> dict:

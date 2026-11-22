@@ -56,9 +56,10 @@ def configure(subparsers) -> None:
     source.add_argument("id")
     source.add_argument("--start", type=int, required=True)
     source.add_argument("--stop", type=int, required=True)
+    source.add_argument("--root", action="store_true", help="Trace provenance recursively to the root artifact")
     chronology = commands.add_parser("timeline")
     chronology.add_argument("id", nargs="?")
-    chronology.add_argument("--profile", choices=["pcap", "access", "jsonl"])
+    chronology.add_argument("--profile", choices=["pcap", "access", "jsonl", "syslog", "csv"])
     chronology.add_argument("--timezone", help="Offset for a timestamp without one, for example +07:00")
     chronology.add_argument("--start", type=int, help="First UTC epoch second")
     chronology.add_argument("--stop", type=int, help="Last UTC epoch second")
@@ -171,7 +172,7 @@ def _case(args: argparse.Namespace) -> object:
     if action == "compare":
         return operations.compare(workspace, args.first, args.second, args.offset_a, args.offset_b)
     if action == "source":
-        return operations.source_region(workspace, args.id, args.start, args.stop)
+        return operations.source_region(workspace, args.id, args.start, args.stop, to_root=getattr(args, "root", False))
     if action == "timeline":
         if args.profile:
             if not args.id:

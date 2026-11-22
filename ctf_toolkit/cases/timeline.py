@@ -93,6 +93,14 @@ def _pcap(data: bytes) -> tuple[list[dict], list[str]]:
     return events, issues
 
 
+_SYSLOG_3164 = re.compile(
+    r"^(?P<month>[A-Za-z]{3})\s+(?P<day>\d{1,2})\s+(?P<clock>\d\d:\d\d:\d\d)\s+(?P<host>\S+)\s+(?P<rest>.+)$"
+)
+_SYSLOG_5424 = re.compile(
+    r"^(?:<\d+>1\s+)?(?P<iso>\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:?\d\d)?)\s+(?P<host>\S+)\s+(?P<rest>.+)$"
+)
+
+
 def _log_event(text: str, profile: str, assumed_zone: str | None) -> dict:
     if profile == "jsonl":
         row = json.loads(text)
@@ -105,6 +113,39 @@ def _log_event(text: str, profile: str, assumed_zone: str | None) -> dict:
         if not message.strip() or not description.strip():
             raise ValueError("Event message and timestamp description are required")
         return dict(_timestamp(time, assumed_zone), message=message, timestamp_desc=description)
+    if profile == "syslog":
+        stripped = text.strip()
+        m5424 = _SYSLOG_5424.match(stripped)
+        if m5424:
+            iso_t = m5424.group("iso")
+            msg = f"{m5424.group('host')} {m5424.group('rest').strip()}"
+            return dict(_timestamp(iso_t, assumed_zone), message=msg, timestamp_desc="syslog event")
+        m3164 = _SYSLOG_3164.match(stripped)
+        if not m3164:
+            raise ValueError("Expected RFC 3164 or RFC 5424 syslog line")
+        month_num = _MONTHS.get(m3164.group("month").lower())
+        if month_num is None:
+            raise ValueError("Invalid syslog month")
+        day_num = int(m3164.group("day"))
+        clock = m3164.group("clock")
+        year = datetime.now(timezone.utc).year
+        iso_str = f"{year:04d}-{month_num:02d}-{day_num:02d}T{clock}"
+        msg = f"{m3164.group('host')} {m3164.group('rest').strip()}"
+        orig = f"{m3164.group('month')} {day_num:2d} {clock}"
+        return dict(_timestamp(iso_str, assumed_zone), message=msg, timestamp_desc="syslog event", original_time=orig)
+    if profile == "csv":
+        import csv as _csv
+        cols = next(_csv.reader([text.strip()]), [])
+        if len(cols) < 2:
+            raise ValueError("CSV line requires at least timestamp and message columns")
+        if cols[0].strip().lower() in ("datetime", "timestamp", "time", "date"):
+            raise ValueError("CSV header line")
+        time_str = cols[0].strip()
+        msg_str = cols[1].strip()
+        desc_str = cols[2].strip() if len(cols) >= 3 and cols[2].strip() else "CSV record"
+        if not msg_str:
+            raise ValueError("CSV message column is empty")
+        return dict(_timestamp(time_str, assumed_zone), message=msg_str, timestamp_desc=desc_str)
     row = parse_access_log_line(text)
     match = _LOG_TIME.fullmatch(row["time"]) if row else None
     if not match:
@@ -124,8 +165,8 @@ def _log_event(text: str, profile: str, assumed_zone: str | None) -> dict:
 def collect_events(data: bytes, profile: str, assumed_zone: str | None = None) -> tuple[list[dict], list[str]]:
     if profile == "pcap":
         return _pcap(data)
-    if profile not in {"access", "jsonl"}:
-        raise ValueError("Choose the pcap, access, or jsonl timeline profile")
+    if profile not in {"access", "jsonl", "syslog", "csv"}:
+        raise ValueError("Choose the pcap, access, jsonl, syslog, or csv timeline profile")
     if assumed_zone is not None:
         _zone(assumed_zone)
     events = []
@@ -139,7 +180,13 @@ def collect_events(data: bytes, profile: str, assumed_zone: str | None = None) -
         try:
             if len(raw) > 64 * 1024:
                 raise ValueError("Log line exceeds 64 KiB")
-            event = _log_event(raw.decode("utf-8"), profile, assumed_zone)
+            decoded_line = raw.decode("utf-8")
+            if profile == "csv" and number == 1:
+                import csv as _csv
+                first_cols = next(_csv.reader([decoded_line.strip()]), [])
+                if first_cols and first_cols[0].strip().lower() in ("datetime", "timestamp", "time", "date"):
+                    continue
+            event = _log_event(decoded_line, profile, assumed_zone)
         except (ValueError, OverflowError, RecursionError):
             invalid += 1
             continue
